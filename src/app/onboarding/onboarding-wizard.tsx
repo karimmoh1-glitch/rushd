@@ -196,7 +196,11 @@ export function OnboardingWizard() {
               <Label htmlFor="timezone">Timezone</Label>
               <Select value={timezone} onValueChange={(v) => setTimezone(v ?? "")}>
                 <SelectTrigger id="timezone">
-                  <SelectValue placeholder="Select timezone" />
+                  <SelectValue placeholder="Select timezone">
+                    {(value: string | null) =>
+                      value ? value.replace(/_/g, " ") : "Select timezone"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {timezoneOptions.map((tz) => (
