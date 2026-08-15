@@ -78,6 +78,12 @@ export default async function DashboardPage() {
 
   const plannedMinutesToday = todaySessions.reduce((sum, s) => sum + s.scheduledMinutes, 0);
 
+  const scoredById = new Map(plan.scored.map((s) => [s.item.id, s]));
+  const reasonsFor = (itemId: string) => {
+    const scored = scoredById.get(itemId);
+    return scored ? explainScore(scored, now) : [];
+  };
+
   const workloadDays = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     const key = dateKey(date);
@@ -143,6 +149,7 @@ export default async function DashboardPage() {
                 classColor={s.item.classColor}
                 scheduledMinutes={s.scheduledMinutes}
                 reasonCode={s.reasonCode}
+                reasons={reasonsFor(s.item.id)}
               />
             ))}
           </div>
@@ -167,6 +174,7 @@ export default async function DashboardPage() {
                   classColor={s.item.classColor}
                   scheduledMinutes={s.item.remainingMinutes}
                   reasonCode={s.reasonCode}
+                  reasons={explainScore(s, now)}
                 />
               ))}
             </div>

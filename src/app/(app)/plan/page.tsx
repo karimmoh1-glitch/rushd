@@ -3,7 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
-import { dateKey } from "@/lib/planning";
+import { dateKey, explainScore } from "@/lib/planning";
 import { DEFAULT_HORIZON_DAYS } from "@/lib/planning/constants";
 import { formatDuration } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +26,8 @@ export default async function PlanPage() {
     }),
   ]);
 
+  const scoredById = new Map(plan.scored.map((s) => [s.item.id, s]));
+
   const days = Array.from({ length: DEFAULT_HORIZON_DAYS }, (_, i) => {
     const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     const key = dateKey(date);
@@ -33,13 +35,17 @@ export default async function PlanPage() {
 
     const sessions = plan.sessions
       .filter((s) => s.scheduledDate === key)
-      .map((s) => ({
-        title: s.item.title,
-        className: s.item.className,
-        classColor: s.item.classColor,
-        minutes: s.scheduledMinutes,
-        reasonCode: s.reasonCode,
-      }));
+      .map((s) => {
+        const scored = scoredById.get(s.item.id);
+        return {
+          title: s.item.title,
+          className: s.item.className,
+          classColor: s.item.classColor,
+          minutes: s.scheduledMinutes,
+          reasonCode: s.reasonCode,
+          reasons: scored ? explainScore(scored, now) : [],
+        };
+      });
 
     const availableMinutes = availability
       .filter((w) => w.dayOfWeek === dow)

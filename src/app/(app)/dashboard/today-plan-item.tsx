@@ -6,6 +6,11 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
 import { formatDuration } from "@/lib/format";
@@ -21,6 +26,7 @@ export function TodayPlanItem({
   classColor,
   scheduledMinutes,
   reasonCode,
+  reasons,
 }: {
   itemId: string;
   itemKind: "assignment" | "exam";
@@ -30,6 +36,7 @@ export function TodayPlanItem({
   classColor: string;
   scheduledMinutes: number;
   reasonCode: ReasonCode;
+  reasons: string[];
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -78,13 +85,33 @@ export function TodayPlanItem({
           {className} · {formatDuration(scheduledMinutes)}
         </p>
       </div>
-      <Badge
-        variant="outline"
-        className="hidden shrink-0 sm:inline-flex"
-        title={REASON_LABELS[reasonCode]}
-      >
-        {REASON_LABELS[reasonCode]}
-      </Badge>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              className="hidden shrink-0 sm:inline-flex"
+              aria-label={`Why: ${REASON_LABELS[reasonCode]}`}
+            >
+              <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                {REASON_LABELS[reasonCode]}
+              </Badge>
+            </button>
+          }
+        />
+        <PopoverContent className="w-64" align="end">
+          <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Why this?
+          </p>
+          <ul className="space-y-1">
+            {reasons.map((reason) => (
+              <li key={reason} className="text-sm">
+                {reason}
+              </li>
+            ))}
+          </ul>
+        </PopoverContent>
+      </Popover>
       <Button
         variant="ghost"
         size="icon"

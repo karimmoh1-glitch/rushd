@@ -1,7 +1,14 @@
+"use client";
+
 import { formatDuration } from "@/lib/format";
 import { REASON_LABELS } from "@/lib/planning/constants";
 import type { ReasonCode } from "@/lib/planning/types";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export interface DaySession {
   title: string;
@@ -9,6 +16,7 @@ export interface DaySession {
   classColor: string;
   minutes: number;
   reasonCode: ReasonCode;
+  reasons: string[];
 }
 
 export function DayColumn({
@@ -48,23 +56,41 @@ export function DayColumn({
       {sessions.length > 0 ? (
         <div className="space-y-1.5">
           {sessions.map((s, i) => (
-            <div
-              key={i}
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-              title={REASON_LABELS[s.reasonCode]}
-            >
-              <div className="flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: s.classColor }}
-                />
-                <span className="truncate font-medium">{s.title}</span>
-              </div>
-              <p className="mt-0.5 truncate text-muted-foreground">
-                {s.className} · {formatDuration(s.minutes)}
-              </p>
-            </div>
+            <Popover key={i}>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-left text-xs hover:bg-muted"
+                    aria-label={`${s.title}. Why: ${REASON_LABELS[s.reasonCode]}. Click for details.`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        aria-hidden="true"
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: s.classColor }}
+                      />
+                      <span className="truncate font-medium">{s.title}</span>
+                    </div>
+                    <p className="mt-0.5 truncate text-muted-foreground">
+                      {s.className} · {formatDuration(s.minutes)}
+                    </p>
+                  </button>
+                }
+              />
+              <PopoverContent className="w-60">
+                <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  Why this?
+                </p>
+                <ul className="space-y-1">
+                  {s.reasons.map((reason) => (
+                    <li key={reason} className="text-sm">
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
           ))}
         </div>
       ) : hasAvailability ? (
