@@ -8,6 +8,12 @@ Rushd (رُشد — guidance, sound judgment, being on the right path) is a free
 
 Students don't need another chatbot. They need one place that knows what's due, what's overdue, what's worth how much of their time, and what to do *right now* — and that updates itself as reality changes.
 
+Rushd is positioned as an adaptive academic intelligence system, not "an AI planner": it doesn't just list what's due, it figures out what it will actually take to get done, by connecting workload, available time, and how the plan is going as one system rather than four separate features.
+
+## Long-term vision
+
+UNDERSTAND → PLAN → EXECUTE → LEARN → ADAPT. Over time Rushd should understand not just what's due, but assignment difficulty, how a given student's estimates compare to their actual time spent, which concepts they're weak in, and how their workload is trending — then use that to build better plans and eventually teach, not just schedule. See `docs/ROADMAP.md` for the phased path there; most of this is explicitly future work, not implemented today, and this doc should never be read as a claim that it is.
+
 ## The one workflow the MVP is built around
 
 Sign up → build academic profile → add classes → add assignments/exams → set study availability → Rushd generates a prioritized plan → student works the plan → plan adapts as work is completed, missed, or added.

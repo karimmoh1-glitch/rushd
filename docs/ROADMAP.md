@@ -48,32 +48,75 @@ explained redistribution) is real Phase 2/3 scope but is deferred past this
 pass — it needs the weekly Plan screen to exist first as something to
 simulate changes against.
 
-## Phase 3 — Execution (not started)
+## Phase 3 — Execution & forecasting (partially done)
 
-Study sessions with timers, start/pause/complete/skip, "how long did this
-actually take" capture, actual-vs-estimated tracking, workload analytics
-and the forward-looking workload forecast ("11h estimated next week, 7h
-available").
+Shipped this pass — all deterministic extensions of the existing planning
+engine, no new AI dependency, so they work identically whether or not
+`ANTHROPIC_API_KEY` is configured:
+- **"One Thing"** — the single highest-scored item, surfaced as its own
+  signature moment on the dashboard, not just the top row of a list
+- **Real "Why?" explanations** (`src/lib/planning/explain.ts`) — plain-
+  language reasons generated from the actual `ScoredItem.breakdown`
+  (overdue, exam proximity, urgency, priority), not an AI-generated
+  rationalization. This is deliberately *not* an LLM call: the real reason
+  a deterministic scorer ranked something first is already known exactly,
+  so asking a model to explain it would be strictly less trustworthy than
+  just reading off the math.
+- **Academic Forecast + overload risk** — this week / next week / following
+  week workload buckets vs. available time, with a risk level and
+  suggested interventions when projected to run short
+
+Not started: study session timers (start/pause/complete/skip), capturing
+actual-vs-estimated time per session, and feeding that back into the
+scoring model's effort estimates. This is the prerequisite for real
+per-student personalization (Phase 5) — without actual-time data, there's
+nothing to personalize estimates *from*.
 
 ## Phase 4 — Rushd Intelligence (not started)
 
-Assignment deep-understanding ("what is this asking," "what might be
-difficult"), the Rushd Tutor (diagnose → explain → practice → evaluate, not
-a generic chatbot), concept mapping and mastery tracking. This is where
-`Concept`/`ConceptMastery`/`TutorSession` tables get added — not before,
-per "do not blindly create every table."
+The largest remaining phase, and deliberately not started this pass —
+each piece below needs real quality investment, not a first-draft version:
+
+- **Assignment deep-understanding**: "what is this asking," "what
+  concepts do I need," "what might be difficult," AI-generated subtask
+  decomposition for large assignments
+- **Rushd Tutor**: diagnose → explain → example → guided question →
+  practice → evaluate → reinforce, never "just give the answer." Confidence-
+  based follow-up (correct+low-confidence → reinforce; incorrect+high-
+  confidence → misconception, not just a wrong-answer marker).
+- **AI Assistant**: a single context-aware entry point (not a generic chat
+  page) that can answer "what should I study," "how long will this take,"
+  "I'm overwhelmed" — grounded in the student's actual workload/plan/
+  mastery data, with graceful acknowledge-then-help-shrink-the-problem
+  handling for overwhelm, and an explicit non-goal of being a therapist or
+  encouraging emotional dependency
+- **AP Exam Prep Hub**: per-course unit articles, flashcards (spaced
+  repetition), mini quizzes, exam countdown — all *original* content
+  aligned to publicly available AP course frameworks, never scraped or
+  reproduced College Board material. This alone is a multi-course content
+  project, not a schema change; building it shallowly for 15 AP courses
+  would produce worse content than building it well for one and expanding.
+- **Knowledge Graph** (the data model these all share):
+  `Course → Unit → Topic → Concept → Skill → Practice → Mastery`, plus
+  `TutorSession`/`TutorMessage` for conversation history. `Concept`/
+  `ConceptMastery`/`TutorSession` tables get added when this phase
+  actually starts — not before, per "do not blindly create every table."
 
 ## Phase 5 — Personalization (not started)
 
-Learning profile (strong/weak subjects, work patterns, planning behavior),
-personalized time estimates from real estimate-vs-actual history,
-personalized planning recommendations.
+Learning profile (strong/weak subjects, work patterns, planning behavior)
+built from Phase 3's actual-vs-estimated data, personalized time estimates,
+personalized planning recommendations, the "What Rushd learned about you"
+semester recap.
 
-## Phase 6 — Integrations (not started)
+## Phase 6 — Simulation & integrations (not started)
 
-Canvas API, Google Calendar, Outlook, additional import methods. Explicitly
-not a Phase 1/2 dependency — screenshot import exists precisely so the
-product works without any of these.
+What-if simulator ("what if I can't study Wednesday" → recalculated plan
+with an explained redistribution — needs the weekly Plan screen as
+something to simulate against, which now exists). Canvas API, Google
+Calendar, Outlook, additional import methods — explicitly not a dependency
+for anything before this; screenshot import exists precisely so the
+product works without any LMS integration.
 
 ## Phase 7 — Growth (not started)
 
