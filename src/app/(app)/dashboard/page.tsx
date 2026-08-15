@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
@@ -97,7 +99,13 @@ export default async function DashboardPage() {
             })}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/import">
+            <Button variant="outline">
+              <Upload className="h-4 w-4" />
+              Upload screenshot
+            </Button>
+          </Link>
           <AddAssignmentButton classes={classes} />
           <AddExamButton classes={classes} />
         </div>

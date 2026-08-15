@@ -6,16 +6,9 @@ import { requireUserOrThrow } from "@/lib/auth/dal";
 import { ExamSchema, type ExamInput } from "@/lib/validation/exams";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
+import { assertOwnsClass } from "@/server/actions/class-ownership";
 
 export type ActionResult = { error: string } | { success: true };
-
-async function assertOwnsClass(userId: string, classId: string) {
-  const cls = await db.class.findFirst({
-    where: { id: classId, userId },
-    select: { id: true },
-  });
-  return Boolean(cls);
-}
 
 export async function createExam(input: ExamInput): Promise<ActionResult> {
   const user = await requireUserOrThrow();

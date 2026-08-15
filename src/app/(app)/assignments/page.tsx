@@ -62,7 +62,16 @@ export default async function AssignmentsPage() {
         </div>
       ) : assignments.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-muted-foreground">No assignments yet.</p>
+          <p className="font-medium">Your workload starts here.</p>
+          <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
+            Upload your Canvas calendar and Rushd will organize it for you.
+          </p>
+          <Link
+            href="/import"
+            className="mt-4 inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Upload screenshot
+          </Link>
         </div>
       ) : (
         <div className="space-y-3">

@@ -9,16 +9,9 @@ import {
 } from "@/lib/validation/assignments";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
+import { assertOwnsClass } from "@/server/actions/class-ownership";
 
 export type ActionResult = { error: string } | { success: true };
-
-async function assertOwnsClass(userId: string, classId: string) {
-  const cls = await db.class.findFirst({
-    where: { id: classId, userId },
-    select: { id: true },
-  });
-  return Boolean(cls);
-}
 
 export async function createAssignment(
   input: AssignmentInput,
