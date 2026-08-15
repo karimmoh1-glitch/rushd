@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { logout } from "@/server/actions/auth";
+import { FeedbackDialog } from "@/components/feedback-dialog";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -79,6 +80,9 @@ export function AppShell({
           )}
         </nav>
         <div className="border-t border-border p-3">
+          <div className="px-3 py-1">
+            <FeedbackDialog />
+          </div>
           <div className="flex items-center justify-between px-3 py-2">
             <span className="truncate text-sm font-medium">{displayName}</span>
             <form action={logout}>
