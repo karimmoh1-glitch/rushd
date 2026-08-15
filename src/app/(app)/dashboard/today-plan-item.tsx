@@ -1,0 +1,72 @@
+"use client";
+
+import { useTransition } from "react";
+import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { setAssignmentStatus } from "@/server/actions/assignments";
+import { formatDuration } from "@/lib/format";
+import { REASON_LABELS } from "@/lib/planning/constants";
+import type { ReasonCode } from "@/lib/planning/types";
+
+export function TodayPlanItem({
+  assignmentId,
+  title,
+  className,
+  classColor,
+  scheduledMinutes,
+  reasonCode,
+}: {
+  assignmentId: string | null;
+  title: string;
+  className: string;
+  classColor: string;
+  scheduledMinutes: number;
+  reasonCode: ReasonCode;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  function complete() {
+    if (!assignmentId) return;
+    startTransition(async () => {
+      const result = await setAssignmentStatus(assignmentId, "COMPLETED");
+      if (result && "error" in result) toast.error(result.error);
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border px-4 py-3">
+      {assignmentId ? (
+        <Checkbox
+          onCheckedChange={(v) => v === true && complete()}
+          disabled={pending}
+          aria-label="Mark completed"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="h-4 w-4 shrink-0 rounded-full border-2"
+          style={{ borderColor: classColor }}
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium">{title}</p>
+        <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: classColor }}
+          />
+          {className} · {formatDuration(scheduledMinutes)}
+        </p>
+      </div>
+      <Badge
+        variant="outline"
+        className="hidden shrink-0 sm:inline-flex"
+        title={REASON_LABELS[reasonCode]}
+      >
+        {REASON_LABELS[reasonCode]}
+      </Badge>
+    </div>
+  );
+}
