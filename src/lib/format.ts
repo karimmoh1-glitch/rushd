@@ -37,3 +37,20 @@ export function formatDueDate(date: Date): string {
 export function isOverdue(date: Date): boolean {
   return date.getTime() < Date.now();
 }
+
+export function daysUntil(date: Date): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTarget = new Date(date);
+  startOfTarget.setHours(0, 0, 0, 0);
+  return Math.round((startOfTarget.getTime() - startOfToday.getTime()) / msPerDay);
+}
+
+export function formatDaysUntil(date: Date): string {
+  const days = daysUntil(date);
+  if (days < 0) return `${Math.abs(days)}d ago`;
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return `In ${days}d`;
+}
