@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteExam } from "@/server/actions/exams";
+import { StartSessionButton } from "@/components/start-session-button";
 import { ExamDialog, type ClassOption } from "./exam-dialog";
 import { formatDuration, formatDueDate, daysUntil, formatDaysUntil } from "@/lib/format";
 import type { ExamInput } from "@/lib/validation/exams";
@@ -73,6 +74,8 @@ export function ExamRow({
               {formatDuration(data.prepMinutes)}
             </p>
           </div>
+
+          <StartSessionButton target={{ examId: data.id }} source="MANUAL" />
 
           <DropdownMenu>
             <DropdownMenuTrigger

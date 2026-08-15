@@ -50,3 +50,9 @@ Explicitly out (see ROADMAP.md for when/whether):
 ## Success signal
 
 Not "does it look impressive." The bar: would a real high-school student open this daily instead of a spreadsheet + calendar, and would they recommend it to a friend? Analytics (plan_generated, plan_item_completed vs. plan_item_skipped, feedback) exist to answer that honestly.
+
+## Analytics events
+
+`signup`, `onboarding_completed`, `class_created`, `assignment_created`, `exam_created`, `plan_generated`, `plan_item_completed`, `plan_item_skipped`, `assignment_completed`, `feedback_submitted`, `assignment_imported`, `assignment_confirmed`, `study_session_started`, `study_session_completed`, `study_session_abandoned`.
+
+The last three are Rushd's first PREDICT → EXECUTE → MEASURE loop (see `docs/PLANNING_ENGINE.md`): `study_session_started` carries the engine's prediction (`plannedMinutes`, `reasonCode`, `source`) at the moment work began; `study_session_completed` carries the confirmed actual time; `study_session_abandoned` carries an optional structured reason. Together they're the first data Rushd has ever collected that can answer "was the plan right," not just "was the plan followed."

@@ -32,6 +32,7 @@ model User {
   exams        Exam[]
   plans        Plan[]
   planItems    PlanItem[]
+  studySessions StudySession[]
   notifications Notification[]
   feedback     Feedback[]
   events       Event[]
@@ -123,6 +124,7 @@ model Assignment {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   class     Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
   planItems PlanItem[]
+  studySessions StudySession[]
 
   @@index([userId, status, dueAt])
   @@index([classId])
@@ -143,6 +145,7 @@ model Exam {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   class     Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
   planItems PlanItem[]
+  studySessions StudySession[]
 
   @@index([userId, examAt])
   @@index([classId])
@@ -195,9 +198,77 @@ model PlanItem {
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   exam       Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studySessions StudySession[]
 
   @@index([planId])
   @@index([userId, scheduledDate])
+  @@index([assignmentId])
+  @@index([examId])
+}
+
+// ---------------------------------------------------------------------------
+// Study execution — observed reality, feeding back toward the planning engine
+// ---------------------------------------------------------------------------
+
+enum StudySessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum StudySessionSource {
+  PLANNED // started from a surface that showed Rushd's plan (One Thing, Today)
+  MANUAL  // started directly from the Assignments/Exams list
+}
+
+enum AbandonReason {
+  RAN_OUT_OF_TIME
+  HARDER_THAN_EXPECTED
+  GOT_DISTRACTED
+  NEED_HELP
+  SOMETHING_CAME_UP
+  OTHER
+}
+
+// A raw observation of one real study attempt: what the deterministic engine
+// predicted right before the session started, and what actually happened.
+// This is Rushd's first PREDICT -> EXECUTE -> MEASURE feedback loop — see
+// docs/PLANNING_ENGINE.md "Future estimation architecture." Deliberately
+// denormalized (className/classColor/predictedScore/reasonCode captured as
+// plain values, not joined live from Assignment/Class at read time) — a
+// session is a historical record of what was true *then*; it shouldn't
+// silently shift if the assignment or class is edited afterward. Exactly one
+// of assignmentId/examId is set — enforced in application code, the same
+// documented tradeoff as PlanItem above.
+model StudySession {
+  id             String             @id @default(cuid())
+  userId         String
+  assignmentId   String?
+  examId         String?
+  planItemId     String? // rarely populated in V1 — see docs/PLANNING_ENGINE.md
+
+  source         StudySessionSource
+  title          String
+  plannedMinutes Int
+  predictedScore Float
+  reasonCode     String
+  className      String
+  classColor     String
+
+  startedAt     DateTime           @default(now())
+  endedAt       DateTime?
+  actualMinutes Int?
+  status        StudySessionStatus @default(IN_PROGRESS)
+  abandonReason AbandonReason?
+
+  createdAt DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  exam       Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  planItem   PlanItem?   @relation(fields: [planItemId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
   @@index([assignmentId])
   @@index([examId])
 }

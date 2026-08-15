@@ -17,6 +17,7 @@ import {
   setAssignmentStatus,
   deleteAssignment,
 } from "@/server/actions/assignments";
+import { StartSessionButton } from "@/components/start-session-button";
 import { AssignmentDialog, type ClassOption } from "./assignment-dialog";
 import { formatDuration, formatDueDate, isOverdue } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -101,6 +102,10 @@ export function AssignmentRow({
               {formatDuration(data.estimatedMinutes)}
             </p>
           </div>
+
+          {!completed && (
+            <StartSessionButton target={{ assignmentId: data.id }} source="MANUAL" />
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger

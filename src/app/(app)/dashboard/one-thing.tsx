@@ -6,6 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
+import { StartSessionButton } from "@/components/start-session-button";
 import { formatDuration } from "@/lib/format";
 
 export function OneThing({
@@ -69,16 +70,19 @@ export function OneThing({
           </ul>
         </div>
 
-        {assignmentId ? (
-          <Button onClick={complete} disabled={pending} size="lg" className="shrink-0">
-            <CheckCircle2 className="h-4 w-4" />
-            {pending ? "Marking done…" : "Mark complete"}
-          </Button>
-        ) : (
-          <span className="shrink-0 text-sm font-medium text-muted-foreground">
-            Study session
-          </span>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          <StartSessionButton
+            target={assignmentId ? { assignmentId } : { examId: itemId }}
+            source="PLANNED"
+            size="lg"
+          />
+          {assignmentId && (
+            <Button onClick={complete} disabled={pending} size="lg" variant="outline">
+              <CheckCircle2 className="h-4 w-4" />
+              {pending ? "Marking done…" : "Mark complete"}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

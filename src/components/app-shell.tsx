@@ -15,6 +15,9 @@ import {
 import { logout } from "@/server/actions/auth";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ActiveSessionProvider } from "@/components/active-session-context";
+import { ActiveSessionBar } from "@/components/active-session-bar";
+import type { ActiveSessionData } from "@/server/actions/study-sessions";
 import { cn } from "@/lib/utils";
 
 // Ordered around the student's mental model: what's happening right now
@@ -39,15 +42,18 @@ const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== "/classes");
 export function AppShell({
   displayName,
   isAdmin,
+  activeSession,
   children,
 }: {
   displayName: string;
   isAdmin: boolean;
+  activeSession: ActiveSessionData | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
 
   return (
+    <ActiveSessionProvider initialSession={activeSession}>
     <div className="min-h-screen bg-background">
       <a
         href="#main-content"
@@ -140,6 +146,7 @@ export function AppShell({
 
       <main id="main-content" className="pb-20 md:ml-56 md:pb-0">
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+          <ActiveSessionBar />
           {children}
         </div>
       </main>
@@ -167,5 +174,6 @@ export function AppShell({
         })}
       </nav>
     </div>
+    </ActiveSessionProvider>
   );
 }

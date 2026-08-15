@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
+import { StartSessionButton } from "@/components/start-session-button";
 import { formatDuration } from "@/lib/format";
 import { REASON_LABELS } from "@/lib/planning/constants";
 import type { ReasonCode } from "@/lib/planning/types";
@@ -112,6 +113,10 @@ export function TodayPlanItem({
           </ul>
         </PopoverContent>
       </Popover>
+      <StartSessionButton
+        target={assignmentId ? { assignmentId } : { examId: itemId }}
+        source="PLANNED"
+      />
       <Button
         variant="ghost"
         size="icon"

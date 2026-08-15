@@ -110,11 +110,16 @@ catching up is still the useful thing to do. This asymmetry is intentional.
   majority of real usage) but is not rigorously timezone-safe for a student
   traveling across zones. Documented, not silently wrong: see
   `src/lib/datetime-local.ts`.
-- **No partial-completion tracking**: an `IN_PROGRESS` assignment is
-  scheduled with its *full* `estimatedMinutes` every time, not
-  "time remaining after what's already been done" — there's no field for
-  partial progress in the MVP schema. `docs/ROADMAP.md` lists real
-  effort-tracking as a near-term improvement.
+- **No partial-completion tracking**: an `IN_PROGRESS` assignment is still
+  scheduled with its *full* `estimatedMinutes` every time, not "time
+  remaining after what's already been done." `StudySession` now *records*
+  actual time spent per session (see below), but `build-work-items.ts` does
+  not yet subtract completed session minutes from `remainingMinutes` — that
+  wiring is intentionally deferred until there's a real product decision
+  about how partial progress should affect scheduling (e.g., should 45
+  minutes already spent reduce today's suggestion, or just inform tomorrow's
+  estimate?). The data to make that decision correctly now exists; the
+  decision itself hasn't been made yet.
 - **No cross-day session memory**: the engine has no idea whether a
   previously *suggested* session actually happened at that specific
   time — only whether the underlying assignment/exam is now `COMPLETED`
@@ -146,6 +151,58 @@ feature is being designed wrong, not that the engine needs replacing.
 | **Workload forecasting** | Already shipped (`forecast.ts`) as a separate pure function consuming `ScoredItem[]` — no changes to `score.ts`/`schedule.ts` were needed to add it. | This is the proof of the pattern: analysis features are read-only consumers of the engine's output, not modifications to the engine. |
 | **What-if simulation** ("what if I can't study Wednesday") | No new seam at all — `generatePlan()` is already a pure function of `PlanInput`. A what-if is: construct a second `PlanInput` with modified `availability`, call `generatePlan()` again, diff the two `PlanResult`s. | This only works *because* the engine has no hidden state and no side effects. Purity isn't an abstract nicety here — it's the entire reason simulation is cheap instead of requiring a parallel "simulation mode." |
 | **Adaptive replanning** | Two layers: (1) already shipped — every mutation calls `regeneratePlanSnapshot()`, so the plan is always recomputed from current reality; (2) not shipped — *session-level* adaptivity (did a suggested session actually happen?) needs a `StudySession` model to have anything to adapt to. See the audit's Study Session section in the conversation this doc was updated from. | Layer 1 required zero engine changes (it's a caller behavior, `src/server/actions/plans.ts`). Layer 2 is gated on new data existing, not on engine capability. |
+
+## The first feedback loop: StudySession
+
+Everything above describes PREDICT and PLAN. `StudySession` (`prisma/schema.prisma`,
+`src/server/actions/study-sessions.ts`) is Rushd's first EXECUTE → MEASURE step:
+a raw observation of what the engine predicted right before a student started
+working, and what actually happened.
+
+At `startSession()`, the server builds the exact same `WorkItem` the live plan
+would for that assignment/exam and runs it through `scoreItem()` — never a
+client-supplied number — then denormalizes the result onto the `StudySession`
+row: `plannedMinutes`, `predictedScore`, `reasonCode`, plus `title`/
+`className`/`classColor` as they were *at that moment*. This is deliberate
+denormalization, not an oversight — a session is a historical record, and
+shouldn't silently reinterpret itself if the assignment is later renamed or
+its estimate edited. At completion, the student confirms (not the engine
+assumes) `actualMinutes` — elapsed browser time is only ever a pre-filled
+suggestion, because time a tab was open isn't the same thing as time spent
+working.
+
+The engine itself (`score.ts`, `schedule.ts`) is untouched by any of this —
+`StudySession` is purely an observation layer that calls into the engine the
+same way a page render does, then records what it saw.
+
+## Future estimation architecture (documented, not implemented)
+
+Once enough `StudySession` rows exist, personalized time estimates should
+start as **simple statistical aggregation**, not machine learning and not an
+LLM call — consistent with "AI interprets, deterministic systems decide."
+The shape:
+
+```
+personalized estimate = baseline estimate
+                       × student-specific historical multiplier
+                       × assignment-type multiplier
+```
+
+Where the baseline is today's `Assignment.estimatedMinutes`/`Exam.prepMinutes`
+(a teacher- or student-entered guess), and each multiplier is
+`avg(actualMinutes) / avg(plannedMinutes)` computed from that student's own
+completed `StudySession` rows — overall, and grouped by class (`className`)
+once there's enough volume per group to be meaningful (a handful of sessions
+isn't a reliable ratio; this needs a minimum-sample-size floor before a
+multiplier is trusted over the raw baseline). This is the same "start simple,
+grow sophisticated with usage" principle as the scoring engine itself: no
+model training, no LLM duration prediction, just `sum(actual) / sum(planned)`
+over real observations — auditable, explainable, and consistent with
+`explain.ts`'s existing "the real reason is already known exactly" approach.
+
+This is explicitly **not being built yet** — it needs a real volume of
+`StudySession` data first, which is the entire point of shipping the
+observation layer before the estimation layer.
 
 ## Adaptive behavior
 
