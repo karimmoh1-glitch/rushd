@@ -3,7 +3,7 @@ import type { WorkItem, ScoredItem, ReasonCode } from "./types";
 
 /** Whole calendar days between two dates, ignoring time-of-day. Negative
  * means `date` is in the past relative to `now`. */
-function calendarDaysUntil(date: Date, now: Date): number {
+export function calendarDaysUntil(date: Date, now: Date): number {
   const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfDate = new Date(
     date.getFullYear(),
