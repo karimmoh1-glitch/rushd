@@ -64,10 +64,12 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByText("Playwright reading response").first()).toBeVisible();
 
-  // ...and on the dedicated weekly Plan screen, under today's column.
+  // ...and on the dedicated weekly Plan screen, under today's column. It
+  // may also appear in the Academic Forecast's "top items" list further
+  // down the page, so use .first() rather than assuming a unique match.
   await page.getByRole("link", { name: "Plan" }).click();
   await expect(page).toHaveURL(/\/plan/);
-  await expect(page.getByText("Playwright reading response")).toBeVisible();
+  await expect(page.getByText("Playwright reading response").first()).toBeVisible();
 
   // Complete it from the Assignments page and verify the dashboard adapts.
   await page.getByRole("link", { name: "Assignments" }).click();
