@@ -8,6 +8,7 @@ import {
   type AssignmentInput,
 } from "@/lib/validation/assignments";
 import { logEvent } from "@/lib/analytics/log-event";
+import { regeneratePlanSnapshot } from "@/server/actions/plans";
 
 export type ActionResult = { error: string } | { success: true };
 
@@ -49,6 +50,7 @@ export async function createAssignment(
   });
 
   await logEvent(user.id, "assignment_created", { assignmentId: created.id });
+  await regeneratePlanSnapshot(user.id);
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
   return { success: true };
@@ -96,6 +98,7 @@ export async function updateAssignment(
   if (data.status === "COMPLETED" && existing.status !== "COMPLETED") {
     await logEvent(user.id, "assignment_completed", { assignmentId: id });
   }
+  await regeneratePlanSnapshot(user.id);
 
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
@@ -125,6 +128,7 @@ export async function setAssignmentStatus(
   if (status === "COMPLETED" && existing.status !== "COMPLETED") {
     await logEvent(user.id, "assignment_completed", { assignmentId: id });
   }
+  await regeneratePlanSnapshot(user.id);
 
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
@@ -139,6 +143,7 @@ export async function deleteAssignment(id: string): Promise<ActionResult> {
   });
   if (result.count === 0) return { error: "Assignment not found." };
 
+  await regeneratePlanSnapshot(user.id);
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
   return { success: true };

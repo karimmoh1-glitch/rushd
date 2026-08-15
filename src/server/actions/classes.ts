@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { ClassSchema, type ClassInput } from "@/lib/validation/classes";
 import { logEvent } from "@/lib/analytics/log-event";
+import { regeneratePlanSnapshot } from "@/server/actions/plans";
 
 export type ActionResult = { error: string } | { success: true };
 
@@ -44,6 +45,7 @@ export async function updateClass(
   });
   if (result.count === 0) return { error: "Class not found." };
 
+  await regeneratePlanSnapshot(user.id);
   revalidatePath("/classes");
   return { success: true };
 }
@@ -60,6 +62,7 @@ export async function setClassArchived(
   });
   if (result.count === 0) return { error: "Class not found." };
 
+  await regeneratePlanSnapshot(user.id);
   revalidatePath("/classes");
   return { success: true };
 }

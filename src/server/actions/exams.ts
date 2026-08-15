@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { ExamSchema, type ExamInput } from "@/lib/validation/exams";
 import { logEvent } from "@/lib/analytics/log-event";
+import { regeneratePlanSnapshot } from "@/server/actions/plans";
 
 export type ActionResult = { error: string } | { success: true };
 
@@ -42,6 +43,7 @@ export async function createExam(input: ExamInput): Promise<ActionResult> {
   });
 
   await logEvent(user.id, "exam_created", { examId: created.id });
+  await regeneratePlanSnapshot(user.id);
   revalidatePath("/exams");
   revalidatePath("/dashboard");
   return { success: true };
@@ -75,6 +77,7 @@ export async function updateExam(
   });
   if (result.count === 0) return { error: "Exam not found." };
 
+  await regeneratePlanSnapshot(user.id);
   revalidatePath("/exams");
   revalidatePath("/dashboard");
   return { success: true };
@@ -86,6 +89,7 @@ export async function deleteExam(id: string): Promise<ActionResult> {
   const result = await db.exam.deleteMany({ where: { id, userId: user.id } });
   if (result.count === 0) return { error: "Exam not found." };
 
+  await regeneratePlanSnapshot(user.id);
   revalidatePath("/exams");
   revalidatePath("/dashboard");
   return { success: true };

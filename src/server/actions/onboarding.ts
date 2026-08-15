@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { OnboardingSchema, type OnboardingInput } from "@/lib/validation/onboarding";
 import { logEvent } from "@/lib/analytics/log-event";
+import { regeneratePlanSnapshot } from "@/server/actions/plans";
 
 export type OnboardingResult = { error: string } | { success: true };
 
@@ -69,6 +70,7 @@ export async function completeOnboarding(
     classCount: data.classes.length,
     availabilityWindowCount: data.availability.length,
   });
+  await regeneratePlanSnapshot(user.id);
 
   redirect("/dashboard");
 }
