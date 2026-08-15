@@ -11,26 +11,37 @@ Auth, database, onboarding, classes, assignments, exams, basic dashboard,
 design system. Shipped and verified end-to-end (signup → onboarding →
 CRUD → dashboard), commits through `92ea053`.
 
-## Phase 1.5 — Redesign + hardening (in progress)
+## Phase 1.5 — Redesign + hardening (done)
 
 Not new capability — making Phase 1 good enough to be the foundation for
 everything else, per the section-47 UI/UX audit:
-- Full visual redesign: dashboard Today prominence, dedicated weekly Plan
-  screen, nav around the student mental model, compact assignment cards
-- `AIProvider` abstraction so Phase 2+ AI features aren't hard-coded to one
-  vendor
+- Dashboard redesigned around a prominent Today section and a calm,
+  status-driven greeting ("You're on track")
+- Dedicated weekly Plan screen, nav rebuilt around the student mental
+  model (Home/Plan/Assignments/Exams/Classes/Settings), a curated mobile
+  bottom-nav rather than the desktop nav shrunk down
+- `AIProvider` abstraction so AI features aren't hard-coded to one vendor
 - `docs/AI_ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/PRIVACY.md`,
   `docs/USER_RESEARCH.md`
+- Dark mode fixed — it had complete CSS from the very first commit but
+  nothing ever applied the `.dark` class; now wired through next-themes
+  with a working toggle, verified across the app and marketing site
 
-## Phase 2 — The core Rushd engine (in progress)
+## Phase 2 — The core Rushd engine (screenshot import done; planner modes deferred)
 
 The first genuinely usable Rushd, per the spec: screenshot upload → AI
-extraction → confirmation review → workload estimation → recommended/custom
-planner → daily plan → adaptive rescheduling.
+extraction → confirmation review → workload estimation → plan → adaptive
+rescheduling. Shipped: screenshot upload with server-side magic-byte file
+validation, vision-based extraction (never persists the image), an
+editable per-item review screen with honest confidence signals, and bulk
+commit into the existing planning engine — which then schedules it
+exactly like manually-entered work, no special-casing.
 
-Screenshot import, confirmation review, and the weekly Plan screen are new
-in this phase; the planning engine, dashboard, and adaptive regeneration
-already exist from Phase 1 and get reused, not rebuilt.
+Deliberately **not** built as a literal "Recommended Plan vs. Custom Plan"
+toggle — see `src/app/(app)/plan/page.tsx`'s comments. There's one planning
+engine; "custom" is editing your own availability, which already drives
+what gets scheduled. Building a second, mostly-redundant algorithm just to
+have two buttons would be complexity without a real behavioral difference.
 
 **What-if planning** ("I can't study Wednesday" → recalculated plan with an
 explained redistribution) is real Phase 2/3 scope but is deferred past this

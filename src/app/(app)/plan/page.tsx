@@ -69,6 +69,18 @@ export default async function PlanPage() {
   const overloaded = totalEstimatedMinutes > totalAvailableMinutes && totalAvailableMinutes > 0;
   const noAvailabilitySet = totalAvailableMinutes === 0;
 
+  // Items that didn't fit anywhere in the horizon — still real work the
+  // student owes, so it needs to be visible somewhere on this page, not
+  // just as an aggregate minute count. The dashboard already has a
+  // fallback for "nothing scheduled today"; the weekly view needs its own,
+  // since a day with no sessions here otherwise reads as "nothing to do."
+  const unscheduledItems = Object.entries(plan.unscheduledMinutesByItem).map(
+    ([itemId, minutes]) => {
+      const scored = plan.scored.find((s) => s.item.id === itemId);
+      return scored ? { ...scored.item, unscheduledMinutes: minutes } : null;
+    },
+  ).filter((x): x is NonNullable<typeof x> => x !== null);
+
   return (
     <div className="space-y-6">
       <div>
@@ -122,18 +134,43 @@ export default async function PlanPage() {
         ))}
       </div>
 
-      {Object.keys(plan.unscheduledMinutesByItem).length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {formatDuration(
-            Object.values(plan.unscheduledMinutesByItem).reduce((a, b) => a + b, 0),
-          )}{" "}
-          of work doesn&apos;t fit in your available time over the next {DEFAULT_HORIZON_DAYS} days.
-          Consider adding more study availability in{" "}
-          <Link href="/settings" className="underline underline-offset-4">
-            Settings
-          </Link>
-          .
-        </p>
+      {unscheduledItems.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-heading text-lg font-semibold">Not yet scheduled</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {formatDuration(
+              unscheduledItems.reduce((sum, i) => sum + i.unscheduledMinutes, 0),
+            )}{" "}
+            of work doesn&apos;t fit in your available time over the next{" "}
+            {DEFAULT_HORIZON_DAYS} days. Still owed — just needs more study time. Add
+            availability in{" "}
+            <Link href="/settings" className="underline underline-offset-4">
+              Settings
+            </Link>
+            .
+          </p>
+          <div className="space-y-2">
+            {unscheduledItems.map((item) => (
+              <Link
+                key={item.id}
+                href={item.kind === "exam" ? "/exams" : "/assignments"}
+                className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <span
+                    aria-hidden="true"
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: item.classColor }}
+                  />
+                  {item.title}
+                </span>
+                <span className="shrink-0 text-muted-foreground">
+                  {formatDuration(item.unscheduledMinutes)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

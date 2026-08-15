@@ -1,15 +1,23 @@
 import { test, expect } from "@playwright/test";
 
-// Signup -> onboarding -> create class -> create assignment -> plan
-// reflects it -> complete task -> plan adapts. This is the one workflow
-// docs/PRODUCT.md builds the whole MVP around, so it's the one flow that
-// must work end to end, not just in isolated unit/integration tests.
-test("golden path: signup through completing a plan item", async ({ page }) => {
+// Landing -> signup -> onboarding -> create class -> create assignment ->
+// plan reflects it (dashboard + weekly Plan screen) -> complete task ->
+// plan adapts. This is the one workflow docs/PRODUCT.md builds the whole
+// MVP around, so it's the one flow that must work end to end, not just in
+// isolated unit/integration tests.
+test("golden path: landing through completing a plan item", async ({ page }) => {
   const email = `e2e-${Date.now()}@example.com`;
   const password = "password123";
 
+  // Landing page.
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Turn academic chaos into a clear plan" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Get started — it's free" }).click();
+
   // Sign up.
-  await page.goto("/signup");
+  await expect(page).toHaveURL(/\/signup/);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
@@ -19,9 +27,11 @@ test("golden path: signup through completing a plan item", async ({ page }) => {
   await page.getByLabel("What should we call you?").fill("Playwright Student");
   await page.getByRole("button", { name: "Continue" }).click();
 
-  // Step 2: study availability.
+  // Step 2: study availability. Select both weekday and weekend presets so
+  // this test isn't flaky depending on which day of the week it runs.
   await expect(page.getByText("When can you usually study?")).toBeVisible();
   await page.getByText("Weekday afternoons").click();
+  await page.getByText("Weekend afternoons").click();
   await page.getByRole("button", { name: "Continue" }).click();
 
   // Step 3: classes.
@@ -49,10 +59,15 @@ test("golden path: signup through completing a plan item", async ({ page }) => {
 
   await expect(page.getByText("Playwright reading response")).toBeVisible();
 
-  // The plan should reflect it on the dashboard.
-  await page.getByRole("link", { name: "Dashboard" }).click();
+  // The plan should reflect it on the dashboard's Today section.
+  await page.getByRole("link", { name: "Home" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByText("Playwright reading response").first()).toBeVisible();
+
+  // ...and on the dedicated weekly Plan screen, under today's column.
+  await page.getByRole("link", { name: "Plan" }).click();
+  await expect(page).toHaveURL(/\/plan/);
+  await expect(page.getByText("Playwright reading response")).toBeVisible();
 
   // Complete it from the Assignments page and verify the dashboard adapts.
   await page.getByRole("link", { name: "Assignments" }).click();
@@ -60,11 +75,11 @@ test("golden path: signup through completing a plan item", async ({ page }) => {
   await row.getByRole("checkbox").click();
   await expect(page.getByText("Completed")).toBeVisible();
 
-  await page.getByRole("link", { name: "Dashboard" }).click();
+  await page.getByRole("link", { name: "Home" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   // Completed work should no longer show as an active plan item.
   const activePlanItem = page
-    .locator("section", { hasText: "Today's plan" })
+    .locator("section", { hasText: "Today" })
     .getByText("Playwright reading response");
   await expect(activePlanItem).toHaveCount(0);
 });
