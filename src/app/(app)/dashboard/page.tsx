@@ -72,8 +72,10 @@ export default async function DashboardPage() {
   // or today's capacity went to other days), still surface the highest
   // priority work so the dashboard never shows an empty "today" when work
   // actually exists.
-  const fallbackItems =
-    todaySessions.length === 0 ? plan.scored.slice(0, 3) : [];
+  const fallbackItems = todaySessions.length === 0 ? plan.scored.slice(0, 3) : [];
+  const showingFallback = todaySessions.length === 0 && fallbackItems.length > 0;
+
+  const plannedMinutesToday = todaySessions.reduce((sum, s) => sum + s.scheduledMinutes, 0);
 
   const workloadDays = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
@@ -84,60 +86,34 @@ export default async function DashboardPage() {
     return { date, minutes };
   });
 
+  const statusLine =
+    overdueAssignments.length > 0
+      ? `You have ${overdueAssignments.length} thing${overdueAssignments.length === 1 ? "" : "s"} overdue.`
+      : "You're on track.";
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold">
-            {greeting(now)}, {user.profile?.displayName}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {now.toLocaleDateString(undefined, {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/import">
-            <Button variant="outline">
-              <Upload className="h-4 w-4" />
-              Upload screenshot
-            </Button>
-          </Link>
-          <AddAssignmentButton classes={classes} />
-          <AddExamButton classes={classes} />
-        </div>
-      </div>
-
-      <QuickAdd classes={classes} />
-
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-2xl font-semibold text-destructive">
-              {overdueAssignments.length}
-            </p>
-            <p className="text-sm text-muted-foreground">Overdue</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-2xl font-semibold">{upcomingAssignments.length}</p>
-            <p className="text-sm text-muted-foreground">Upcoming</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-2xl font-semibold text-success">{completedThisWeek}</p>
-            <p className="text-sm text-muted-foreground">Done this week</p>
-          </CardContent>
-        </Card>
+    <div className="space-y-10">
+      <div>
+        <h1 className="font-heading text-3xl font-semibold">
+          {greeting(now)}, {user.profile?.displayName}.
+        </h1>
+        <p
+          className={`mt-1 text-base ${overdueAssignments.length > 0 ? "text-destructive" : "text-success"}`}
+        >
+          {statusLine}
+        </p>
       </div>
 
       <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">Today&apos;s plan</h2>
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="font-heading text-xl font-semibold">Today</h2>
+          {plannedMinutesToday > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {formatDuration(plannedMinutesToday)} planned
+            </span>
+          )}
+        </div>
+
         {todaySessions.length > 0 ? (
           <div className="space-y-2">
             {todaySessions.map((s, i) => (
@@ -154,7 +130,7 @@ export default async function DashboardPage() {
               />
             ))}
           </div>
-        ) : fallbackItems.length > 0 ? (
+        ) : showingFallback ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Nothing scheduled for today yet — set your study availability in{" "}
@@ -180,13 +156,50 @@ export default async function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-border py-12 text-center">
+          <div className="rounded-lg border border-dashed border-border py-14 text-center">
             <p className="text-muted-foreground">
               You&apos;re all caught up. Nothing due right now.
             </p>
           </div>
         )}
       </section>
+
+      <section className="space-y-3">
+        <QuickAdd classes={classes} />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/import">
+            <Button variant="outline" size="sm">
+              <Upload className="h-4 w-4" />
+              Upload screenshot
+            </Button>
+          </Link>
+          <AddAssignmentButton classes={classes} />
+          <AddExamButton classes={classes} />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-2xl font-semibold text-destructive">
+              {overdueAssignments.length}
+            </p>
+            <p className="text-sm text-muted-foreground">Overdue</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-2xl font-semibold">{upcomingAssignments.length}</p>
+            <p className="text-sm text-muted-foreground">Upcoming</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-2xl font-semibold text-success">{completedThisWeek}</p>
+            <p className="text-sm text-muted-foreground">Done this week</p>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-6 sm:grid-cols-2">
         <section>

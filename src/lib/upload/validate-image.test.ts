@@ -8,7 +8,10 @@ const WEBP_BYTES = new Uint8Array([
 ]);
 
 function makeFile(bytes: Uint8Array, name: string, type: string): File {
-  return new File([bytes], name, { type });
+  // TS's DOM lib types BlobPart as ArrayBufferView<ArrayBuffer>, which a
+  // plain Uint8Array doesn't structurally satisfy in this TS/lib version —
+  // a type-checker nuance only, Uint8Array is a valid BlobPart at runtime.
+  return new File([bytes as unknown as BlobPart], name, { type });
 }
 
 describe("sniffImageType", () => {
