@@ -3,7 +3,7 @@
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { aiEnabled } from "@/lib/env";
-import { parseWithAI } from "@/lib/ai/client";
+import { aiProvider } from "@/lib/ai";
 import { fallbackParseQuickAdd } from "@/lib/ai/fallback-parse";
 import type { QuickAddDraft } from "@/lib/ai/schemas";
 
@@ -31,7 +31,7 @@ export async function parseQuickAdd(text: string): Promise<QuickAddResult> {
   });
 
   if (aiEnabled) {
-    const aiDraft = await parseWithAI(trimmed, classes, now);
+    const aiDraft = await aiProvider.parseQuickAdd(trimmed, classes, now);
     if (aiDraft) return { draft: aiDraft, usedAI: true };
   }
 
