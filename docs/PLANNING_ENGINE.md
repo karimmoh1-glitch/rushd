@@ -124,6 +124,29 @@ catching up is still the useful thing to do. This asymmetry is intentional.
   support one-off exceptions (e.g., "not available this Friday") — only a
   recurring weekly pattern.
 
+## Extensibility (documented seams, not implemented)
+
+Everything below describes *where* future capabilities would plug into the
+engine, not a commitment to build them now. The point of writing this down
+is that none of it requires replacing `scoreItem()`/`generatePlan()` — the
+engine's job stays "take structured inputs, produce a ranked/scheduled
+output," and every extension is either a new input, a new named component in
+`ScoreBreakdown`, or a new pure function alongside `explain.ts`/`forecast.ts`
+that reads the engine's output. If a future feature ever seems to require
+rewriting `score.ts` or `schedule.ts` from scratch, that's a signal the
+feature is being designed wrong, not that the engine needs replacing.
+
+| Future capability | Where it plugs in | Why no engine rewrite is needed |
+|---|---|---|
+| **Personalized time estimates** | `build-work-items.ts` — `remainingMinutes` is computed from `Assignment.estimatedMinutes`/`Exam.prepMinutes` today; a personalized estimate (e.g., "this student's actual pace for this class") would just be a different value plugged into the same field. | `score.ts`/`schedule.ts` never care *where* `remainingMinutes` came from — only that it's a number. This is the single highest-leverage seam in the whole engine. |
+| **Assignment decomposition** (subtasks) | `build-work-items.ts` again — instead of one `WorkItem` per `Assignment`, emit one `WorkItem` per subtask, each inheriting the parent's `classId`/`priority`/`dueAt` but its own smaller `remainingMinutes` and its own `id`. | The engine already treats assignments and exams as an undifferentiated `WorkItem[]`; it has no idea "assignment" is even a meaningful grouping above the item level. Fan-out happens before the engine sees the data. |
+| **Knowledge gaps / concept mastery** | A new named component in `ScoreBreakdown` (e.g. `conceptGapBonus`), computed in `build-work-items.ts` from a mastery lookup, added into the `score` sum in `score.ts` the same way `examProximity` and `effortTiebreak` were added. | `ScoreBreakdown` was designed as an open, named-component sum specifically so a new factor is additive — see `docs/PLANNING_ENGINE.md` history: `examProximity` and `effortTiebreak` were both added this way, after the original three-component design. |
+| **Exam preparation depth** (concept-targeted study, not just proximity) | Same seam as knowledge gaps — once `conceptGapBonus` exists, exam prep becomes "weight concept gaps higher when an exam is close," not a separate mechanism. | No new seam required beyond the one above. |
+| **Student preferences** (e.g. "mornings only," "no back-to-back sessions in the same class") | `buildDailyCapacity()` and the inner scheduling loop in `generatePlan()` — preferences shape *when* capacity is offered and *which* day a chunk lands on, not the score. | Scoring and scheduling are already decoupled (`scoreAndRank()` doesn't know about days; `generatePlan()` doesn't know about score components) — preferences are purely a scheduling-side concern. |
+| **Workload forecasting** | Already shipped (`forecast.ts`) as a separate pure function consuming `ScoredItem[]` — no changes to `score.ts`/`schedule.ts` were needed to add it. | This is the proof of the pattern: analysis features are read-only consumers of the engine's output, not modifications to the engine. |
+| **What-if simulation** ("what if I can't study Wednesday") | No new seam at all — `generatePlan()` is already a pure function of `PlanInput`. A what-if is: construct a second `PlanInput` with modified `availability`, call `generatePlan()` again, diff the two `PlanResult`s. | This only works *because* the engine has no hidden state and no side effects. Purity isn't an abstract nicety here — it's the entire reason simulation is cheap instead of requiring a parallel "simulation mode." |
+| **Adaptive replanning** | Two layers: (1) already shipped — every mutation calls `regeneratePlanSnapshot()`, so the plan is always recomputed from current reality; (2) not shipped — *session-level* adaptivity (did a suggested session actually happen?) needs a `StudySession` model to have anything to adapt to. See the audit's Study Session section in the conversation this doc was updated from. | Layer 1 required zero engine changes (it's a caller behavior, `src/server/actions/plans.ts`). Layer 2 is gated on new data existing, not on engine capability. |
+
 ## Adaptive behavior
 
 The engine itself is stateless — "adaptive" means the *caller* regenerates

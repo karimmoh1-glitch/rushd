@@ -4,10 +4,10 @@
 
 | Layer | Choice | Why |
 |---|---|---|
-| Framework | Next.js 15 (App Router), React 19, TypeScript | Server components + server actions let the planning engine run server-side, close to the data, without a separate API layer. One deployable unit. |
-| Styling | Tailwind CSS v4 + shadcn/ui (Radix primitives) | Accessible primitives (focus management, keyboard nav, ARIA) out of the box; fully ownable source (not a black-box component lib) so the design system stays restrained instead of drifting toward generic-SaaS look. |
+| Framework | Next.js 16.3.1 (App Router, Turbopack), React 19, TypeScript | Server components + server actions let the planning engine run server-side, close to the data, without a separate API layer. One deployable unit. |
+| Styling | Tailwind CSS v4 + shadcn/ui (Base UI primitives) | Accessible primitives (focus management, keyboard nav, ARIA) out of the box; fully ownable source (not a black-box component lib) so the design system stays restrained instead of drifting toward generic-SaaS look. Base UI, not Radix — shadcn switched its default primitive library; a few APIs differ from Radix-based docs/examples found online (e.g. `DropdownMenuItem` uses `onClick` not `onSelect`, `asChild` is a `render` prop). |
 | Database | PostgreSQL | Relational integrity for a scheduling domain (foreign keys, cascades, constraints matter more here than schema flexibility). |
-| ORM | Prisma | Type-safe queries, first-class migrations, good DX for a solo-maintained project. |
+| ORM | Prisma 7.9.1 (`prisma-client` generator, driver adapters) | Type-safe queries, first-class migrations, good DX for a solo-maintained project. Prisma 7 requires an explicit driver adapter (`@prisma/adapter-pg`) and moves the datasource URL to `prisma.config.ts` rather than `schema.prisma`. |
 | Auth | Hand-rolled sessions: bcrypt password hashing + `jose`-signed JWT in an httpOnly cookie, following the Data Access Layer pattern from Next.js's own auth guide | This app was scaffolded on Next.js 16.3, released after most third-party auth libraries' Next-16 compatibility was verifiable at build time. Rather than take a dependency-version risk on a brand-new major, auth uses the pattern Next.js's official docs document as secure: `bcrypt` (cost 12) for password hashing, `jose` to sign/verify a JWT session payload (`userId` only — no PII in the token), an httpOnly/secure/sameSite=lax cookie, and a memoized `verifySession()` DAL that every server action and page calls. `proxy.ts` (Next 16's renamed `middleware.ts`) does an optimistic redirect for signed-out users; the real authorization check happens in the DAL on every read/write, never in the proxy alone. Revisit if/when a maintained auth library confirms Next 16 support and the team wants OAuth. |
 | Validation | Zod | Every server action validates input server-side, independent of client state. Also used to validate structured AI output before it touches the database. |
 | AI | Anthropic Messages API (optional) | Used only for two narrow, schema-validated tasks: parsing quick-add text into a structured assignment, and generating a plain-language "why this is prioritized" explanation. Both features detect a missing `ANTHROPIC_API_KEY` and fall back to deterministic logic — the product never depends on AI being configured. |
@@ -56,12 +56,32 @@ docs/
 
 ## Authorization model
 
-Every server action and route handler that touches user data:
-1. Reads the session server-side (never trusts a client-supplied user/org id).
-2. Loads the target row and checks `row.userId === session.user.id` before reading or mutating it (or, for `Assignment`/`Exam`, checks via the owning `Class`/`User`).
-3. Returns a generic "not found" rather than "forbidden" for rows owned by another user, to avoid leaking existence.
+`src/proxy.ts` (Next 16's renamed `middleware.ts`) does an **optimistic**
+redirect only — it reads the session cookie and bounces signed-out visitors
+away from protected prefixes, but never queries the database and is not the
+real authorization boundary. Every server action and protected page enforces
+the actual check itself, via `src/lib/auth/dal.ts`:
 
-This is centralized in `src/lib/auth/guards.ts` (`requireUser()`, `requireOwned(record)`) so it's applied consistently rather than reimplemented per route.
+1. `requireUser()` / `requireAdmin()` (pages, redirect on failure) or
+   `requireUserOrThrow()` (server actions, throw on failure) resolve the
+   current user from the session cookie server-side — never from
+   client-supplied input.
+2. Every read/write is scoped to that user's own rows at the query level —
+   `findFirst`/`updateMany`/`deleteMany` all filter on `{ id, userId }`
+   together, rather than fetching by `id` alone and checking ownership
+   in application code afterward. A mismatched `id`/`userId` pair simply
+   matches zero rows.
+3. For `Assignment`/`Exam` writes, any client- or AI-supplied `classId` is
+   re-verified against the actual owner via `assertOwnsClass()`
+   (`src/server/actions/class-ownership.ts`) before the write — this holds
+   even when the `classId` came from an AI suggestion (quick-add, screenshot
+   import), not just from a plain form.
+4. Failures return a generic "not found" error rather than "forbidden" for
+   rows owned by another user, to avoid leaking existence.
+
+This is deliberately *not* a single generic `requireOwned(record)` helper —
+ownership is enforced inline in each query's `where` clause instead, which
+means there's no code path that fetches a row before checking who owns it.
 
 ## Environment variables
 
