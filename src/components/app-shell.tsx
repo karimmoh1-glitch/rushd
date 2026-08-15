@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { logout } from "@/server/actions/auth";
 import { FeedbackDialog } from "@/components/feedback-dialog";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 // Ordered around the student's mental model: what's happening right now
@@ -103,15 +104,18 @@ export function AppShell({
           </div>
           <div className="flex items-center justify-between px-3 py-2">
             <span className="truncate text-sm font-medium">{displayName}</span>
-            <form action={logout}>
-              <button
-                type="submit"
-                aria-label="Log out"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </form>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <form action={logout}>
+                <button
+                  type="submit"
+                  aria-label="Log out"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </aside>
@@ -120,15 +124,18 @@ export function AppShell({
         <Link href="/dashboard" className="font-heading text-lg font-semibold">
           Rushd
         </Link>
-        <form action={logout}>
-          <button
-            type="submit"
-            aria-label="Log out"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
-        </form>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <form action={logout}>
+            <button
+              type="submit"
+              aria-label="Log out"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </form>
+        </div>
       </div>
 
       <main id="main-content" className="pb-20 md:ml-56 md:pb-0">

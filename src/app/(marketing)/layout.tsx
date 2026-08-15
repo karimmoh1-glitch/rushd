@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function MarketingLayout({
   children,
@@ -23,7 +24,7 @@ export default function MarketingLayout({
               رُشد
             </span>
           </Link>
-          <nav className="flex items-center gap-6" aria-label="Main">
+          <nav className="flex items-center gap-4" aria-label="Main">
             <Link
               href="/#how-it-works"
               className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
@@ -36,6 +37,7 @@ export default function MarketingLayout({
             >
               Log in
             </Link>
+            <ThemeToggle />
             <Link
               href="/signup"
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
