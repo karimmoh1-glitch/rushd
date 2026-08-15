@@ -135,6 +135,8 @@ export default async function DashboardPage() {
             {todaySessions.map((s, i) => (
               <TodayPlanItem
                 key={`${s.item.id}-${i}`}
+                itemId={s.item.id}
+                itemKind={s.item.kind}
                 assignmentId={s.item.kind === "assignment" ? s.item.id : null}
                 title={s.item.title}
                 className={s.item.className}
@@ -157,6 +159,8 @@ export default async function DashboardPage() {
               {fallbackItems.map((s, i) => (
                 <TodayPlanItem
                   key={`${s.item.id}-${i}`}
+                  itemId={s.item.id}
+                  itemKind={s.item.kind}
                   assignmentId={s.item.kind === "assignment" ? s.item.id : null}
                   title={s.item.title}
                   className={s.item.className}

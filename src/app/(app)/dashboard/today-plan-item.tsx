@@ -1,15 +1,20 @@
 "use client";
 
 import { useTransition } from "react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { setAssignmentStatus } from "@/server/actions/assignments";
+import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
 import { formatDuration } from "@/lib/format";
 import { REASON_LABELS } from "@/lib/planning/constants";
 import type { ReasonCode } from "@/lib/planning/types";
 
 export function TodayPlanItem({
+  itemId,
+  itemKind,
   assignmentId,
   title,
   className,
@@ -17,6 +22,8 @@ export function TodayPlanItem({
   scheduledMinutes,
   reasonCode,
 }: {
+  itemId: string;
+  itemKind: "assignment" | "exam";
   assignmentId: string | null;
   title: string;
   className: string;
@@ -30,7 +37,18 @@ export function TodayPlanItem({
     if (!assignmentId) return;
     startTransition(async () => {
       const result = await setAssignmentStatus(assignmentId, "COMPLETED");
-      if (result && "error" in result) toast.error(result.error);
+      if (result && "error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      await logPlanItemInteraction("completed", itemId, itemKind);
+    });
+  }
+
+  function skip() {
+    startTransition(async () => {
+      await logPlanItemInteraction("skipped", itemId, itemKind);
+      toast.info("Noted — this helps Rushd learn what's actually a priority.");
     });
   }
 
@@ -67,6 +85,17 @@ export function TodayPlanItem({
       >
         {REASON_LABELS[reasonCode]}
       </Badge>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="shrink-0"
+        disabled={pending}
+        onClick={skip}
+        aria-label={`Not doing "${title}" today`}
+        title="Not today"
+      >
+        <X className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
