@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
-import { dateKey } from "@/lib/planning";
+import { dateKey, explainScore } from "@/lib/planning";
 import { formatDueDate, formatDuration, formatDaysUntil } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TodayPlanItem } from "./today-plan-item";
+import { OneThing } from "./one-thing";
 import { WorkloadBars } from "./workload-bars";
 import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
@@ -91,6 +92,8 @@ export default async function DashboardPage() {
       ? `You have ${overdueAssignments.length} thing${overdueAssignments.length === 1 ? "" : "s"} overdue.`
       : "You're on track.";
 
+  const oneThing = plan.scored[0];
+
   return (
     <div className="space-y-10">
       <div>
@@ -103,6 +106,19 @@ export default async function DashboardPage() {
           {statusLine}
         </p>
       </div>
+
+      {oneThing && (
+        <OneThing
+          itemId={oneThing.item.id}
+          itemKind={oneThing.item.kind}
+          assignmentId={oneThing.item.kind === "assignment" ? oneThing.item.id : null}
+          title={oneThing.item.title}
+          className={oneThing.item.className}
+          classColor={oneThing.item.classColor}
+          minutes={oneThing.item.remainingMinutes}
+          reasons={explainScore(oneThing, now)}
+        />
+      )}
 
       <section>
         <div className="mb-4 flex items-baseline justify-between">
