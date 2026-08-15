@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, ShieldCheck, KeyRound, Trash2 } from "lucide-react";
+import { CheckCircle2, ShieldCheck, KeyRound, Trash2, Upload } from "lucide-react";
 
 const STEPS = [
   {
@@ -8,7 +8,7 @@ const STEPS = [
   },
   {
     title: "Add assignments and exams",
-    body: "Due dates, estimated effort, priority. Or use quick-add and type it in plain language.",
+    body: "Upload a screenshot of your Canvas calendar and Rushd reads it for you, type it in plain language with quick-add, or enter it by hand.",
   },
   {
     title: "Set your study availability",
@@ -104,6 +104,30 @@ export default function LandingPage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      {/* Screenshot import */}
+      <section className="border-t border-border">
+        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-8 sm:grid-cols-2">
+            <div>
+              <h2 className="font-heading text-2xl font-semibold">Bring your workload</h2>
+              <p className="mt-4 text-muted-foreground">
+                Upload a screenshot of your Canvas calendar or assignment list.
+                Rushd reads it and drafts the assignments and exams for you —
+                you review and correct everything before anything is saved. No
+                account connection, no LMS integration required to get started.
+              </p>
+            </div>
+            <div className="flex items-center justify-center rounded-lg border border-dashed border-border p-10">
+              <div className="text-center">
+                <Upload className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
+                <p className="mt-3 text-sm font-medium">Drag a screenshot here</p>
+                <p className="mt-1 text-xs text-muted-foreground">PNG or JPEG</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Example dashboard */}
@@ -209,6 +233,46 @@ export default function LandingPage() {
           >
             Read the full privacy policy
           </Link>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="border-t border-border">
+        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+          <h2 className="font-heading text-2xl font-semibold">Questions</h2>
+          <dl className="mt-8 space-y-6">
+            {[
+              {
+                q: "Is Rushd actually free?",
+                a: "Yes. No trial, no credit card, no upsell.",
+              },
+              {
+                q: "Will Rushd do my homework for me?",
+                a: "No. It helps you plan when to work on things — it doesn't write essays or answer problem sets for you.",
+              },
+              {
+                q: "What if the screenshot import gets something wrong?",
+                a: "You review and can edit every field before anything is saved — nothing is added to your plan automatically.",
+              },
+              {
+                q: "What if I don't set my study availability?",
+                a: "Rushd still tracks your deadlines and shows what's most important — it just can't suggest specific times to work.",
+              },
+              {
+                q: "Does Rushd sell my data?",
+                a: "No, and it never will. See the privacy policy for exactly what's collected and why.",
+              },
+              {
+                q: "Can I delete my account?",
+                a: "Anytime, from Settings. It's immediate and permanent — no waiting period, nothing left behind.",
+              },
+            ].map((item) => (
+              <div key={item.q}>
+                <dt className="font-medium">{item.q}</dt>
+                <dd className="mt-1 text-sm text-muted-foreground">{item.a}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </section>
 
