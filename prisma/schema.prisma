@@ -1,0 +1,256 @@
+// Rushd — database schema.
+// See /docs/ARCHITECTURE.md for the reasoning behind the entity list, and
+// /docs/PLANNING_ENGINE.md for how Assignment/Exam/StudyAvailability feed
+// the scoring engine that produces Plan/PlanItem rows.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String
+  isAdmin               Boolean   @default(false)
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  profile      Profile?
+  availability StudyAvailability[]
+  classes      Class[]
+  assignments  Assignment[]
+  exams        Exam[]
+  plans        Plan[]
+  planItems    PlanItem[]
+  notifications Notification[]
+  feedback     Feedback[]
+  events       Event[]
+
+  @@index([createdAt])
+}
+
+// Onboarding-collected profile data. Split from User so auth logic never
+// touches product-preference fields.
+model Profile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  displayName String
+  grade       Int? // 9-12; null if not disclosed
+  school      String? // optional, never required
+  timezone    String // IANA tz, e.g. "America/New_York"
+  goals       String? // free-text academic goals, optional
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A recurring weekly window the student is typically available to study.
+// The planning engine expands these into concrete dates at scheduling time —
+// there is no persisted "calendar instance" table (see PLANNING_ENGINE.md).
+model StudyAvailability {
+  id          String   @id @default(cuid())
+  userId      String
+  dayOfWeek   Int // 0 = Sunday .. 6 = Saturday
+  startMinute Int // minutes from midnight, local to Profile.timezone
+  endMinute   Int // exclusive; must be > startMinute
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Academic structure
+// ---------------------------------------------------------------------------
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Class {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  teacher   String?
+  period    String?
+  color     String   @default("#2563eb")
+  priority  Priority @default(MEDIUM)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments Assignment[]
+  exams       Exam[]
+
+  @@index([userId, archived])
+}
+
+enum AssignmentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Assignment {
+  id                String           @id @default(cuid())
+  userId            String
+  classId           String
+  title             String
+  dueAt             DateTime
+  estimatedMinutes  Int              @default(30)
+  priority          Priority         @default(MEDIUM)
+  status            AssignmentStatus @default(NOT_STARTED)
+  notes             String?
+  completedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class     Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  planItems PlanItem[]
+
+  @@index([userId, status, dueAt])
+  @@index([classId])
+}
+
+model Exam {
+  id           String   @id @default(cuid())
+  userId       String
+  classId      String
+  title        String
+  examAt       DateTime
+  prepMinutes  Int      @default(120)
+  priority     Priority @default(MEDIUM)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class     Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  planItems PlanItem[]
+
+  @@index([userId, examAt])
+  @@index([classId])
+}
+
+// ---------------------------------------------------------------------------
+// Planning engine output
+// ---------------------------------------------------------------------------
+
+// One row per plan generation. History is kept (not overwritten) so we can
+// measure whether adaptation is actually happening and answer "is Rushd
+// helping" from real data rather than a snapshot.
+model Plan {
+  id          String   @id @default(cuid())
+  userId      String
+  generatedAt DateTime @default(now())
+  horizonDays Int      @default(7)
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items PlanItem[]
+
+  @@index([userId, generatedAt])
+}
+
+enum PlanItemStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+}
+
+// A single scheduled study block, produced by the deterministic scoring
+// engine. Exactly one of assignmentId/examId is set — enforced in
+// src/lib/planning, not at the DB level (Prisma has no partial CHECK
+// constraints without raw SQL, and this isn't worth a migration).
+model PlanItem {
+  id                String         @id @default(cuid())
+  planId            String
+  userId            String
+  assignmentId      String?
+  examId            String?
+  scheduledDate     DateTime // date only, local to Profile.timezone
+  scheduledMinutes  Int
+  score             Float // transparent priority score at generation time
+  reasonCode        String // e.g. "OVERDUE", "EXAM_PROXIMITY", "DUE_SOON" — see PLANNING_ENGINE.md
+  status            PlanItemStatus @default(PENDING)
+  completedAt       DateTime?
+  createdAt         DateTime       @default(now())
+
+  plan       Plan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  exam       Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([userId, scheduledDate])
+  @@index([assignmentId])
+  @@index([examId])
+}
+
+// ---------------------------------------------------------------------------
+// Support
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  PLAN_CHANGED
+  EXAM_APPROACHING
+  OVERDUE_WORK
+}
+
+// Schema only for MVP — delivery (email/push) is not implemented. See ROADMAP.md.
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String
+  context   String // e.g. "plan", "onboarding", "general"
+  rating    Int? // 1-5, optional
+  message   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([context])
+}
+
+// Privacy-conscious product analytics. See /docs/PRODUCT.md#analytics.
+model Event {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String // e.g. "plan_generated", "assignment_completed"
+  properties Json?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([name, createdAt])
+}
