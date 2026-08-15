@@ -36,6 +36,12 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-2 focus-visible:left-2 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-primary focus-visible:px-4 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:text-primary-foreground"
+      >
+        Skip to content
+      </a>
       <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r border-border bg-background md:flex">
         <Link
           href="/dashboard"
@@ -113,7 +119,7 @@ export function AppShell({
         </form>
       </div>
 
-      <main className="pb-20 md:ml-56 md:pb-0">
+      <main id="main-content" className="pb-20 md:ml-56 md:pb-0">
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </div>
