@@ -15,6 +15,7 @@ const PROTECTED_PREFIXES = [
   "/assignments",
   "/exams",
   "/plan",
+  "/import",
   "/settings",
   "/admin",
 ];

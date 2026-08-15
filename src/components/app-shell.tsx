@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
+  Home,
+  CalendarRange,
   BookOpen,
   ListChecks,
   GraduationCap,
@@ -15,13 +16,24 @@ import { logout } from "@/server/actions/auth";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { cn } from "@/lib/utils";
 
+// Ordered around the student's mental model: what's happening right now
+// (Home), the week ahead (Plan), then the underlying data (Assignments/
+// Exams/Classes). Settings is separate, per the section-47 nav guidance.
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/classes", label: "Classes", icon: BookOpen },
+  { href: "/dashboard", label: "Home", icon: Home },
+  { href: "/plan", label: "Plan", icon: CalendarRange },
   { href: "/assignments", label: "Assignments", icon: ListChecks },
   { href: "/exams", label: "Exams", icon: GraduationCap },
+  { href: "/classes", label: "Classes", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
+
+// A curated subset for the mobile bottom bar — not just the desktop nav
+// shrunk down. Classes is set up once and rarely revisited day to day, so
+// it drops off the tab bar (still reachable from the sidebar on larger
+// screens, and nothing else links to it disappears — it's one tap further
+// via Home on mobile).
+const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== "/classes");
 
 export function AppShell({
   displayName,
@@ -129,7 +141,7 @@ export function AppShell({
         className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-background md:hidden"
         aria-label="Main navigation"
       >
-        {NAV_ITEMS.map((item) => {
+        {MOBILE_NAV_ITEMS.map((item) => {
           const active = pathname.startsWith(item.href);
           return (
             <Link
