@@ -11,6 +11,7 @@ import { TodayPlanItem } from "./today-plan-item";
 import { WorkloadBars } from "./workload-bars";
 import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
+import { QuickAdd } from "./quick-add";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -101,6 +102,8 @@ export default async function DashboardPage() {
           <AddExamButton classes={classes} />
         </div>
       </div>
+
+      <QuickAdd classes={classes} />
 
       <div className="grid grid-cols-3 gap-3">
         <Card>

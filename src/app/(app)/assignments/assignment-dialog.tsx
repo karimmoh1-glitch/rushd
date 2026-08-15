@@ -45,17 +45,27 @@ export interface AssignmentDialogInitialData extends AssignmentInput {
   id: string;
 }
 
+/** Pre-fills a *new* assignment's fields (e.g. from quick-add's parsed
+ * draft) without implying an existing row is being edited. */
+export interface AssignmentPrefill {
+  classId?: string;
+  title?: string;
+  dueAt?: string; // ISO
+  estimatedMinutes?: number;
+  priority?: AssignmentInput["priority"];
+}
+
 export function AssignmentDialog({
   open,
   onOpenChange,
   classes,
-  defaultClassId,
+  prefill,
   initialData,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   classes: ClassOption[];
-  defaultClassId?: string;
+  prefill?: AssignmentPrefill;
   initialData?: AssignmentDialogInitialData;
 }) {
   return (
@@ -64,7 +74,7 @@ export function AssignmentDialog({
         <AssignmentDialogForm
           key={initialData?.id ?? "new"}
           classes={classes}
-          defaultClassId={defaultClassId}
+          prefill={prefill}
           initialData={initialData}
           onDone={() => onOpenChange(false)}
         />
@@ -75,28 +85,29 @@ export function AssignmentDialog({
 
 function AssignmentDialogForm({
   classes,
-  defaultClassId,
+  prefill,
   initialData,
   onDone,
 }: {
   classes: ClassOption[];
-  defaultClassId?: string;
+  prefill?: AssignmentPrefill;
   initialData?: AssignmentDialogInitialData;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [classId, setClassId] = useState(
-    initialData?.classId ?? defaultClassId ?? classes[0]?.id ?? "",
+    initialData?.classId ?? prefill?.classId ?? classes[0]?.id ?? "",
   );
-  const [title, setTitle] = useState(initialData?.title ?? "");
-  const [dueAt, setDueAt] = useState(
-    initialData ? toDatetimeLocalValue(new Date(initialData.dueAt)) : "",
-  );
+  const [title, setTitle] = useState(initialData?.title ?? prefill?.title ?? "");
+  const [dueAt, setDueAt] = useState(() => {
+    const source = initialData?.dueAt ?? prefill?.dueAt;
+    return source ? toDatetimeLocalValue(new Date(source)) : "";
+  });
   const [estimatedMinutes, setEstimatedMinutes] = useState(
-    initialData?.estimatedMinutes ?? 30,
+    initialData?.estimatedMinutes ?? prefill?.estimatedMinutes ?? 30,
   );
   const [priority, setPriority] = useState<AssignmentInput["priority"]>(
-    initialData?.priority ?? "MEDIUM",
+    initialData?.priority ?? prefill?.priority ?? "MEDIUM",
   );
   const [status, setStatus] = useState<AssignmentInput["status"]>(
     initialData?.status ?? "NOT_STARTED",

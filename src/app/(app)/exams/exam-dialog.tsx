@@ -36,15 +36,27 @@ export interface ExamDialogInitialData extends ExamInput {
   id: string;
 }
 
+/** Pre-fills a *new* exam's fields (e.g. from quick-add's parsed draft)
+ * without implying an existing row is being edited. */
+export interface ExamPrefill {
+  classId?: string;
+  title?: string;
+  examAt?: string; // ISO
+  prepMinutes?: number;
+  priority?: ExamInput["priority"];
+}
+
 export function ExamDialog({
   open,
   onOpenChange,
   classes,
+  prefill,
   initialData,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   classes: ClassOption[];
+  prefill?: ExamPrefill;
   initialData?: ExamDialogInitialData;
 }) {
   return (
@@ -53,6 +65,7 @@ export function ExamDialog({
         <ExamDialogForm
           key={initialData?.id ?? "new"}
           classes={classes}
+          prefill={prefill}
           initialData={initialData}
           onDone={() => onOpenChange(false)}
         />
@@ -63,26 +76,29 @@ export function ExamDialog({
 
 function ExamDialogForm({
   classes,
+  prefill,
   initialData,
   onDone,
 }: {
   classes: ClassOption[];
+  prefill?: ExamPrefill;
   initialData?: ExamDialogInitialData;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [classId, setClassId] = useState(
-    initialData?.classId ?? classes[0]?.id ?? "",
+    initialData?.classId ?? prefill?.classId ?? classes[0]?.id ?? "",
   );
-  const [title, setTitle] = useState(initialData?.title ?? "");
-  const [examAt, setExamAt] = useState(
-    initialData ? toDatetimeLocalValue(new Date(initialData.examAt)) : "",
-  );
+  const [title, setTitle] = useState(initialData?.title ?? prefill?.title ?? "");
+  const [examAt, setExamAt] = useState(() => {
+    const source = initialData?.examAt ?? prefill?.examAt;
+    return source ? toDatetimeLocalValue(new Date(source)) : "";
+  });
   const [prepMinutes, setPrepMinutes] = useState(
-    initialData?.prepMinutes ?? 120,
+    initialData?.prepMinutes ?? prefill?.prepMinutes ?? 120,
   );
   const [priority, setPriority] = useState<ExamInput["priority"]>(
-    initialData?.priority ?? "MEDIUM",
+    initialData?.priority ?? prefill?.priority ?? "MEDIUM",
   );
   const [notes, setNotes] = useState(initialData?.notes ?? "");
 
