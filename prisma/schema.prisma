@@ -234,6 +234,17 @@ enum AbandonReason {
   OTHER
 }
 
+// Subjective difficulty, captured once at completion. actualMinutes vs
+// plannedMinutes already answers "faster or slower than predicted" — this
+// captures the question that number can't: whether it *felt* harder, which
+// is its own signal (e.g. a session that ran exactly on time but felt brutal
+// is different from one that ran over but felt easy).
+enum PerceivedDifficulty {
+  EASIER
+  AS_EXPECTED
+  HARDER
+}
+
 // A raw observation of one real study attempt: what the deterministic engine
 // predicted right before the session started, and what actually happened.
 // This is Rushd's first PREDICT -> EXECUTE -> MEASURE feedback loop — see
@@ -264,6 +275,7 @@ model StudySession {
   actualMinutes Int?
   status        StudySessionStatus @default(IN_PROGRESS)
   abandonReason AbandonReason?
+  perceivedDifficulty PerceivedDifficulty?
 
   createdAt DateTime @default(now())
 

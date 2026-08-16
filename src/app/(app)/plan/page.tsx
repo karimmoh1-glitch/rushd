@@ -44,7 +44,7 @@ export default async function PlanPage() {
           classColor: s.item.classColor,
           minutes: s.scheduledMinutes,
           reasonCode: s.reasonCode,
-          reasons: scored ? explainScore(scored, now) : [],
+          reasons: scored ? explainScore(scored, now, plan.scored) : [],
         };
       });
 

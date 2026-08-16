@@ -18,6 +18,8 @@ export type AbandonReasonValue =
   | "SOMETHING_CAME_UP"
   | "OTHER";
 
+export type PerceivedDifficultyValue = "EASIER" | "AS_EXPECTED" | "HARDER";
+
 export interface ActiveSessionData {
   id: string;
   title: string;
@@ -31,7 +33,9 @@ export interface CompletedSessionSummary {
   title: string;
   plannedMinutes: number;
   actualMinutes: number;
+  perceivedDifficulty: PerceivedDifficultyValue | null;
 }
+
 
 type StartResult = { error: string } | { success: true; session: ActiveSessionData };
 type CompleteResult = { error: string } | { success: true; summary: CompletedSessionSummary };
@@ -211,6 +215,7 @@ export async function startSession(
 export async function completeSession(
   sessionId: string,
   actualMinutes: number,
+  perceivedDifficulty?: PerceivedDifficultyValue,
 ): Promise<CompleteResult> {
   const user = await requireUserOrThrow();
 
@@ -230,13 +235,19 @@ export async function completeSession(
   const now = new Date();
   await db.studySession.update({
     where: { id: session.id },
-    data: { status: "COMPLETED", endedAt: now, actualMinutes },
+    data: {
+      status: "COMPLETED",
+      endedAt: now,
+      actualMinutes,
+      perceivedDifficulty: perceivedDifficulty ?? null,
+    },
   });
 
   await logEvent(user.id, "study_session_completed", {
     sessionId: session.id,
     plannedMinutes: session.plannedMinutes,
     actualMinutes,
+    perceivedDifficulty: perceivedDifficulty ?? null,
   });
 
   revalidatePath("/", "layout");
@@ -247,6 +258,7 @@ export async function completeSession(
       title: session.title,
       plannedMinutes: session.plannedMinutes,
       actualMinutes,
+      perceivedDifficulty: perceivedDifficulty ?? null,
     },
   };
 }

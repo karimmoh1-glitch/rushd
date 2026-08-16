@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
@@ -17,7 +17,7 @@ export function OneThing({
   className,
   classColor,
   minutes,
-  reasons,
+  explanation,
 }: {
   itemId: string;
   itemKind: "assignment" | "exam";
@@ -26,7 +26,7 @@ export function OneThing({
   className: string;
   classColor: string;
   minutes: number;
-  reasons: string[];
+  explanation: string;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -44,30 +44,25 @@ export function OneThing({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border-2 border-primary bg-accent/40">
-      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-accent/60 via-accent/25 to-transparent shadow-[0_0_60px_-20px_var(--color-primary)]">
+      <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-wide text-primary uppercase">
+          <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-primary uppercase">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
             One thing
           </p>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2.5">
             <span
               aria-hidden="true"
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              className="h-3 w-3 shrink-0 rounded-full"
               style={{ backgroundColor: classColor }}
             />
-            <h2 className="truncate font-heading text-xl font-semibold">{title}</h2>
+            <h2 className="truncate font-heading text-2xl font-semibold tracking-tight">{title}</h2>
           </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {className} · {formatDuration(minutes)}
           </p>
-          <ul className="mt-3 space-y-1">
-            {reasons.map((reason) => (
-              <li key={reason} className="text-sm text-muted-foreground">
-                — {reason}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-3 max-w-md text-sm text-foreground/80">{explanation}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

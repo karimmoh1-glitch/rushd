@@ -21,6 +21,7 @@ import {
   abandonSession,
   type AbandonReasonValue,
   type CompletedSessionSummary,
+  type PerceivedDifficultyValue,
 } from "@/server/actions/study-sessions";
 
 const ABANDON_REASONS: { value: AbandonReasonValue; label: string }[] = [
@@ -30,6 +31,12 @@ const ABANDON_REASONS: { value: AbandonReasonValue; label: string }[] = [
   { value: "NEED_HELP", label: "Need help" },
   { value: "SOMETHING_CAME_UP", label: "Something came up" },
   { value: "OTHER", label: "Other" },
+];
+
+const PERCEIVED_DIFFICULTY_OPTIONS: { value: PerceivedDifficultyValue; label: string }[] = [
+  { value: "EASIER", label: "Easier than expected" },
+  { value: "AS_EXPECTED", label: "About as expected" },
+  { value: "HARDER", label: "Harder than expected" },
 ];
 
 function elapsedParts(startedAt: string) {
@@ -58,6 +65,7 @@ export function ActiveSessionBar() {
   const [completeOpen, setCompleteOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [actualMinutesInput, setActualMinutesInput] = useState("");
+  const [difficulty, setDifficulty] = useState<PerceivedDifficultyValue | "">("");
   const [reason, setReason] = useState<AbandonReasonValue | "">("");
   const [summary, setSummary] = useState<CompletedSessionSummary | null>(null);
   const [pending, startTransition] = useTransition();
@@ -71,6 +79,7 @@ export function ActiveSessionBar() {
   function openComplete() {
     if (!activeSession) return;
     setActualMinutesInput(String(Math.max(1, elapsedParts(activeSession.startedAt).minutes || 1)));
+    setDifficulty("");
     setCompleteOpen(true);
   }
 
@@ -82,7 +91,11 @@ export function ActiveSessionBar() {
       return;
     }
     startTransition(async () => {
-      const result = await completeSession(activeSession.id, Math.round(minutes));
+      const result = await completeSession(
+        activeSession.id,
+        Math.round(minutes),
+        difficulty || undefined,
+      );
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -158,6 +171,25 @@ export function ActiveSessionBar() {
               onChange={(e) => setActualMinutesInput(e.target.value)}
             />
           </div>
+          <div className="space-y-1.5">
+            <Label>How did it feel? (optional)</Label>
+            <div className="flex gap-2">
+              {PERCEIVED_DIFFICULTY_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDifficulty((d) => (d === opt.value ? "" : opt.value))}
+                  className={`flex-1 rounded-md border px-2 py-2 text-xs font-medium transition-colors ${
+                    difficulty === opt.value
+                      ? "border-primary bg-accent text-accent-foreground"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <DialogFooter>
             <Button onClick={confirmComplete} disabled={pending}>
               {pending ? "Saving…" : "Confirm"}
@@ -213,6 +245,14 @@ export function ActiveSessionBar() {
                   {summary.actualMinutes - summary.plannedMinutes} min
                 </span>
               </div>
+              {summary.perceivedDifficulty && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Felt like</span>
+                  <span className="font-medium">
+                    {PERCEIVED_DIFFICULTY_OPTIONS.find((o) => o.value === summary.perceivedDifficulty)?.label}
+                  </span>
+                </div>
+              )}
               <p className="text-sm text-muted-foreground">
                 That&apos;s useful data — Rushd will use it to improve future estimates.
               </p>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { explainScore } from "./explain";
+import { explainScore, explainScoreSentence } from "./explain";
 import { scoreItem } from "./score";
 import type { WorkItem } from "./types";
 
@@ -98,5 +98,50 @@ describe("explainScore", () => {
     const item = makeItem();
     const scored = scoreItem(item, NOW);
     expect(explainScore(scored, NOW)).toEqual(explainScore(scored, NOW));
+  });
+
+  it("mentions needing more time only when meaningfully above the average of the rest", () => {
+    const standout = scoreItem(makeItem({ id: "big", remainingMinutes: 120 }), NOW);
+    const others = [
+      scoreItem(makeItem({ id: "a", remainingMinutes: 30 }), NOW),
+      scoreItem(makeItem({ id: "b", remainingMinutes: 30 }), NOW),
+    ];
+    const reasons = explainScore(standout, NOW, [standout, ...others]);
+    expect(reasons.some((r) => /more time/i.test(r))).toBe(true);
+
+    const notStandout = scoreItem(makeItem({ id: "typical", remainingMinutes: 35 }), NOW);
+    const reasonsTypical = explainScore(notStandout, NOW, [notStandout, ...others]);
+    expect(reasonsTypical.some((r) => /more time/i.test(r))).toBe(false);
+  });
+
+  it("does not flag effort standout below the floor, even at a high ratio", () => {
+    const tiny = scoreItem(makeItem({ id: "tiny", remainingMinutes: 15 }), NOW);
+    const others = [scoreItem(makeItem({ id: "tinier", remainingMinutes: 5 }), NOW)];
+    const reasons = explainScore(tiny, NOW, [tiny, ...others]);
+    expect(reasons.some((r) => /more time/i.test(r))).toBe(false);
+  });
+});
+
+describe("explainScoreSentence", () => {
+  it("produces one grammatical sentence combining urgency and effort", () => {
+    const standout = scoreItem(
+      makeItem({ id: "big", dueAt: new Date("2026-08-17T12:00:00"), remainingMinutes: 120 }),
+      NOW,
+    );
+    const others = [
+      scoreItem(makeItem({ id: "a", remainingMinutes: 30 }), NOW),
+      scoreItem(makeItem({ id: "b", remainingMinutes: 30 }), NOW),
+    ];
+    const sentence = explainScoreSentence(standout, NOW, [standout, ...others]);
+    expect(sentence).toMatch(/^Prioritized because/);
+    expect(sentence).toMatch(/due in \d+ days/);
+    expect(sentence).toMatch(/more time than most of your other open work/);
+    expect(sentence.endsWith(".")).toBe(true);
+  });
+
+  it("still reads as a full sentence with only one contributing reason", () => {
+    const scored = scoreItem(makeItem({ dueAt: new Date("2026-08-10T12:00:00") }), NOW);
+    const sentence = explainScoreSentence(scored, NOW);
+    expect(sentence).toBe("Prioritized because it's overdue by 5 days.");
   });
 });

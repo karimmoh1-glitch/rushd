@@ -3,5 +3,5 @@ export * from "./constants";
 export { scoreItem, scoreAndRank, calendarDaysUntil } from "./score";
 export { generatePlan, dateKey } from "./schedule";
 export { buildWorkItems } from "./build-work-items";
-export { explainScore } from "./explain";
+export { explainScore, explainScoreSentence } from "./explain";
 export { buildForecast, RISK_SUGGESTIONS } from "./forecast";

@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
+  BarChart3,
 } from "lucide-react";
 import { logout } from "@/server/actions/auth";
 import { FeedbackDialog } from "@/components/feedback-dialog";
@@ -29,15 +30,18 @@ const NAV_ITEMS = [
   { href: "/assignments", label: "Assignments", icon: ListChecks },
   { href: "/exams", label: "Exams", icon: GraduationCap },
   { href: "/classes", label: "Classes", icon: BookOpen },
+  { href: "/insights", label: "Insights", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 // A curated subset for the mobile bottom bar — not just the desktop nav
-// shrunk down. Classes is set up once and rarely revisited day to day, so
-// it drops off the tab bar (still reachable from the sidebar on larger
-// screens, and nothing else links to it disappears — it's one tap further
-// via Home on mobile).
-const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== "/classes");
+// shrunk down. Classes and Insights are set up once / checked in
+// periodically rather than revisited every day, so they drop off the tab
+// bar (still reachable from the sidebar on larger screens, and one tap
+// further via Home on mobile).
+const MOBILE_NAV_ITEMS = NAV_ITEMS.filter(
+  (item) => item.href !== "/classes" && item.href !== "/insights",
+);
 
 export function AppShell({
   displayName,

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
-import { dateKey, explainScore } from "@/lib/planning";
+import { dateKey, explainScore, explainScoreSentence } from "@/lib/planning";
 import { formatDueDate, formatDuration, formatDaysUntil } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -91,7 +91,7 @@ export default async function DashboardPage() {
   const scoredById = new Map(plan.scored.map((s) => [s.item.id, s]));
   const reasonsFor = (itemId: string) => {
     const scored = scoredById.get(itemId);
-    return scored ? explainScore(scored, now) : [];
+    return scored ? explainScore(scored, now, plan.scored) : [];
   };
 
   const workloadDays = Array.from({ length: 7 }, (_, i) => {
@@ -132,7 +132,7 @@ export default async function DashboardPage() {
           className={oneThing.item.className}
           classColor={oneThing.item.classColor}
           minutes={oneThing.item.remainingMinutes}
-          reasons={explainScore(oneThing, now)}
+          explanation={explainScoreSentence(oneThing, now, plan.scored)}
         />
       )}
 
@@ -184,7 +184,7 @@ export default async function DashboardPage() {
                   classColor={s.item.classColor}
                   scheduledMinutes={s.item.remainingMinutes}
                   reasonCode={s.reasonCode}
-                  reasons={explainScore(s, now)}
+                  reasons={explainScore(s, now, plan.scored)}
                 />
               ))}
             </div>
