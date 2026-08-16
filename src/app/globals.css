@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-source-serif);
+  --font-heading: var(--font-space-grotesk);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-success: var(--success);
@@ -145,7 +145,7 @@
   h1,
   h2,
   h3 {
-    @apply font-heading;
+    @apply font-heading tracking-tight;
   }
   :focus-visible {
     outline: 2px solid var(--ring);

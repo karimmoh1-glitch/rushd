@@ -41,19 +41,29 @@ export default async function DashboardPage() {
       }),
       generatePlanForUser(user.id, now),
       db.assignment.findMany({
-        where: { userId: user.id, status: { not: "COMPLETED" }, dueAt: { lt: now } },
+        where: {
+          userId: user.id,
+          status: { not: "COMPLETED" },
+          dueAt: { lt: now },
+          class: { archived: false },
+        },
         orderBy: { dueAt: "asc" },
         take: 5,
         select: { id: true, title: true, dueAt: true, class: { select: { name: true, color: true } } },
       }),
       db.assignment.findMany({
-        where: { userId: user.id, status: { not: "COMPLETED" }, dueAt: { gte: now } },
+        where: {
+          userId: user.id,
+          status: { not: "COMPLETED" },
+          dueAt: { gte: now },
+          class: { archived: false },
+        },
         orderBy: { dueAt: "asc" },
         take: 5,
         select: { id: true, title: true, dueAt: true, class: { select: { name: true, color: true } } },
       }),
       db.exam.findMany({
-        where: { userId: user.id, examAt: { gte: now } },
+        where: { userId: user.id, examAt: { gte: now }, class: { archived: false } },
         orderBy: { examAt: "asc" },
         take: 5,
         select: { id: true, title: true, examAt: true, class: { select: { name: true, color: true } } },

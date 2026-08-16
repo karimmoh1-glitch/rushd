@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck, KeyRound, Trash2, Upload } from "lucide-react";
+import { HeroVisual } from "@/components/hero-visual";
+import { HeroContent } from "@/components/hero-content";
+import { Reveal, RevealListItem } from "@/components/reveal";
 
 const STEPS = [
   {
@@ -47,53 +50,39 @@ export default function LandingPage() {
   return (
     <>
       {/* Hero */}
-      <section className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8">
-        <h1 className="font-heading text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Turn academic chaos into a clear plan
-        </h1>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground text-balance">
-          Rushd tracks your classes, assignments, and exams, then tells you
-          exactly what to work on right now — and keeps that plan current as
-          things change.
-        </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Link
-            href="/signup"
-            className="rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Get started — it&apos;s free
-          </Link>
-          <Link
-            href="#how-it-works"
-            className="rounded-md border border-border px-6 py-3 text-sm font-medium hover:bg-muted"
-          >
-            See how it works
-          </Link>
+      <section className="relative mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8">
+        <HeroVisual />
+        <div className="relative">
+          <HeroContent />
         </div>
       </section>
 
       {/* Problem */}
       <section className="border-t border-border bg-muted/40">
         <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-          <h2 className="font-heading text-2xl font-semibold">
-            Your work is scattered. Your time isn&apos;t.
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Assignments live in one app, exams in a calendar, deadlines in
-            your head. None of it accounts for how much time you actually
-            have. A planner that just lists everything you owe doesn&apos;t
-            help — you still have to figure out what to do first, and when.
-            Rushd does that part.
-          </p>
+          <Reveal>
+            <h2 className="font-heading text-2xl font-semibold">
+              Your work is scattered. Your time isn&apos;t.
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              Assignments live in one app, exams in a calendar, deadlines in
+              your head. None of it accounts for how much time you actually
+              have. A planner that just lists everything you owe doesn&apos;t
+              help — you still have to figure out what to do first, and when.
+              Rushd does that part.
+            </p>
+          </Reveal>
         </div>
       </section>
 
       {/* How it works */}
       <section id="how-it-works" className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-        <h2 className="font-heading text-2xl font-semibold">How Rushd works</h2>
+        <Reveal>
+          <h2 className="font-heading text-2xl font-semibold">How Rushd works</h2>
+        </Reveal>
         <ol className="mt-8 space-y-8">
           {STEPS.map((step, i) => (
-            <li key={step.title} className="flex gap-4">
+            <RevealListItem key={step.title} delay={i * 0.06} className="flex gap-4">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary font-heading text-sm font-semibold text-primary">
                 {i + 1}
               </span>
@@ -101,7 +90,7 @@ export default function LandingPage() {
                 <h3 className="font-medium">{step.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
               </div>
-            </li>
+            </RevealListItem>
           ))}
         </ol>
       </section>
@@ -109,187 +98,199 @@ export default function LandingPage() {
       {/* Screenshot import */}
       <section className="border-t border-border">
         <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-8 sm:grid-cols-2">
-            <div>
-              <h2 className="font-heading text-2xl font-semibold">Bring your workload</h2>
-              <p className="mt-4 text-muted-foreground">
-                Upload a screenshot of your Canvas calendar or assignment list.
-                Rushd reads it and drafts the assignments and exams for you —
-                you review and correct everything before anything is saved. No
-                account connection, no LMS integration required to get started.
-              </p>
-            </div>
-            <div className="flex items-center justify-center rounded-lg border border-dashed border-border p-10">
-              <div className="text-center">
-                <Upload className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
-                <p className="mt-3 text-sm font-medium">Drag a screenshot here</p>
-                <p className="mt-1 text-xs text-muted-foreground">PNG or JPEG</p>
+          <Reveal>
+            <div className="grid items-center gap-8 sm:grid-cols-2">
+              <div>
+                <h2 className="font-heading text-2xl font-semibold">Bring your workload</h2>
+                <p className="mt-4 text-muted-foreground">
+                  Upload a screenshot of your Canvas calendar or assignment list.
+                  Rushd reads it and drafts the assignments and exams for you —
+                  you review and correct everything before anything is saved. No
+                  account connection, no LMS integration required to get started.
+                </p>
+              </div>
+              <div className="flex items-center justify-center rounded-lg border border-dashed border-border p-10">
+                <div className="text-center">
+                  <Upload className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
+                  <p className="mt-3 text-sm font-medium">Drag a screenshot here</p>
+                  <p className="mt-1 text-xs text-muted-foreground">PNG or JPEG</p>
+                </div>
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* Example dashboard */}
       <section className="border-t border-border bg-muted/40">
         <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-          <h2 className="font-heading text-2xl font-semibold">What you&apos;ll see</h2>
-          <p className="mt-3 text-muted-foreground">
-            An illustrative example — every student&apos;s plan looks
-            different, built entirely from their own classes and deadlines.
-          </p>
-          <div className="mt-8 overflow-hidden rounded-lg border border-border bg-background shadow-sm">
-            <div className="border-b border-border px-5 py-4">
-              <p className="font-heading text-lg font-semibold">Today&apos;s plan</p>
-            </div>
-            <div className="divide-y divide-border">
-              {[
-                {
-                  title: "Lab report: acid-base titration",
-                  meta: "AP Chemistry · 45 min",
-                  reason: "Overdue — do this first",
-                  tone: "text-destructive",
-                },
-                {
-                  title: "Unit 4 test prep",
-                  meta: "AP Chemistry · 1h 30m",
-                  reason: "Exam coming up soon",
-                  tone: "text-warning",
-                },
-                {
-                  title: "Read chapter 12",
-                  meta: "US History · 30 min",
-                  reason: "Due soon",
-                  tone: "text-muted-foreground",
-                },
-              ].map((item) => (
-                <div key={item.title} className="flex items-center gap-3 px-5 py-4">
-                  <span className="h-4 w-4 shrink-0 rounded-full border-2 border-primary" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{item.title}</p>
-                    <p className="truncate text-sm text-muted-foreground">{item.meta}</p>
+          <Reveal>
+            <h2 className="font-heading text-2xl font-semibold">What you&apos;ll see</h2>
+            <p className="mt-3 text-muted-foreground">
+              An illustrative example — every student&apos;s plan looks
+              different, built entirely from their own classes and deadlines.
+            </p>
+            <div className="mt-8 overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+              <div className="border-b border-border px-5 py-4">
+                <p className="font-heading text-lg font-semibold">Today&apos;s plan</p>
+              </div>
+              <div className="divide-y divide-border">
+                {[
+                  {
+                    title: "Lab report: acid-base titration",
+                    meta: "AP Chemistry · 45 min",
+                    reason: "Overdue — do this first",
+                    tone: "text-destructive",
+                  },
+                  {
+                    title: "Unit 4 test prep",
+                    meta: "AP Chemistry · 1h 30m",
+                    reason: "Exam coming up soon",
+                    tone: "text-warning",
+                  },
+                  {
+                    title: "Read chapter 12",
+                    meta: "US History · 30 min",
+                    reason: "Due soon",
+                    tone: "text-muted-foreground",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="flex items-center gap-3 px-5 py-4">
+                    <span className="h-4 w-4 shrink-0 rounded-full border-2 border-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{item.title}</p>
+                      <p className="truncate text-sm text-muted-foreground">{item.meta}</p>
+                    </div>
+                    <span className={`shrink-0 text-xs font-medium ${item.tone}`}>
+                      {item.reason}
+                    </span>
                   </div>
-                  <span className={`shrink-0 text-xs font-medium ${item.tone}`}>
-                    {item.reason}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* Core features */}
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-        <h2 className="font-heading text-2xl font-semibold">Core features</h2>
-        <div className="mt-8 grid gap-8 sm:grid-cols-2">
-          {FEATURES.map((f) => (
-            <div key={f.title}>
-              <h3 className="font-medium">{f.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{f.body}</p>
-            </div>
-          ))}
-        </div>
+        <Reveal>
+          <h2 className="font-heading text-2xl font-semibold">Core features</h2>
+          <div className="mt-8 grid gap-8 sm:grid-cols-2">
+            {FEATURES.map((f) => (
+              <div key={f.title}>
+                <h3 className="font-medium">{f.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </Reveal>
       </section>
 
       {/* Privacy / security principles */}
       <section className="border-t border-border bg-muted/40">
         <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-          <h2 className="font-heading text-2xl font-semibold">
-            Privacy is a constraint, not a policy page
-          </h2>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2">
-            <div className="flex gap-3">
-              <KeyRound className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">
-                Passwords are hashed, never stored in plain text.
-              </p>
+          <Reveal>
+            <h2 className="font-heading text-2xl font-semibold">
+              Privacy is a constraint, not a policy page
+            </h2>
+            <div className="mt-8 grid gap-6 sm:grid-cols-2">
+              <div className="flex gap-3">
+                <KeyRound className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">
+                  Passwords are hashed, never stored in plain text.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <ShieldCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">
+                  We collect only what the planning engine needs — no ad
+                  tracking, no data sold to third parties.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">
+                  Every server action verifies you own the data before it lets
+                  you touch it.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Trash2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">
+                  Delete your account anytime — it removes your data
+                  permanently, immediately.
+                </p>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <ShieldCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">
-                We collect only what the planning engine needs — no ad
-                tracking, no data sold to third parties.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">
-                Every server action verifies you own the data before it lets
-                you touch it.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Trash2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">
-                Delete your account anytime — it removes your data
-                permanently, immediately.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/privacy"
-            className="mt-6 inline-block text-sm font-medium text-primary underline underline-offset-4"
-          >
-            Read the full privacy policy
-          </Link>
+            <Link
+              href="/privacy"
+              className="mt-6 inline-block text-sm font-medium text-primary underline underline-offset-4"
+            >
+              Read the full privacy policy
+            </Link>
+          </Reveal>
         </div>
       </section>
 
       {/* FAQ */}
       <section className="border-t border-border">
         <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-          <h2 className="font-heading text-2xl font-semibold">Questions</h2>
-          <dl className="mt-8 space-y-6">
-            {[
-              {
-                q: "Is Rushd actually free?",
-                a: "Yes. No trial, no credit card, no upsell.",
-              },
-              {
-                q: "Will Rushd do my homework for me?",
-                a: "No. It helps you plan when to work on things — it doesn't write essays or answer problem sets for you.",
-              },
-              {
-                q: "What if the screenshot import gets something wrong?",
-                a: "You review and can edit every field before anything is saved — nothing is added to your plan automatically.",
-              },
-              {
-                q: "What if I don't set my study availability?",
-                a: "Rushd still tracks your deadlines and shows what's most important — it just can't suggest specific times to work.",
-              },
-              {
-                q: "Does Rushd sell my data?",
-                a: "No, and it never will. See the privacy policy for exactly what's collected and why.",
-              },
-              {
-                q: "Can I delete my account?",
-                a: "Anytime, from Settings. It's immediate and permanent — no waiting period, nothing left behind.",
-              },
-            ].map((item) => (
-              <div key={item.q}>
-                <dt className="font-medium">{item.q}</dt>
-                <dd className="mt-1 text-sm text-muted-foreground">{item.a}</dd>
-              </div>
-            ))}
-          </dl>
+          <Reveal>
+            <h2 className="font-heading text-2xl font-semibold">Questions</h2>
+            <dl className="mt-8 space-y-6">
+              {[
+                {
+                  q: "Is Rushd actually free?",
+                  a: "Yes. No trial, no credit card, no upsell.",
+                },
+                {
+                  q: "Will Rushd do my homework for me?",
+                  a: "No. It helps you plan when to work on things — it doesn't write essays or answer problem sets for you.",
+                },
+                {
+                  q: "What if the screenshot import gets something wrong?",
+                  a: "You review and can edit every field before anything is saved — nothing is added to your plan automatically.",
+                },
+                {
+                  q: "What if I don't set my study availability?",
+                  a: "Rushd still tracks your deadlines and shows what's most important — it just can't suggest specific times to work.",
+                },
+                {
+                  q: "Does Rushd sell my data?",
+                  a: "No, and it never will. See the privacy policy for exactly what's collected and why.",
+                },
+                {
+                  q: "Can I delete my account?",
+                  a: "Anytime, from Settings. It's immediate and permanent — no waiting period, nothing left behind.",
+                },
+              ].map((item) => (
+                <div key={item.q}>
+                  <dt className="font-medium">{item.q}</dt>
+                  <dd className="mt-1 text-sm text-muted-foreground">{item.a}</dd>
+                </div>
+              ))}
+            </dl>
+          </Reveal>
         </div>
       </section>
 
       {/* CTA */}
       <section className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 lg:px-8">
-        <h2 className="font-heading text-2xl font-semibold">
-          Stop guessing what to work on next
-        </h2>
-        <p className="mt-3 text-muted-foreground">
-          Free for students. No credit card, ever.
-        </p>
-        <Link
-          href="/signup"
-          className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Get started
-        </Link>
+        <Reveal>
+          <h2 className="font-heading text-2xl font-semibold">
+            Stop guessing what to work on next
+          </h2>
+          <p className="mt-3 text-muted-foreground">
+            Free for students. No credit card, ever.
+          </p>
+          <Link
+            href="/signup"
+            className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_8px_24px_-6px_var(--color-primary)] active:translate-y-0"
+          >
+            Get started
+          </Link>
+        </Reveal>
       </section>
     </>
   );

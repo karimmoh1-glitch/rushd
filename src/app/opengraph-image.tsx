@@ -15,22 +15,24 @@ export default function OpengraphImage() {
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "flex-start",
-          backgroundColor: "#ffffff",
+          backgroundColor: "#0a0a12",
+          backgroundImage:
+            "radial-gradient(circle at 82% 18%, rgba(129,140,248,0.35), transparent 55%), radial-gradient(circle at 8% 92%, rgba(99,102,241,0.22), transparent 45%)",
           padding: "90px",
-          fontFamily: "Georgia, serif",
+          fontFamily: "system-ui, sans-serif",
         }}
       >
         <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
-          <span style={{ fontSize: 76, fontWeight: 700, color: "#1e2a5e" }}>
+          <span style={{ fontSize: 78, fontWeight: 700, color: "#f4f4f8", letterSpacing: -2 }}>
             Rushd
           </span>
-          <span style={{ fontSize: 40, color: "#8a8f9a" }}>رُشد</span>
+          <span style={{ fontSize: 40, color: "#818cf8" }}>رُشد</span>
         </div>
         <div
           style={{
             marginTop: 28,
             fontSize: 34,
-            color: "#3a3f4a",
+            color: "#b8bcc8",
             maxWidth: 900,
             lineHeight: 1.4,
           }}
@@ -41,7 +43,7 @@ export default function OpengraphImage() {
           style={{
             marginTop: 48,
             fontSize: 24,
-            color: "#8a8f9a",
+            color: "#818cf8",
             fontFamily: "monospace",
           }}
         >
