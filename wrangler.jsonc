@@ -1,0 +1,25 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "rushd",
+	"compatibility_date": "2026-08-15",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			// Self-reference service binding, required by OpenNext's Cloudflare
+			// caching layer. The service name must match "name" above.
+			// See https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "rushd"
+		}
+	]
+	// R2 incremental cache and Cloudflare Images bindings are deliberately
+	// omitted for the first deploy — most of Rushd's routes are dynamic
+	// (server-rendered per request, not ISR-cached), so they're not needed
+	// for correctness yet. Add an r2_buckets block once real usage shows a
+	// need for edge-cached rendering. See https://opennext.js.org/cloudflare/caching
+}

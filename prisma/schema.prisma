@@ -4,12 +4,16 @@
 // the scoring engine that produces Plan/PlanItem rows.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  // Explicit on Prisma 6.x (implicit/only option on 7.x, which this project
+  // deliberately does not use — see docs/ARCHITECTURE.md, prisma/prisma#28657).
+  engineType = "client"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ---------------------------------------------------------------------------

@@ -8,11 +8,11 @@
 | Styling | Tailwind CSS v4 + shadcn/ui (Base UI primitives) | Accessible primitives (focus management, keyboard nav, ARIA) out of the box; fully ownable source (not a black-box component lib) so the design system stays restrained instead of drifting toward generic-SaaS look. Base UI, not Radix — shadcn switched its default primitive library; a few APIs differ from Radix-based docs/examples found online (e.g. `DropdownMenuItem` uses `onClick` not `onSelect`, `asChild` is a `render` prop). |
 | Database | PostgreSQL | Relational integrity for a scheduling domain (foreign keys, cascades, constraints matter more here than schema flexibility). |
 | ORM | Prisma 7.9.1 (`prisma-client` generator, driver adapters) | Type-safe queries, first-class migrations, good DX for a solo-maintained project. Prisma 7 requires an explicit driver adapter (`@prisma/adapter-pg`) and moves the datasource URL to `prisma.config.ts` rather than `schema.prisma`. |
-| Auth | Hand-rolled sessions: bcrypt password hashing + `jose`-signed JWT in an httpOnly cookie, following the Data Access Layer pattern from Next.js's own auth guide | This app was scaffolded on Next.js 16.3, released after most third-party auth libraries' Next-16 compatibility was verifiable at build time. Rather than take a dependency-version risk on a brand-new major, auth uses the pattern Next.js's official docs document as secure: `bcrypt` (cost 12) for password hashing, `jose` to sign/verify a JWT session payload (`userId` only — no PII in the token), an httpOnly/secure/sameSite=lax cookie, and a memoized `verifySession()` DAL that every server action and page calls. `proxy.ts` (Next 16's renamed `middleware.ts`) does an optimistic redirect for signed-out users; the real authorization check happens in the DAL on every read/write, never in the proxy alone. Revisit if/when a maintained auth library confirms Next 16 support and the team wants OAuth. |
+| Auth | Hand-rolled sessions: bcrypt password hashing + `jose`-signed JWT in an httpOnly cookie, following the Data Access Layer pattern from Next.js's own auth guide | This app was scaffolded on Next.js 16.3, released after most third-party auth libraries' Next-16 compatibility was verifiable at build time. Rather than take a dependency-version risk on a brand-new major, auth uses the pattern Next.js's official docs document as secure: `bcrypt` (cost 12) for password hashing, `jose` to sign/verify a JWT session payload (`userId` only — no PII in the token), an httpOnly/secure/sameSite=lax cookie, and a memoized `verifySession()` DAL that every server action and page calls. There is no proxy/middleware layer (see Authorization model below) — the DAL is the entire authorization boundary. Revisit if/when a maintained auth library confirms Next 16 support and the team wants OAuth. |
 | Validation | Zod | Every server action validates input server-side, independent of client state. Also used to validate structured AI output before it touches the database. |
 | AI | Anthropic Messages API (optional) | Used only for two narrow, schema-validated tasks: parsing quick-add text into a structured assignment, and generating a plain-language "why this is prioritized" explanation. Both features detect a missing `ANTHROPIC_API_KEY` and fall back to deterministic logic — the product never depends on AI being configured. |
 | Testing | Vitest (unit + integration), Playwright (e2e) | Vitest for the planning engine's pure functions and Prisma-backed integration tests; Playwright for the signup → plan → complete flow. |
-| Deployment target | Vercel (app) + managed Postgres (Neon/Supabase/Railway) | Zero-config fit for Next.js; Postgres is provider-agnostic via `DATABASE_URL`. Not deployed as part of this build — see README for deployment steps. |
+| Deployment target | Cloudflare Workers (via `@opennextjs/cloudflare`) + Neon Postgres | Chosen so the app runs on Cloudflare's network in front of the founder's own domain. `src/lib/db.ts` currently uses `pg`/`@prisma/adapter-pg` (raw TCP) for local dev against Homebrew Postgres; Cloudflare Workers can't open raw TCP sockets, so the production build needs `@neondatabase/serverless`/`@prisma/adapter-neon` (HTTP/WebSocket) instead — both packages are installed, the driver swap is in progress. Not yet deployed — see README for deployment steps. |
 
 Local dev uses a Homebrew-installed Postgres 16 instance rather than Docker, since Docker wasn't available in the dev environment.
 
@@ -56,11 +56,15 @@ docs/
 
 ## Authorization model
 
-`src/proxy.ts` (Next 16's renamed `middleware.ts`) does an **optimistic**
-redirect only — it reads the session cookie and bounces signed-out visitors
-away from protected prefixes, but never queries the database and is not the
-real authorization boundary. Every server action and protected page enforces
-the actual check itself, via `src/lib/auth/dal.ts`:
+There is no proxy/middleware layer — `src/proxy.ts` existed briefly as an
+*optimistic* pre-render redirect (reading the session cookie only, never
+querying the database) but was removed: Next.js 16 always runs `proxy.ts` in
+the Node.js runtime with no way to opt back into the Edge runtime, and
+Cloudflare's Workers deployment (`@opennextjs/cloudflare`) only supports
+Edge-runtime middleware. Since the proxy was never the real authorization
+boundary to begin with, removing it changed nothing about actual security —
+every server action and protected page enforces the real check itself, via
+`src/lib/auth/dal.ts`:
 
 1. `requireUser()` / `requireAdmin()` (pages, redirect on failure) or
    `requireUserOrThrow()` (server actions, throw on failure) resolve the
@@ -78,6 +82,10 @@ the actual check itself, via `src/lib/auth/dal.ts`:
    import), not just from a plain form.
 4. Failures return a generic "not found" error rather than "forbidden" for
    rows owned by another user, to avoid leaking existence.
+5. `/login` and `/signup` each check `getCurrentUser()` themselves and
+   redirect an already-signed-in visitor to `/dashboard` — the one piece of
+   UX the removed proxy also handled, now living directly in those two page
+   components instead of a shared middleware layer.
 
 This is deliberately *not* a single generic `requireOwned(record)` helper —
 ownership is enforced inline in each query's `where` clause instead, which
