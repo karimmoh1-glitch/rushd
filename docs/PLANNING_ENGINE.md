@@ -204,6 +204,19 @@ This is explicitly **not being built yet** — it needs a real volume of
 `StudySession` data first, which is the entire point of shipping the
 observation layer before the estimation layer.
 
+**Update:** the read side of this now exists — `src/lib/insights/build-insights.ts`
+computes exactly this ratio (`avg(actualMinutes)/avg(plannedMinutes)` per class,
+gated behind a minimum-sample floor) and surfaces it on `/insights` as "takes
+X% longer/shorter than estimated," alongside completion-rate-by-time-of-day and
+busiest-day observations from the same `StudySession` data. What's still not
+built is the *write* side: feeding that multiplier back into `score.ts`/
+`schedule.ts` so `estimatedMinutes` itself gets personalized. Insights is
+read-only by design for now — showing a student the pattern first, before the
+engine silently starts acting on it, keeps trust intact per the "the real
+reason is already known exactly" principle above. Wiring the multiplier into
+the actual `remainingMinutes` calculation is the natural next step once this
+has been observed working for real students.
+
 ## Adaptive behavior
 
 The engine itself is stateless — "adaptive" means the *caller* regenerates
