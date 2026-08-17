@@ -1,0 +1,40 @@
+name: Deploy to Cloudflare Workers
+
+# Cloudflare's own git-connected build pipeline for this project doesn't
+# expose dashboard-configured environment variables to the build step
+# (DATABASE_URL/SESSION_SECRET consistently read as undefined there, even
+# when set for Production — see project history). This workflow replaces
+# that pipeline: build-time env vars come from GitHub Actions secrets
+# instead, which are reliably injected, and `wrangler deploy` pushes the
+# result straight to Cloudflare. The Worker's own runtime secrets are set
+# separately via `wrangler secret put` and are untouched by this workflow.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Build for Cloudflare
+        run: npm run cf:build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+
+      - name: Deploy
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
