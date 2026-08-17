@@ -1,13 +1,14 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { OnboardingSchema, type OnboardingInput } from "@/lib/validation/onboarding";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 
-export type OnboardingResult = { error: string } | { success: true };
+export type OnboardingResult =
+  | { error: string }
+  | { success: true; classCount: number; availabilityWindowCount: number };
 
 export async function completeOnboarding(
   input: OnboardingInput,
@@ -30,6 +31,7 @@ export async function completeOnboarding(
         school: data.school || null,
         timezone: data.timezone,
         goals: data.goals || null,
+        primaryChallenge: data.primaryChallenge,
       },
       update: {
         displayName: data.displayName,
@@ -37,6 +39,7 @@ export async function completeOnboarding(
         school: data.school || null,
         timezone: data.timezone,
         goals: data.goals || null,
+        primaryChallenge: data.primaryChallenge,
       },
     });
 
@@ -72,5 +75,9 @@ export async function completeOnboarding(
   });
   await regeneratePlanSnapshot(user.id);
 
-  redirect("/dashboard");
+  return {
+    success: true,
+    classCount: data.classes.length,
+    availabilityWindowCount: data.availability.length,
+  };
 }

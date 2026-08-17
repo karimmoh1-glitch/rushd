@@ -37,11 +37,13 @@ export async function updateProfile(
       school: data.school || null,
       timezone: data.timezone,
       goals: data.goals || null,
+      primaryChallenge: data.primaryChallenge,
     },
   });
 
   revalidatePath("/settings");
   revalidatePath("/dashboard");
+  revalidatePath("/profile");
   return { success: true };
 }
 

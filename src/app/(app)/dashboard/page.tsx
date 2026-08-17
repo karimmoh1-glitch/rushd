@@ -20,10 +20,18 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-function greeting(now: Date): string {
+type DayPeriod = "morning" | "afternoon" | "evening";
+
+function dayPeriod(now: Date): DayPeriod {
   const hour = now.getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
+  if (hour < 12) return "morning";
+  if (hour < 18) return "afternoon";
+  return "evening";
+}
+
+function greeting(period: DayPeriod): string {
+  if (period === "morning") return "Good morning";
+  if (period === "afternoon") return "Good afternoon";
   return "Good evening";
 }
 
@@ -32,8 +40,17 @@ export default async function DashboardPage() {
   const now = new Date();
   const today = dateKey(now);
 
-  const [classes, plan, overdueAssignments, upcomingAssignments, upcomingExams, completedThisWeek] =
-    await Promise.all([
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const [
+    classes,
+    plan,
+    overdueAssignments,
+    upcomingAssignments,
+    upcomingExams,
+    completedThisWeek,
+    completedToday,
+  ] = await Promise.all([
       db.class.findMany({
         where: { userId: user.id, archived: false },
         orderBy: { createdAt: "asc" },
@@ -75,6 +92,9 @@ export default async function DashboardPage() {
           completedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
         },
       }),
+      db.assignment.count({
+        where: { userId: user.id, status: "COMPLETED", completedAt: { gte: startOfToday } },
+      }),
     ]);
 
   const todaySessions = plan.sessions.filter((s) => s.scheduledDate === today);
@@ -108,19 +128,36 @@ export default async function DashboardPage() {
       ? `You have ${overdueAssignments.length} thing${overdueAssignments.length === 1 ? "" : "s"} overdue.`
       : "You're on track.";
 
+  const period = dayPeriod(now);
+  const dailyContext = (() => {
+    if (period === "evening") {
+      if (todaySessions.length === 0) return null;
+      return completedToday > 0
+        ? `${completedToday} of ${todaySessions.length} done today.`
+        : `${todaySessions.length} planned for today, still open — there's time.`;
+    }
+    if (period === "afternoon" && todaySessions.length > 0 && completedToday === 0) {
+      return "A good stretch of time for a focused session.";
+    }
+    return null;
+  })();
+
   const oneThing = plan.scored[0];
 
   return (
     <div className="space-y-10">
       <div>
         <h1 className="font-heading text-3xl font-semibold">
-          {greeting(now)}, {user.profile?.displayName}.
+          {greeting(period)}, {user.profile?.displayName}.
         </h1>
         <p
           className={`mt-1 text-base ${overdueAssignments.length > 0 ? "text-destructive" : "text-success"}`}
         >
           {statusLine}
         </p>
+        {dailyContext && (
+          <p className="mt-0.5 text-sm text-muted-foreground">{dailyContext}</p>
+        )}
       </div>
 
       {oneThing && (

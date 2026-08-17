@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateProfile } from "@/server/actions/settings";
+import { CHALLENGE_OPTIONS, type AcademicChallengeValue } from "@/lib/validation/onboarding";
+import { cn } from "@/lib/utils";
 
 const COMMON_TIMEZONES = [
   "America/New_York",
@@ -37,6 +39,7 @@ export function ProfileForm({
     school: string;
     timezone: string;
     goals: string;
+    primaryChallenge: AcademicChallengeValue | null;
   };
 }) {
   const [pending, startTransition] = useTransition();
@@ -45,6 +48,9 @@ export function ProfileForm({
   const [school, setSchool] = useState(initial.school);
   const [timezone, setTimezone] = useState(initial.timezone);
   const [goals, setGoals] = useState(initial.goals);
+  const [challenge, setChallenge] = useState<AcademicChallengeValue | "">(
+    initial.primaryChallenge ?? "",
+  );
 
   const timezoneOptions = COMMON_TIMEZONES.includes(timezone)
     ? COMMON_TIMEZONES
@@ -59,6 +65,7 @@ export function ProfileForm({
         school: school || undefined,
         timezone,
         goals: goals || undefined,
+        primaryChallenge: challenge || null,
       });
       if ("error" in result) toast.error(result.error);
       else toast.success("Profile updated.");
@@ -133,6 +140,31 @@ export function ProfileForm({
           maxLength={500}
           rows={3}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Biggest academic challenge (optional)</Label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {CHALLENGE_OPTIONS.map((c) => {
+            const selected = challenge === c.value;
+            return (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setChallenge((cur) => (cur === c.value ? "" : c.value))}
+                aria-pressed={selected}
+                className={cn(
+                  "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                  selected
+                    ? "border-primary bg-accent text-accent-foreground"
+                    : "border-border hover:bg-muted",
+                )}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <Button type="submit" disabled={pending}>

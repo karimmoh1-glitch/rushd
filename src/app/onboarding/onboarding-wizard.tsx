@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +21,7 @@ import {
   presetToWindows,
 } from "@/lib/planning/availability-presets";
 import { CLASS_COLORS, DEFAULT_CLASS_COLOR } from "@/lib/class-colors";
+import { CHALLENGE_OPTIONS, type AcademicChallengeValue } from "@/lib/validation/onboarding";
 import { cn } from "@/lib/utils";
 
 const COMMON_TIMEZONES = [
@@ -40,17 +43,23 @@ interface ClassDraft {
   teacher: string;
 }
 
-const STEPS = ["Basics", "Study time", "Classes"] as const;
+const STEPS = ["Basics", "Study time", "Classes", "Challenge"] as const;
 
 export function OnboardingWizard() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
+  const [done, setDone] = useState<{
+    classCount: number;
+    availabilityWindowCount: number;
+  } | null>(null);
 
   const [displayName, setDisplayName] = useState("");
   const [grade, setGrade] = useState<string>("");
   const [school, setSchool] = useState("");
   const [timezone, setTimezone] = useState("");
   const [goals, setGoals] = useState("");
+  const [challenge, setChallenge] = useState<AcademicChallengeValue | "">("");
 
   const [selectedPresets, setSelectedPresets] = useState<Set<string>>(
     new Set(),
@@ -125,13 +134,47 @@ export function OnboardingWizard() {
         school: school.trim() || undefined,
         timezone,
         goals: goals.trim() || undefined,
+        primaryChallenge: challenge || null,
         availability,
         classes: validClasses,
       });
       if (result && "error" in result) {
         toast.error(result.error);
+        return;
+      }
+      if (result) {
+        setDone({
+          classCount: result.classCount,
+          availabilityWindowCount: result.availabilityWindowCount,
+        });
       }
     });
+  }
+
+  if (done) {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent">
+          <Sparkles className="h-6 w-6 text-primary" aria-hidden="true" />
+        </div>
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">
+            Your Rushd profile is ready.
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {done.classCount > 0
+              ? `${done.classCount} class${done.classCount === 1 ? "" : "es"} added`
+              : "No classes yet — add them anytime"}
+            {done.availabilityWindowCount > 0
+              ? ", study availability set, and your first plan is ready."
+              : ". Set your study availability in Settings to get a real plan."}
+          </p>
+        </div>
+        <Button onClick={() => router.push("/dashboard")} size="lg" className="w-full sm:w-auto">
+          Go to my plan
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -338,6 +381,39 @@ export function OnboardingWizard() {
         </div>
       )}
 
+      {step === 3 && (
+        <div className="space-y-4">
+          <h1 className="font-heading text-2xl font-semibold">
+            What&apos;s your biggest academic challenge?
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Optional — this just helps Rushd&apos;s Academic Profile page make sense of your patterns.
+          </p>
+          <div className="space-y-2">
+            {CHALLENGE_OPTIONS.map((c) => {
+              const selected = challenge === c.value;
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setChallenge((cur) => (cur === c.value ? "" : c.value))}
+                  aria-pressed={selected}
+                  className={cn(
+                    "w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors",
+                    selected
+                      ? "border-primary bg-accent text-accent-foreground"
+                      : "border-border hover:bg-muted",
+                  )}
+                >
+                  <div className="font-medium">{c.label}</div>
+                  <div className="text-muted-foreground">{c.body}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between border-t pt-6">
         <Button
           type="button"
@@ -357,7 +433,7 @@ export function OnboardingWizard() {
           </Button>
         ) : (
           <Button type="button" onClick={handleFinish} disabled={pending}>
-            {pending ? "Setting up…" : "Go to dashboard"}
+            {pending ? "Setting up…" : "Finish setup"}
           </Button>
         )}
       </div>

@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { ACADEMIC_CHALLENGES } from "@/lib/validation/onboarding";
 
 function isValidTimeZone(tz: string): boolean {
   try {
@@ -15,6 +16,7 @@ export const ProfileSettingsSchema = z.object({
   school: z.string().trim().max(120, "School name is too long (max 120 characters).").optional(),
   timezone: z.string().refine(isValidTimeZone, { error: "Unrecognized timezone." }),
   goals: z.string().trim().max(500, "Goals are too long (max 500 characters).").optional(),
+  primaryChallenge: z.enum(ACADEMIC_CHALLENGES).nullable(),
 });
 export type ProfileSettingsInput = z.infer<typeof ProfileSettingsSchema>;
 

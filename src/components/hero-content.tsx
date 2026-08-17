@@ -18,15 +18,22 @@ function useItemMotion(delay: number) {
 }
 
 export function HeroContent() {
+  const kicker = useItemMotion(0);
   const headline = useItemMotion(0.1);
   const subtitle = useItemMotion(0.22);
   const actions = useItemMotion(0.34);
 
   return (
     <div>
+      <motion.p
+        {...kicker}
+        className="text-sm font-medium text-primary"
+      >
+        Five things due this week and no idea where to start?
+      </motion.p>
       <motion.h1
         {...headline}
-        className="font-heading text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
+        className="mt-2 font-heading text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
       >
         Turn academic chaos into a clear plan
       </motion.h1>

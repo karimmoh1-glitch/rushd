@@ -1,7 +1,39 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+const MIN_SESSIONS_PER_STUDENT = 3;
+
+interface StudentAccuracy {
+  email: string;
+  sessionCount: number;
+  avgOverrunPercent: number;
+}
+
+function buildStudentAccuracy(
+  rows: { userId: string; email: string; plannedMinutes: number; actualMinutes: number | null }[],
+): StudentAccuracy[] {
+  const byStudent = new Map<string, { email: string; ratios: number[] }>();
+  for (const r of rows) {
+    if (r.actualMinutes == null) continue;
+    const entry = byStudent.get(r.userId) ?? { email: r.email, ratios: [] };
+    entry.ratios.push(r.actualMinutes / r.plannedMinutes);
+    byStudent.set(r.userId, entry);
+  }
+  const result: StudentAccuracy[] = [];
+  for (const { email, ratios } of byStudent.values()) {
+    if (ratios.length < MIN_SESSIONS_PER_STUDENT) continue;
+    const avgRatio = ratios.reduce((sum, r) => sum + r, 0) / ratios.length;
+    result.push({
+      email,
+      sessionCount: ratios.length,
+      avgOverrunPercent: Math.round((avgRatio - 1) * 100),
+    });
+  }
+  return result.sort((a, b) => b.avgOverrunPercent - a.avgOverrunPercent);
+}
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -22,6 +54,7 @@ export default async function AdminPage() {
     totalAssignments,
     totalExams,
     totalPlansGenerated,
+    studySessionRows,
   ] = await Promise.all([
     db.user.count(),
     db.event.findMany({
@@ -60,7 +93,44 @@ export default async function AdminPage() {
     db.assignment.count(),
     db.exam.count(),
     db.plan.count(),
+    db.studySession.findMany({
+      where: { status: { in: ["COMPLETED", "ABANDONED"] } },
+      select: {
+        userId: true,
+        className: true,
+        classColor: true,
+        status: true,
+        plannedMinutes: true,
+        actualMinutes: true,
+        perceivedDifficulty: true,
+        startedAt: true,
+        user: { select: { email: true } },
+      },
+    }),
   ]);
+
+  // Platform-wide prediction accuracy — reuses the same per-class logic as
+  // the student-facing Insights page, just run over every user's sessions
+  // pooled together instead of one student's. Answers "which classes tend
+  // to be underestimated across the whole platform," not just for one kid.
+  const platformSessions: SessionRecord[] = studySessionRows.map((r) => ({
+    className: r.className,
+    classColor: r.classColor,
+    status: r.status as "COMPLETED" | "ABANDONED",
+    plannedMinutes: r.plannedMinutes,
+    actualMinutes: r.actualMinutes,
+    perceivedDifficulty: r.perceivedDifficulty,
+    startedAt: r.startedAt,
+  }));
+  const platformInsights = buildInsights(platformSessions);
+  const studentAccuracy = buildStudentAccuracy(
+    studySessionRows.map((r) => ({
+      userId: r.userId,
+      email: r.user.email,
+      plannedMinutes: r.plannedMinutes,
+      actualMinutes: r.actualMinutes,
+    })),
+  ).slice(0, 5);
 
   const stats = [
     { label: "Total users", value: totalUsers },
@@ -186,6 +256,83 @@ export default async function AdminPage() {
           {recentFeedback.length === 0 && (
             <p className="text-sm text-muted-foreground">No feedback yet.</p>
           )}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-1 font-heading text-lg font-semibold">Prediction accuracy</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Pooled across every student — same estimate-accuracy math as their Insights page, run
+          platform-wide. Answers which classes are underestimated, in aggregate.
+        </p>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div>
+            <h3 className="mb-2 text-sm font-medium text-muted-foreground">
+              Classes (by name, across all students)
+            </h3>
+            <div className="space-y-2">
+              {platformInsights.estimateAccuracy.slice(0, 8).map((row) => (
+                <div
+                  key={row.className}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: row.classColor }}
+                    />
+                    {row.className}
+                    <span className="text-xs text-muted-foreground">
+                      ({row.sessionCount})
+                    </span>
+                  </span>
+                  <span
+                    className={`shrink-0 font-medium ${
+                      row.percentOff > 10
+                        ? "text-warning"
+                        : row.percentOff < -10
+                          ? "text-muted-foreground"
+                          : "text-success"
+                    }`}
+                  >
+                    {row.percentOff > 0 ? "+" : ""}
+                    {row.percentOff}%
+                  </span>
+                </div>
+              ))}
+              {platformInsights.estimateAccuracy.length === 0 && (
+                <p className="text-sm text-muted-foreground">Not enough session data yet.</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="mb-2 text-sm font-medium text-muted-foreground">
+              Students running most over estimate
+            </h3>
+            <div className="space-y-2">
+              {studentAccuracy.map((s) => (
+                <div
+                  key={s.email}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <span className="truncate">
+                    {s.email} <span className="text-xs text-muted-foreground">({s.sessionCount})</span>
+                  </span>
+                  <span
+                    className={`shrink-0 font-medium ${s.avgOverrunPercent > 10 ? "text-warning" : "text-muted-foreground"}`}
+                  >
+                    {s.avgOverrunPercent > 0 ? "+" : ""}
+                    {s.avgOverrunPercent}%
+                  </span>
+                </div>
+              ))}
+              {studentAccuracy.length === 0 && (
+                <p className="text-sm text-muted-foreground">Not enough session data yet.</p>
+              )}
+            </div>
+          </div>
         </div>
       </section>
     </div>

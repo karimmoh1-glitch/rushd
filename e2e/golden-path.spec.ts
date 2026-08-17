@@ -37,7 +37,13 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   // Step 3: classes.
   await expect(page.getByText("Add your classes")).toBeVisible();
   await page.getByPlaceholder("e.g. AP Chemistry").fill("Playwright Chemistry");
-  await page.getByRole("button", { name: "Go to dashboard" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  // Step 4: biggest challenge (optional — skip it).
+  await expect(page.getByText("What's your biggest academic challenge?")).toBeVisible();
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
+  await page.getByRole("button", { name: "Go to my plan" }).click();
 
   // Dashboard.
   await expect(page).toHaveURL(/\/dashboard/);
@@ -109,7 +115,13 @@ test("study session: start, persists across navigation, completes with an edited
   await page.getByText("Weekend afternoons").click();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByPlaceholder("e.g. AP Chemistry").fill("Session Test Class");
-  await page.getByRole("button", { name: "Go to dashboard" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  // Step 4: biggest challenge (optional — skip it).
+  await expect(page.getByText("What's your biggest academic challenge?")).toBeVisible();
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
+  await page.getByRole("button", { name: "Go to my plan" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
 
   // Create an assignment, then start a session on it from the Assignments
@@ -181,7 +193,13 @@ test("study session: abandon with an optional reason", async ({ page }) => {
   await page.getByText("Weekend afternoons").click();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByPlaceholder("e.g. AP Chemistry").fill("Abandon Test Class");
-  await page.getByRole("button", { name: "Go to dashboard" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  // Step 4: biggest challenge (optional — skip it).
+  await expect(page.getByText("What's your biggest academic challenge?")).toBeVisible();
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
+  await page.getByRole("button", { name: "Go to my plan" }).click();
 
   await page.getByRole("link", { name: "Exams" }).click();
   await page.getByRole("button", { name: "Add exam" }).click();

@@ -17,7 +17,14 @@ export default async function SettingsPage() {
   const [profile, availability] = await Promise.all([
     db.profile.findUnique({
       where: { userId: user.id },
-      select: { displayName: true, grade: true, school: true, timezone: true, goals: true },
+      select: {
+        displayName: true,
+        grade: true,
+        school: true,
+        timezone: true,
+        goals: true,
+        primaryChallenge: true,
+      },
     }),
     db.studyAvailability.findMany({
       where: { userId: user.id },
@@ -40,6 +47,7 @@ export default async function SettingsPage() {
             school: profile?.school ?? "",
             timezone: profile?.timezone ?? "America/New_York",
             goals: profile?.goals ?? "",
+            primaryChallenge: profile?.primaryChallenge ?? null,
           }}
         />
       </section>

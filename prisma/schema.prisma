@@ -29,17 +29,17 @@ model User {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  profile      Profile?
-  availability StudyAvailability[]
-  classes      Class[]
-  assignments  Assignment[]
-  exams        Exam[]
-  plans        Plan[]
-  planItems    PlanItem[]
+  profile       Profile?
+  availability  StudyAvailability[]
+  classes       Class[]
+  assignments   Assignment[]
+  exams         Exam[]
+  plans         Plan[]
+  planItems     PlanItem[]
   studySessions StudySession[]
   notifications Notification[]
-  feedback     Feedback[]
-  events       Event[]
+  feedback      Feedback[]
+  events        Event[]
 
   @@index([createdAt])
 }
@@ -47,17 +47,30 @@ model User {
 // Onboarding-collected profile data. Split from User so auth logic never
 // touches product-preference fields.
 model Profile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  displayName String
-  grade       Int? // 9-12; null if not disclosed
-  school      String? // optional, never required
-  timezone    String // IANA tz, e.g. "America/New_York"
-  goals       String? // free-text academic goals, optional
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  displayName      String
+  grade            Int? // 9-12; null if not disclosed
+  school           String? // optional, never required
+  timezone         String // IANA tz, e.g. "America/New_York"
+  goals            String? // free-text academic goals, optional
+  primaryChallenge AcademicChallenge? // self-reported at onboarding, optional
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Self-reported at onboarding — used to personalize copy (e.g. the Academic
+// Profile page) and, later, to weight the planning engine's defaults (a
+// student who says "procrastination" might get overdue work surfaced even
+// more aggressively). Not acted on yet beyond copy — see docs/PLANNING_ENGINE.md.
+enum AcademicChallenge {
+  TOO_MANY_ASSIGNMENTS
+  PROCRASTINATION
+  POOR_TIME_ESTIMATION
+  EXAM_STRESS
+  STAYING_ORGANIZED
 }
 
 // A recurring weekly window the student is typically available to study.
@@ -112,22 +125,22 @@ enum AssignmentStatus {
 }
 
 model Assignment {
-  id                String           @id @default(cuid())
-  userId            String
-  classId           String
-  title             String
-  dueAt             DateTime
-  estimatedMinutes  Int              @default(30)
-  priority          Priority         @default(MEDIUM)
-  status            AssignmentStatus @default(NOT_STARTED)
-  notes             String?
-  completedAt       DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  userId           String
+  classId          String
+  title            String
+  dueAt            DateTime
+  estimatedMinutes Int              @default(30)
+  priority         Priority         @default(MEDIUM)
+  status           AssignmentStatus @default(NOT_STARTED)
+  notes            String?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class     Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
-  planItems PlanItem[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class         Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  planItems     PlanItem[]
   studySessions StudySession[]
 
   @@index([userId, status, dueAt])
@@ -135,20 +148,20 @@ model Assignment {
 }
 
 model Exam {
-  id           String   @id @default(cuid())
-  userId       String
-  classId      String
-  title        String
-  examAt       DateTime
-  prepMinutes  Int      @default(120)
-  priority     Priority @default(MEDIUM)
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  classId     String
+  title       String
+  examAt      DateTime
+  prepMinutes Int      @default(120)
+  priority    Priority @default(MEDIUM)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class     Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
-  planItems PlanItem[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class         Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  planItems     PlanItem[]
   studySessions StudySession[]
 
   @@index([userId, examAt])
@@ -185,23 +198,23 @@ enum PlanItemStatus {
 // src/lib/planning, not at the DB level (Prisma has no partial CHECK
 // constraints without raw SQL, and this isn't worth a migration).
 model PlanItem {
-  id                String         @id @default(cuid())
-  planId            String
-  userId            String
-  assignmentId      String?
-  examId            String?
-  scheduledDate     DateTime // date only, local to Profile.timezone
-  scheduledMinutes  Int
-  score             Float // transparent priority score at generation time
-  reasonCode        String // e.g. "OVERDUE", "EXAM_PROXIMITY", "DUE_SOON" — see PLANNING_ENGINE.md
-  status            PlanItemStatus @default(PENDING)
-  completedAt       DateTime?
-  createdAt         DateTime       @default(now())
+  id               String         @id @default(cuid())
+  planId           String
+  userId           String
+  assignmentId     String?
+  examId           String?
+  scheduledDate    DateTime // date only, local to Profile.timezone
+  scheduledMinutes Int
+  score            Float // transparent priority score at generation time
+  reasonCode       String // e.g. "OVERDUE", "EXAM_PROXIMITY", "DUE_SOON" — see PLANNING_ENGINE.md
+  status           PlanItemStatus @default(PENDING)
+  completedAt      DateTime?
+  createdAt        DateTime       @default(now())
 
-  plan       Plan        @relation(fields: [planId], references: [id], onDelete: Cascade)
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  exam       Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  plan          Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment    Assignment?    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  exam          Exam?          @relation(fields: [examId], references: [id], onDelete: Cascade)
   studySessions StudySession[]
 
   @@index([planId])
@@ -222,7 +235,7 @@ enum StudySessionStatus {
 
 enum StudySessionSource {
   PLANNED // started from a surface that showed Rushd's plan (One Thing, Today)
-  MANUAL  // started directly from the Assignments/Exams list
+  MANUAL // started directly from the Assignments/Exams list
 }
 
 enum AbandonReason {
@@ -256,11 +269,11 @@ enum PerceivedDifficulty {
 // of assignmentId/examId is set — enforced in application code, the same
 // documented tradeoff as PlanItem above.
 model StudySession {
-  id             String             @id @default(cuid())
-  userId         String
-  assignmentId   String?
-  examId         String?
-  planItemId     String? // rarely populated in V1 — see docs/PLANNING_ENGINE.md
+  id           String  @id @default(cuid())
+  userId       String
+  assignmentId String?
+  examId       String?
+  planItemId   String? // rarely populated in V1 — see docs/PLANNING_ENGINE.md
 
   source         StudySessionSource
   title          String
@@ -270,11 +283,11 @@ model StudySession {
   className      String
   classColor     String
 
-  startedAt     DateTime           @default(now())
-  endedAt       DateTime?
-  actualMinutes Int?
-  status        StudySessionStatus @default(IN_PROGRESS)
-  abandonReason AbandonReason?
+  startedAt           DateTime             @default(now())
+  endedAt             DateTime?
+  actualMinutes       Int?
+  status              StudySessionStatus   @default(IN_PROGRESS)
+  abandonReason       AbandonReason?
   perceivedDifficulty PerceivedDifficulty?
 
   createdAt DateTime @default(now())
