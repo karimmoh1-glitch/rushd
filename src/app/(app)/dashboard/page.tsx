@@ -7,11 +7,14 @@ import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
 import { dateKey, explainScore, explainScoreSentence } from "@/lib/planning";
 import { formatDueDate, formatDuration, formatDaysUntil } from "@/lib/format";
+import { buildHealthScore } from "@/lib/health/build-health-score";
+import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TodayPlanItem } from "./today-plan-item";
 import { OneThing } from "./one-thing";
 import { WorkloadBars } from "./workload-bars";
+import { HealthScoreCard } from "./health-score-card";
 import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
 import { QuickAdd } from "./quick-add";
@@ -41,6 +44,7 @@ export default async function DashboardPage() {
   const today = dateKey(now);
 
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
   const [
     classes,
@@ -50,6 +54,10 @@ export default async function DashboardPage() {
     upcomingExams,
     completedThisWeek,
     completedToday,
+    overdueCount,
+    openCount,
+    healthSessions,
+    recentAssignments,
   ] = await Promise.all([
       db.class.findMany({
         where: { userId: user.id, archived: false },
@@ -95,6 +103,37 @@ export default async function DashboardPage() {
       db.assignment.count({
         where: { userId: user.id, status: "COMPLETED", completedAt: { gte: startOfToday } },
       }),
+      db.assignment.count({
+        where: {
+          userId: user.id,
+          status: { not: "COMPLETED" },
+          dueAt: { lt: now },
+          class: { archived: false },
+        },
+      }),
+      db.assignment.count({
+        where: { userId: user.id, status: { not: "COMPLETED" }, class: { archived: false } },
+      }),
+      db.studySession.findMany({
+        where: { userId: user.id, status: { in: ["COMPLETED", "ABANDONED"] } },
+        select: {
+          className: true,
+          classColor: true,
+          status: true,
+          plannedMinutes: true,
+          actualMinutes: true,
+          perceivedDifficulty: true,
+          startedAt: true,
+        },
+      }),
+      db.assignment.findMany({
+        where: {
+          userId: user.id,
+          dueAt: { gte: fourteenDaysAgo, lte: now },
+          class: { archived: false },
+        },
+        select: { status: true },
+      }),
     ]);
 
   const todaySessions = plan.sessions.filter((s) => s.scheduledDate === today);
@@ -124,9 +163,31 @@ export default async function DashboardPage() {
   });
 
   const statusLine =
-    overdueAssignments.length > 0
-      ? `You have ${overdueAssignments.length} thing${overdueAssignments.length === 1 ? "" : "s"} overdue.`
+    overdueCount > 0
+      ? `You have ${overdueCount} thing${overdueCount === 1 ? "" : "s"} overdue.`
       : "You're on track.";
+
+  const upcomingCount = openCount - overdueCount;
+
+  const sessionsForHealth: SessionRecord[] = healthSessions.map((r) => ({
+    className: r.className,
+    classColor: r.classColor,
+    status: r.status as "COMPLETED" | "ABANDONED",
+    plannedMinutes: r.plannedMinutes,
+    actualMinutes: r.actualMinutes,
+    perceivedDifficulty: r.perceivedDifficulty,
+    startedAt: r.startedAt,
+  }));
+  const health = buildHealthScore({
+    sessions: sessionsForHealth,
+    recentAssignments: recentAssignments.map((a) => ({ status: a.status })),
+    overdueCount,
+    openCount,
+  });
+  // A trivial "100, nothing open" from a brand-new account with zero
+  // history isn't a real signal — only surface the score once there's at
+  // least one genuine behavioral component behind it.
+  const showHealthScore = health.components.some((c) => c.key !== "overdue");
 
   const period = dayPeriod(now);
   const dailyContext = (() => {
@@ -143,6 +204,10 @@ export default async function DashboardPage() {
   })();
 
   const oneThing = plan.scored[0];
+  const classAccuracy = buildInsights(sessionsForHealth).estimateAccuracy;
+  const oneThingClassAccuracy = oneThing
+    ? classAccuracy.find((c) => c.className === oneThing.item.className)?.percentOff
+    : undefined;
 
   return (
     <div className="space-y-10">
@@ -151,7 +216,7 @@ export default async function DashboardPage() {
           {greeting(period)}, {user.profile?.displayName}.
         </h1>
         <p
-          className={`mt-1 text-base ${overdueAssignments.length > 0 ? "text-destructive" : "text-success"}`}
+          className={`mt-1 text-base ${overdueCount > 0 ? "text-destructive" : "text-success"}`}
         >
           {statusLine}
         </p>
@@ -169,7 +234,7 @@ export default async function DashboardPage() {
           className={oneThing.item.className}
           classColor={oneThing.item.classColor}
           minutes={oneThing.item.remainingMinutes}
-          explanation={explainScoreSentence(oneThing, now, plan.scored)}
+          explanation={explainScoreSentence(oneThing, now, plan.scored, oneThingClassAccuracy)}
         />
       )}
 
@@ -249,18 +314,22 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      {showHealthScore && health.score !== null && (
+        <HealthScoreCard score={health.score} components={health.components} />
+      )}
+
       <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="py-4">
             <p className="text-2xl font-semibold text-destructive">
-              {overdueAssignments.length}
+              {overdueCount}
             </p>
             <p className="text-sm text-muted-foreground">Overdue</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-4">
-            <p className="text-2xl font-semibold">{upcomingAssignments.length}</p>
+            <p className="text-2xl font-semibold">{upcomingCount}</p>
             <p className="text-sm text-muted-foreground">Upcoming</p>
           </CardContent>
         </Card>

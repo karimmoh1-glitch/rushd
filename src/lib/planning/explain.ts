@@ -79,16 +79,30 @@ export function explainScore(scored: ScoredItem, now: Date, allScored?: ScoredIt
   return reasons;
 }
 
+/** Below this, a class's historical over/under-estimate isn't worth
+ * mentioning — it's within normal noise, not a real pattern. */
+const CLASS_ACCURACY_NOTABLE_PERCENT = 15;
+
 /**
  * Composes one natural sentence explaining why an item is ranked where it
  * is — used where a single confident statement reads better than a bullet
  * list (One Thing's headline explanation, e.g. "Prioritized because it's
- * due in 2 days and it needs more time than most of your other open
- * work."). Built from the same breakdown as explainScore(), with each
- * clause hand-composed for sentence flow rather than mechanically joining
- * the bullet strings (which don't share one grammatical shape).
+ * due in 2 days and your Chemistry assignments usually take 25% longer
+ * than expected."). Built from the same breakdown as explainScore(), with
+ * each clause hand-composed for sentence flow rather than mechanically
+ * joining the bullet strings (which don't share one grammatical shape).
+ *
+ * `classAccuracyPercentOff`, when provided, is that class's real historical
+ * actual-vs-planned ratio from StudySession data (the same number shown on
+ * Insights/Profile) — not a guess. Only surfaced above the noise floor, and
+ * only when it's this item's most relevant available signal.
  */
-export function explainScoreSentence(scored: ScoredItem, now: Date, allScored?: ScoredItem[]): string {
+export function explainScoreSentence(
+  scored: ScoredItem,
+  now: Date,
+  allScored?: ScoredItem[],
+  classAccuracyPercentOff?: number,
+): string {
   const { item, breakdown } = scored;
   const daysUntil = calendarDaysUntil(item.dueAt, now);
   const isExam = item.kind === "exam";
@@ -110,7 +124,16 @@ export function explainScoreSentence(scored: ScoredItem, now: Date, allScored?: 
   }
 
   const secondary: string[] = [];
-  if (allScored && isEffortStandout(scored, allScored)) {
+  if (
+    classAccuracyPercentOff != null &&
+    Math.abs(classAccuracyPercentOff) >= CLASS_ACCURACY_NOTABLE_PERCENT
+  ) {
+    secondary.push(
+      classAccuracyPercentOff > 0
+        ? `your ${item.className} assignments usually take ${classAccuracyPercentOff}% longer than expected`
+        : `your ${item.className} assignments usually take less time than expected`,
+    );
+  } else if (allScored && isEffortStandout(scored, allScored)) {
     secondary.push("it needs more time than most of your other open work");
   }
   if (item.priority === "HIGH" && !primary.includes("high priority")) {

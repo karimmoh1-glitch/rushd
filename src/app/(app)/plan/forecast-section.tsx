@@ -19,12 +19,21 @@ const RISK_CLASS: Record<WeekForecast["risk"], string> = {
 };
 
 export function ForecastSection({ weeks }: { weeks: WeekForecast[] }) {
+  const overloaded = weeks.find((w) => w.risk === "high");
+
   return (
     <section>
       <h2 className="mb-1 font-heading text-lg font-semibold">Academic forecast</h2>
       <p className="mb-3 text-sm text-muted-foreground">
-        Estimated workload vs. your usual available time, looking ahead.
+        If you keep working at your current pace, here&apos;s what the next three weeks look like.
       </p>
+      {overloaded && (
+        <p className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          At your current pace, <span className="font-medium">{overloaded.label.toLowerCase()}</span> runs{" "}
+          {formatDuration(overloaded.estimatedMinutes - overloaded.availableMinutes)} over your usual
+          available time — start on the highest-priority items now to soften it.
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-3">
         {weeks.map((week) => (
           <Card key={week.label}>
