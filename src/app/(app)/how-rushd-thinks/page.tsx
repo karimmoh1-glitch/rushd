@@ -6,6 +6,7 @@ import { buildEstimationProfile } from "@/lib/estimation/build-estimation-profil
 import { buildPatterns } from "@/lib/patterns/build-patterns";
 import type { SessionRecord } from "@/lib/insights/build-insights";
 import { SCORING_WEIGHTS } from "@/lib/planning/constants";
+import { logEvent } from "@/lib/analytics/log-event";
 import { Card, CardContent } from "@/components/ui/card";
 import { Reveal } from "@/components/reveal";
 
@@ -39,18 +40,21 @@ const SCORING_FACTORS = [
 export default async function HowRushdThinksPage() {
   const user = await requireUser();
 
-  const rows = await db.studySession.findMany({
-    where: { userId: user.id, status: { in: ["COMPLETED", "ABANDONED"] } },
-    select: {
-      className: true,
-      classColor: true,
-      status: true,
-      plannedMinutes: true,
-      actualMinutes: true,
-      perceivedDifficulty: true,
-      startedAt: true,
-    },
-  });
+  const [rows] = await Promise.all([
+    db.studySession.findMany({
+      where: { userId: user.id, status: { in: ["COMPLETED", "ABANDONED"] } },
+      select: {
+        className: true,
+        classColor: true,
+        status: true,
+        plannedMinutes: true,
+        actualMinutes: true,
+        perceivedDifficulty: true,
+        startedAt: true,
+      },
+    }),
+    logEvent(user.id, "how_rushd_thinks_viewed"),
+  ]);
   const sessions: SessionRecord[] = rows.map((r) => ({
     className: r.className,
     classColor: r.classColor,

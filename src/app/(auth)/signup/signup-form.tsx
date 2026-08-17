@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { signup, type AuthFormState } from "@/server/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export function SignupForm() {
     signup,
     undefined,
   );
+  const [showInviteCode, setShowInviteCode] = useState(false);
 
   return (
     <form action={action} className="space-y-4" noValidate>
@@ -58,6 +59,33 @@ export function SignupForm() {
           </p>
         )}
       </div>
+
+      {showInviteCode || state?.errors?.inviteCode ? (
+        <div className="space-y-2">
+          <Label htmlFor="inviteCode">Invite code</Label>
+          <Input
+            id="inviteCode"
+            name="inviteCode"
+            type="text"
+            autoCapitalize="characters"
+            aria-invalid={state?.errors?.inviteCode ? true : undefined}
+            aria-describedby={state?.errors?.inviteCode ? "invite-code-error" : undefined}
+          />
+          {state?.errors?.inviteCode && (
+            <p id="invite-code-error" className="text-sm text-destructive">
+              {state.errors.inviteCode[0]}
+            </p>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowInviteCode(true)}
+          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          Have an invite code?
+        </button>
+      )}
 
       {state?.message && (
         <p role="alert" className="text-sm text-destructive">

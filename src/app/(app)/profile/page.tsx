@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights";
 import { CHALLENGE_OPTIONS } from "@/lib/validation/onboarding";
+import { logEvent } from "@/lib/analytics/log-event";
 import { formatDuration } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Reveal } from "@/components/reveal";
@@ -56,6 +57,7 @@ export default async function ProfilePage() {
       },
       orderBy: { startedAt: "asc" },
     }),
+    logEvent(user.id, "profile_viewed"),
   ]);
 
   const sessions: SessionRecord[] = sessionRows.map((r) => ({

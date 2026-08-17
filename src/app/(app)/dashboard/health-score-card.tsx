@@ -1,5 +1,6 @@
 import { Activity } from "lucide-react";
 import type { HealthComponent } from "@/lib/health/build-health-score";
+import { HelpfulWidget } from "@/components/helpful-widget";
 
 function scoreLabel(score: number): { label: string; tone: string } {
   if (score >= 80) return { label: "Strong", tone: "text-success" };
@@ -38,6 +39,9 @@ export function HealthScoreCard({
               </li>
             ))}
           </ul>
+          <div className="mt-3">
+            <HelpfulWidget feature="health_score" />
+          </div>
         </div>
       </div>
     </div>

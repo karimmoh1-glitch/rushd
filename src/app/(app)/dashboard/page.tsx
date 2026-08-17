@@ -11,6 +11,7 @@ import { buildHealthScore } from "@/lib/health/build-health-score";
 import type { SessionRecord } from "@/lib/insights/build-insights";
 import { buildEstimationProfile, adjustEstimate } from "@/lib/estimation/build-estimation-profile";
 import { buildPatterns } from "@/lib/patterns/build-patterns";
+import { logEvent } from "@/lib/analytics/log-event";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TodayPlanItem } from "./today-plan-item";
@@ -137,6 +138,7 @@ export default async function DashboardPage() {
         },
         select: { status: true },
       }),
+      logEvent(user.id, "dashboard_viewed"),
     ]);
 
   const todaySessions = plan.sessions.filter((s) => s.scheduledDate === today);

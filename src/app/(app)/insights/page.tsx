@@ -4,9 +4,11 @@ import { BarChart3, Clock, Flame, Gauge } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights";
+import { logEvent } from "@/lib/analytics/log-event";
 import { formatDuration } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Reveal } from "@/components/reveal";
+import { HelpfulWidget } from "@/components/helpful-widget";
 
 export const metadata: Metadata = {
   title: "Insights",
@@ -21,19 +23,22 @@ function formatHour(hour: number): string {
 export default async function InsightsPage() {
   const user = await requireUser();
 
-  const rows = await db.studySession.findMany({
-    where: { userId: user.id, status: { in: ["COMPLETED", "ABANDONED"] } },
-    select: {
-      className: true,
-      classColor: true,
-      status: true,
-      plannedMinutes: true,
-      actualMinutes: true,
-      perceivedDifficulty: true,
-      startedAt: true,
-    },
-    orderBy: { startedAt: "asc" },
-  });
+  const [rows] = await Promise.all([
+    db.studySession.findMany({
+      where: { userId: user.id, status: { in: ["COMPLETED", "ABANDONED"] } },
+      select: {
+        className: true,
+        classColor: true,
+        status: true,
+        plannedMinutes: true,
+        actualMinutes: true,
+        perceivedDifficulty: true,
+        startedAt: true,
+      },
+      orderBy: { startedAt: "asc" },
+    }),
+    logEvent(user.id, "insights_viewed"),
+  ]);
 
   const sessions: SessionRecord[] = rows.map((r) => ({
     className: r.className,
@@ -246,12 +251,15 @@ export default async function InsightsPage() {
           )}
 
           <Reveal delay={0.3}>
-            <Link
-              href="/how-rushd-thinks"
-              className="block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-            >
-              Curious how this is calculated? See how Rushd thinks →
-            </Link>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link
+                href="/how-rushd-thinks"
+                className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+              >
+                Curious how this is calculated? See how Rushd thinks →
+              </Link>
+              <HelpfulWidget feature="insights" />
+            </div>
           </Reveal>
         </>
       )}

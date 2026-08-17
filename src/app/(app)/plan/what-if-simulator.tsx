@@ -4,6 +4,8 @@ import { useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/lib/format";
+import { logWhatIfSimulatorUsed } from "@/server/actions/feature-events";
+import { HelpfulWidget } from "@/components/helpful-widget";
 // Imports directly from ./forecast rather than the @/lib/planning barrel —
 // that barrel also re-exports build-work-items.ts, which pulls in
 // "server-only" and would poison this client component's bundle.
@@ -57,7 +59,14 @@ export function WhatIfSimulator({
           <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
           What if I skip today?
         </p>
-        <Button variant="outline" size="sm" onClick={() => setShown((s) => !s)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (!shown) void logWhatIfSimulatorUsed();
+            setShown((s) => !s);
+          }}
+        >
           {shown ? "Hide" : "See what happens"}
         </Button>
       </div>
@@ -86,6 +95,7 @@ export function WhatIfSimulator({
               session.
             </p>
           )}
+          <HelpfulWidget feature="what_if" />
         </div>
       )}
     </div>

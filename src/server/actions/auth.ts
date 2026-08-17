@@ -11,7 +11,7 @@ import { logEvent } from "@/lib/analytics/log-event";
 
 export type AuthFormState =
   | {
-      errors?: { email?: string[]; password?: string[] };
+      errors?: { email?: string[]; password?: string[]; inviteCode?: string[] };
       message?: string;
     }
   | undefined;
@@ -33,12 +33,32 @@ export async function signup(
   const parsed = SignupSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
+    inviteCode: formData.get("inviteCode"),
   });
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const { email, password } = parsed.data;
+  const { email, password, inviteCode } = parsed.data;
+
+  // Invite codes are always attributable when supplied (for pilot cohort
+  // tracking), but only *required* to sign up when REQUIRE_INVITE_CODE is
+  // set — see .env.example. Keeps public signup open by default.
+  let invite: { id: string; maxUses: number | null; _count: { users: number } } | null = null;
+  if (inviteCode) {
+    invite = await db.inviteCode.findUnique({
+      where: { code: inviteCode },
+      select: { id: true, maxUses: true, _count: { select: { users: true } } },
+    });
+    if (!invite) {
+      return { errors: { inviteCode: ["That invite code isn't valid."] } };
+    }
+    if (invite.maxUses !== null && invite._count.users >= invite.maxUses) {
+      return { errors: { inviteCode: ["That invite code has reached its limit."] } };
+    }
+  } else if (process.env.REQUIRE_INVITE_CODE) {
+    return { errors: { inviteCode: ["An invite code is required to sign up right now."] } };
+  }
 
   const existing = await db.user.findUnique({
     where: { email },
@@ -55,12 +75,12 @@ export async function signup(
   const passwordHash = await hashPassword(password);
 
   const user = await db.user.create({
-    data: { email, passwordHash },
+    data: { email, passwordHash, invitedByCodeId: invite?.id },
     select: { id: true },
   });
 
   await createSession(user.id);
-  await logEvent(user.id, "signup");
+  await logEvent(user.id, "signup", invite ? { inviteCode } : undefined);
 
   redirect("/onboarding");
 }

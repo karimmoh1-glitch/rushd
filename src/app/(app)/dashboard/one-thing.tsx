@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
 import { StartSessionButton } from "@/components/start-session-button";
+import { HelpfulWidget } from "@/components/helpful-widget";
 import { formatDuration } from "@/lib/format";
 
 export function OneThing({
@@ -74,6 +75,9 @@ export function OneThing({
               </ul>
             </div>
           )}
+          <div className="mt-3">
+            <HelpfulWidget feature="one_thing" />
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
