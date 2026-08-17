@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { explainScore, explainScoreSentence } from "./explain";
+import { explainScore } from "./explain";
 import { scoreItem } from "./score";
 import type { WorkItem } from "./types";
 
@@ -17,6 +17,8 @@ function makeItem(overrides: Partial<WorkItem> = {}): WorkItem {
     classPriority: "MEDIUM",
     dueAt: new Date("2026-08-20T12:00:00"),
     remainingMinutes: 30,
+    rawEstimatedMinutes: 30,
+    estimateAdjusted: false,
     ...overrides,
   };
 }
@@ -119,57 +121,5 @@ describe("explainScore", () => {
     const others = [scoreItem(makeItem({ id: "tinier", remainingMinutes: 5 }), NOW)];
     const reasons = explainScore(tiny, NOW, [tiny, ...others]);
     expect(reasons.some((r) => /more time/i.test(r))).toBe(false);
-  });
-});
-
-describe("explainScoreSentence", () => {
-  it("produces one grammatical sentence combining urgency and effort", () => {
-    const standout = scoreItem(
-      makeItem({ id: "big", dueAt: new Date("2026-08-17T12:00:00"), remainingMinutes: 120 }),
-      NOW,
-    );
-    const others = [
-      scoreItem(makeItem({ id: "a", remainingMinutes: 30 }), NOW),
-      scoreItem(makeItem({ id: "b", remainingMinutes: 30 }), NOW),
-    ];
-    const sentence = explainScoreSentence(standout, NOW, [standout, ...others]);
-    expect(sentence).toMatch(/^Prioritized because/);
-    expect(sentence).toMatch(/due in \d+ days/);
-    expect(sentence).toMatch(/more time than most of your other open work/);
-    expect(sentence.endsWith(".")).toBe(true);
-  });
-
-  it("still reads as a full sentence with only one contributing reason", () => {
-    const scored = scoreItem(makeItem({ dueAt: new Date("2026-08-10T12:00:00") }), NOW);
-    const sentence = explainScoreSentence(scored, NOW);
-    expect(sentence).toBe("Prioritized because it's overdue by 5 days.");
-  });
-
-  it("mentions class accuracy when notably above the noise floor", () => {
-    const scored = scoreItem(
-      makeItem({ dueAt: new Date("2026-08-17T12:00:00"), className: "AP Chemistry" }),
-      NOW,
-    );
-    const sentence = explainScoreSentence(scored, NOW, undefined, 25);
-    expect(sentence).toBe(
-      "Prioritized because it's due in 2 days and your AP Chemistry assignments usually take 25% longer than expected.",
-    );
-  });
-
-  it("ignores a class accuracy signal below the noise floor", () => {
-    const scored = scoreItem(makeItem({ dueAt: new Date("2026-08-17T12:00:00") }), NOW);
-    const sentence = explainScoreSentence(scored, NOW, undefined, 5);
-    expect(sentence).not.toMatch(/usually take/);
-  });
-
-  it("prefers class accuracy over the generic effort-standout clause when both apply", () => {
-    const standout = scoreItem(makeItem({ id: "big", remainingMinutes: 120 }), NOW);
-    const others = [
-      scoreItem(makeItem({ id: "a", remainingMinutes: 30 }), NOW),
-      scoreItem(makeItem({ id: "b", remainingMinutes: 30 }), NOW),
-    ];
-    const sentence = explainScoreSentence(standout, NOW, [standout, ...others], -20);
-    expect(sentence).toMatch(/usually take less time than expected/);
-    expect(sentence).not.toMatch(/more time than most/);
   });
 });

@@ -17,7 +17,7 @@ export function OneThing({
   className,
   classColor,
   minutes,
-  explanation,
+  reasons,
 }: {
   itemId: string;
   itemKind: "assignment" | "exam";
@@ -26,7 +26,7 @@ export function OneThing({
   className: string;
   classColor: string;
   minutes: number;
-  explanation: string;
+  reasons: string[];
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -62,7 +62,18 @@ export function OneThing({
           <p className="mt-1 text-sm text-muted-foreground">
             {className} · {formatDuration(minutes)}
           </p>
-          <p className="mt-3 max-w-md text-sm text-foreground/80">{explanation}</p>
+          {reasons.length > 0 && (
+            <div className="mt-3 max-w-md">
+              <p className="text-xs font-medium text-muted-foreground">Do this now because:</p>
+              <ul className="mt-1.5 space-y-1">
+                {reasons.map((reason) => (
+                  <li key={reason} className="text-sm text-foreground/80">
+                    — {reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

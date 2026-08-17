@@ -6,6 +6,7 @@ import { requireUserOrThrow } from "@/lib/auth/dal";
 import { buildWorkItems } from "@/lib/planning/build-work-items";
 import { scoreItem } from "@/lib/planning/score";
 import type { WorkItem } from "@/lib/planning/types";
+import { getEstimationProfileForUser } from "@/lib/estimation/get-estimation-profile-for-user";
 import { logEvent } from "@/lib/analytics/log-event";
 
 export type StudySessionSource = "PLANNED" | "MANUAL";
@@ -50,6 +51,12 @@ type SessionTarget = { assignmentId: string } | { examId: string };
  * never trusts a client-supplied score. Returns null if the item doesn't
  * exist or isn't owned by this user (ownership + ordinary "not found" are
  * indistinguishable on purpose, matching every other action in this app).
+ *
+ * Also personalizes the predicted duration via the student's own
+ * estimation profile (src/lib/estimation), same as the live plan does —
+ * without this, a new session's plannedMinutes would always be the raw
+ * un-calibrated estimate, and accuracy tracking would never reflect that
+ * Rushd had already learned anything.
  */
 async function predictForTarget(
   userId: string,
@@ -57,39 +64,45 @@ async function predictForTarget(
   now: Date,
 ): Promise<{ workItem: WorkItem; score: number; reasonCode: string } | null> {
   if ("assignmentId" in target) {
-    const assignment = await db.assignment.findFirst({
-      where: { id: target.assignmentId, userId, status: { not: "COMPLETED" } },
-      select: {
-        id: true,
-        classId: true,
-        title: true,
-        dueAt: true,
-        estimatedMinutes: true,
-        priority: true,
-        status: true,
-        class: { select: { name: true, color: true, priority: true } },
-      },
-    });
+    const [assignment, estimationProfile] = await Promise.all([
+      db.assignment.findFirst({
+        where: { id: target.assignmentId, userId, status: { not: "COMPLETED" } },
+        select: {
+          id: true,
+          classId: true,
+          title: true,
+          dueAt: true,
+          estimatedMinutes: true,
+          priority: true,
+          status: true,
+          class: { select: { name: true, color: true, priority: true } },
+        },
+      }),
+      getEstimationProfileForUser(userId),
+    ]);
     if (!assignment) return null;
-    const [workItem] = buildWorkItems([assignment], []);
+    const [workItem] = buildWorkItems([assignment], [], estimationProfile);
     const scored = scoreItem(workItem, now);
     return { workItem, score: scored.score, reasonCode: scored.reasonCode };
   }
 
-  const exam = await db.exam.findFirst({
-    where: { id: target.examId, userId },
-    select: {
-      id: true,
-      classId: true,
-      title: true,
-      examAt: true,
-      prepMinutes: true,
-      priority: true,
-      class: { select: { name: true, color: true, priority: true } },
-    },
-  });
+  const [exam, estimationProfile] = await Promise.all([
+    db.exam.findFirst({
+      where: { id: target.examId, userId },
+      select: {
+        id: true,
+        classId: true,
+        title: true,
+        examAt: true,
+        prepMinutes: true,
+        priority: true,
+        class: { select: { name: true, color: true, priority: true } },
+      },
+    }),
+    getEstimationProfileForUser(userId),
+  ]);
   if (!exam) return null;
-  const [workItem] = buildWorkItems([], [exam]);
+  const [workItem] = buildWorkItems([], [exam], estimationProfile);
   const scored = scoreItem(workItem, now);
   return { workItem, score: scored.score, reasonCode: scored.reasonCode };
 }

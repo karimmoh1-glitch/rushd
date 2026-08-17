@@ -269,6 +269,15 @@ export default async function ProfilePage() {
           )}
         </section>
       </Reveal>
+
+      <Reveal delay={0.3}>
+        <Link
+          href="/how-rushd-thinks"
+          className="block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          See how Rushd calculates all of this →
+        </Link>
+      </Reveal>
     </div>
   );
 }

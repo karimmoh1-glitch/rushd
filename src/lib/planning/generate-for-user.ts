@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { buildWorkItems } from "./build-work-items";
 import { generatePlan } from "./schedule";
+import { getEstimationProfileForUser } from "@/lib/estimation/get-estimation-profile-for-user";
 import type { PlanResult } from "./types";
 
 /**
@@ -17,7 +18,7 @@ export async function generatePlanForUser(
   userId: string,
   now: Date = new Date(),
 ): Promise<PlanResult> {
-  const [assignments, exams, availability] = await Promise.all([
+  const [assignments, exams, availability, estimationProfile] = await Promise.all([
     db.assignment.findMany({
       where: {
         userId,
@@ -51,9 +52,10 @@ export async function generatePlanForUser(
       where: { userId },
       select: { dayOfWeek: true, startMinute: true, endMinute: true },
     }),
+    getEstimationProfileForUser(userId),
   ]);
 
-  const workItems = buildWorkItems(assignments, exams);
+  const workItems = buildWorkItems(assignments, exams, estimationProfile);
 
   return generatePlan({ workItems, availability, now });
 }

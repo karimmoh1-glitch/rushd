@@ -17,7 +17,10 @@ const WEEK_LABELS = ["This week", "Next week", "The week after"];
 const WEEK_COUNT = 3;
 const DAYS_PER_WEEK = 7;
 
-function riskFor(estimated: number, available: number): RiskLevel {
+/** Exported so callers simulating a hypothetical change (e.g. the what-if
+ * "what happens if I skip today" comparison) can classify risk exactly the
+ * way the real forecast does, instead of re-deriving the same thresholds. */
+export function riskFor(estimated: number, available: number): RiskLevel {
   if (available <= 0) return "unknown";
   const ratio = estimated / available;
   if (ratio > 1) return "high";

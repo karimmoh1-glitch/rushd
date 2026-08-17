@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DayColumn } from "./day-column";
 import { ForecastSection } from "./forecast-section";
+import { WhatIfSimulator } from "./what-if-simulator";
 
 export const metadata: Metadata = {
   title: "Your plan",
@@ -80,6 +81,7 @@ export default async function PlanPage() {
   // horizon is exactly 7 days), so it doubles as "typical weekly available
   // time" for the forecast — no separate computation needed.
   const forecastWeeks = buildForecast(plan.scored, totalAvailableMinutes, now);
+  const todayPlannedMinutes = days[0]?.sessions.reduce((sum, s) => sum + s.minutes, 0) ?? 0;
 
   // Items that didn't fit anywhere in the horizon — still real work the
   // student owes, so it needs to be visible somewhere on this page, not
@@ -184,6 +186,12 @@ export default async function PlanPage() {
           </div>
         </section>
       )}
+
+      <WhatIfSimulator
+        todayMinutes={todayPlannedMinutes}
+        thisWeekEstimated={forecastWeeks[0]?.estimatedMinutes ?? 0}
+        thisWeekAvailable={forecastWeeks[0]?.availableMinutes ?? 0}
+      />
 
       <ForecastSection weeks={forecastWeeks} />
     </div>

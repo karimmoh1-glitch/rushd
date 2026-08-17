@@ -5,16 +5,19 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
-import { dateKey, explainScore, explainScoreSentence } from "@/lib/planning";
+import { dateKey, explainScore } from "@/lib/planning";
 import { formatDueDate, formatDuration, formatDaysUntil } from "@/lib/format";
 import { buildHealthScore } from "@/lib/health/build-health-score";
-import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights";
+import type { SessionRecord } from "@/lib/insights/build-insights";
+import { buildEstimationProfile, adjustEstimate } from "@/lib/estimation/build-estimation-profile";
+import { buildPatterns } from "@/lib/patterns/build-patterns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TodayPlanItem } from "./today-plan-item";
 import { OneThing } from "./one-thing";
 import { WorkloadBars } from "./workload-bars";
 import { HealthScoreCard } from "./health-score-card";
+import { buildOneThingReasons } from "./one-thing-reasons";
 import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
 import { QuickAdd } from "./quick-add";
@@ -204,10 +207,11 @@ export default async function DashboardPage() {
   })();
 
   const oneThing = plan.scored[0];
-  const classAccuracy = buildInsights(sessionsForHealth).estimateAccuracy;
-  const oneThingClassAccuracy = oneThing
-    ? classAccuracy.find((c) => c.className === oneThing.item.className)?.percentOff
-    : undefined;
+  const estimationProfile = buildEstimationProfile(sessionsForHealth);
+  const patterns = buildPatterns(sessionsForHealth);
+  const oneThingEstimate = oneThing
+    ? adjustEstimate(oneThing.item.rawEstimatedMinutes, oneThing.item.className, estimationProfile)
+    : null;
 
   return (
     <div className="space-y-10">
@@ -225,7 +229,7 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {oneThing && (
+      {oneThing && oneThingEstimate && (
         <OneThing
           itemId={oneThing.item.id}
           itemKind={oneThing.item.kind}
@@ -234,7 +238,7 @@ export default async function DashboardPage() {
           className={oneThing.item.className}
           classColor={oneThing.item.classColor}
           minutes={oneThing.item.remainingMinutes}
-          explanation={explainScoreSentence(oneThing, now, plan.scored, oneThingClassAccuracy)}
+          reasons={buildOneThingReasons(oneThing, now, plan.scored, oneThingEstimate, patterns)}
         />
       )}
 

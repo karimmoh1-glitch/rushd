@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BarChart3, Clock, Flame, Gauge } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
@@ -243,6 +244,15 @@ export default async function InsightsPage() {
               </section>
             </Reveal>
           )}
+
+          <Reveal delay={0.3}>
+            <Link
+              href="/how-rushd-thinks"
+              className="block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              Curious how this is calculated? See how Rushd thinks →
+            </Link>
+          </Reveal>
         </>
       )}
     </div>

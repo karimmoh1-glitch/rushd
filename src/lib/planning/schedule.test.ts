@@ -17,6 +17,8 @@ function makeItem(overrides: Partial<WorkItem> = {}): WorkItem {
     classPriority: "MEDIUM",
     dueAt: new Date("2026-08-22T12:00:00"),
     remainingMinutes: 30,
+    rawEstimatedMinutes: 30,
+    estimateAdjusted: false,
     ...overrides,
   };
 }

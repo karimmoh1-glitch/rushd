@@ -17,7 +17,16 @@ export interface WorkItem {
   priority: PriorityValue;
   classPriority: PriorityValue;
   dueAt: Date;
+  /** What the scheduler actually plans and scores against — the raw
+   * estimate, personalized by the student's own StudySession history when
+   * there's enough of it (see src/lib/estimation). Equal to
+   * rawEstimatedMinutes when no personalization applies. */
   remainingMinutes: number;
+  /** The un-adjusted number from Assignment.estimatedMinutes /
+   * Exam.prepMinutes — the student's or import's own input, never silently
+   * rewritten. Kept alongside remainingMinutes so the UI can show both. */
+  rawEstimatedMinutes: number;
+  estimateAdjusted: boolean;
 }
 
 export interface AvailabilityWindow {
