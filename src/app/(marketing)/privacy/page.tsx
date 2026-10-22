@@ -192,8 +192,11 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-heading text-lg font-semibold">Usage measurement</h2>
           <p className="mt-2">
-            Public pages are counted without cookies or identifiers (just the
-            page and the day). Inside the app, Rushd records product events
+            Public pages, and steps in the free tools (for example, &ldquo;got
+            a ranking&rdquo;), are counted without cookies or identifiers: just
+            the step and the day. To avoid counting the same visit twice, your
+            browser keeps a small note that it was counted today; that note
+            never leaves your device. Inside the app, Rushd records product events
             (for example, that a practice check was completed) and the amount
             of AI each account uses, so it can enforce plan limits and see
             whether Rushd helps. These records never contain your messages,

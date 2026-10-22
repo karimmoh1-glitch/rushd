@@ -8,6 +8,7 @@ import { parseWeek, toWorkItems, TRY_STORAGE_KEY, type TryItem } from "@/lib/try
 import { scoreAndRank } from "@/lib/planning/score";
 import { explainScore } from "@/lib/planning/explain";
 import { pulseOf } from "@/lib/planning/pulse";
+import { countOnce } from "@/lib/analytics/beacon";
 import { SCORING_WEIGHTS } from "@/lib/planning/constants";
 
 // The homepage's instant-value moment: type your week, the real planner ranks
@@ -52,14 +53,6 @@ interface Ranked {
   minutes: number;
   /** What went into the score, from the planner's own breakdown. */
   parts: { label: string; points: number }[];
-}
-
-function count(path: string) {
-  try {
-    if (!navigator.sendBeacon?.("/api/pv", path)) void fetch("/api/pv", { method: "POST", body: path, keepalive: true });
-  } catch {
-    // Analytics never affects the page.
-  }
 }
 
 const REDUCE = "(prefers-reduced-motion: reduce)";
@@ -136,7 +129,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
     setProgress(reduce ? 1 : 0);
     if (!counted.current) {
       counted.current = true;
-      count("#try");
+      countOnce("#try");
     }
     // The form is replaced by the results: keep keyboard and screen-reader users with it.
     if (fromUser) requestAnimationFrame(() => resultsRef.current?.focus());
@@ -212,7 +205,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
         setShared(true);
         window.setTimeout(() => setShared(false), 1800);
       }
-      count("#try-share");
+      countOnce("#try-share");
     } catch {
       // Cancelled or blocked; nothing to do.
     }
@@ -243,7 +236,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
     } catch {
       // Private mode: signup still works, the list just isn't carried over.
     }
-    count("#try-save");
+    countOnce("#try-save");
     router.push("/signup?from=try");
   }
 
@@ -310,6 +303,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
             value={text}
             onChange={(e) => {
               touched.current = true;
+              countOnce("#try-start");
               setText(e.target.value);
             }}
             onKeyDown={(e) => {

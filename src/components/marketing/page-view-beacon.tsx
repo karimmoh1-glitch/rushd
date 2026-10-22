@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { countOnce } from "@/lib/analytics/beacon";
 
-/** Counts one view of a public page: no cookies, no identifiers, no third parties. */
+/** Counts one visit to a public page per browser per day: no cookies, no identifiers, no third parties. */
 export function PageViewBeacon({ path }: { path: string }) {
   useEffect(() => {
-    try {
-      if (!navigator.sendBeacon?.("/api/pv", path)) void fetch("/api/pv", { method: "POST", body: path, keepalive: true });
-    } catch {
-      // Analytics must never affect the page.
-    }
+    countOnce(path);
   }, [path]);
   return null;
 }

@@ -1,33 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { getCohorts, getFunnel, getRecurring } from "@/lib/analytics/funnel";
+import { getCohorts, getGrowth, getRecurring } from "@/lib/analytics/funnel";
 import { InquiryStatus } from "./inquiry-status";
 
 export const metadata: Metadata = { title: "Growth" };
 
 export default async function AdminGrowthPage() {
-  const [funnel, cohorts, inquiries, recurring] = await Promise.all([
-    getFunnel(30),
+  const [g, cohorts, inquiries, recurring] = await Promise.all([
+    getGrowth(30),
     getCohorts(8),
     db.schoolInquiry.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     getRecurring(),
   ]);
-  const steps = [
-    ["Homepage visits", funnel.homeViews],
-    ["Ranked a week (try it)", funnel.tryRanked],
-    ["Saved a ranked week", funnel.trySaved],
-    ["Sign-up page visits", funnel.signupViews],
-    ["Accounts created", funnel.signups],
-    ["Finished onboarding", funnel.onboarded],
-    ["Added the week they ranked", funnel.tryImported],
-    ["First meaningful action", funnel.firstMeaningful],
-    ["First practice check", funnel.firstAssessment],
-    ["First tutor message", funnel.firstTutor],
-    ["Came back another day", funnel.returned],
-    ["Paid", funnel.paid],
-  ] as const;
   const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "–");
+  const rate = (r: { active: number; eligible: number }) => (r.eligible ? `${pct(r.active, r.eligible)} (${r.active} of ${r.eligible})` : "not enough data");
+  // [label, count, share-of base] — share is relative to the stage it depends on.
+  const visitorSteps: [string, number, number | null][] = [
+    ["Homepage visitors", g.visitors, null],
+    ["Started typing in the planner", g.plannerStarts, g.visitors],
+    ["Got a ranking", g.rankings, g.visitors],
+    ["Saved their ranked week", g.saves, g.rankings],
+    ["Shared a ranking", g.shares, g.rankings],
+    ["Free tool page visitors", g.toolVisits, null],
+    ["Made an exam plan", g.examPlans, null],
+    ["Sign-up page visitors", g.signupPage, g.visitors],
+    ["Invite link visitors", g.referralVisits, null],
+  ];
+  const accountSteps: [string, number][] = [
+    ["Accounts created", g.signups],
+    ["Finished onboarding", g.onboarded],
+    ["Added work (first plan)", g.firstSetup],
+    ["Brought in the week they ranked", g.importedWeek],
+    ["First real study action", g.firstStudy],
+    ["Paid", g.paid],
+  ];
 
   return (
     <div className="space-y-10">
@@ -35,8 +42,10 @@ export default async function AdminGrowthPage() {
         <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">Admin</Link>
         <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Growth</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          First-party only: cookieless public page counts and account events. Last {funnel.sinceDays} days; account steps are
-          for accounts created in that window.
+          Last {g.sinceDays} days, first-party only. Public steps count each browser at most once a day per step (no cookies,
+          no identifiers, automation excluded). Account steps cover accounts created in the window, excluding test and staff
+          accounts. Only real student actions count as activity: adding work and studying, never page views or Rushd&apos;s own
+          background jobs.
         </p>
       </header>
 
@@ -45,7 +54,7 @@ export default async function AdminGrowthPage() {
         <dl className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-4">
           {[
             ["Recurring", recurring.recurring.toLocaleString(), "active in 2+ of the last 4 weeks · goal 10,000"],
-            ["Active this week", recurring.activeThisWeek.toLocaleString(), "did something meaningful"],
+            ["Active this week", recurring.activeThisWeek.toLocaleString(), "added work or studied"],
             ["Active last week", recurring.activeLastWeek.toLocaleString(), ""],
             ["Came back", recurring.retainedPct === null ? "–" : `${recurring.retainedPct}%`, "of last week's, active again"],
           ].map(([k, v, d]) => (
@@ -59,14 +68,14 @@ export default async function AdminGrowthPage() {
       </section>
 
       <section>
-        <h2 className="border-b border-border pb-2 text-base font-semibold">Funnel</h2>
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Before sign-up</h2>
         <table className="mt-2 w-full text-sm">
           <tbody className="divide-y divide-border">
-            {steps.map(([label, n]) => (
+            {visitorSteps.map(([label, n, base]) => (
               <tr key={label}>
                 <td className="py-2">{label}</td>
                 <td className="py-2 text-right tabular-nums">{n}</td>
-                <td className="w-20 py-2 text-right tabular-nums text-muted-foreground">{label.startsWith("Home") || label.startsWith("Sign-up") || label.startsWith("Ranked") || label.startsWith("Saved") ? "" : pct(n, funnel.signups)}</td>
+                <td className="w-20 py-2 text-right tabular-nums text-muted-foreground">{base === null ? "" : pct(n, base)}</td>
               </tr>
             ))}
           </tbody>
@@ -74,7 +83,41 @@ export default async function AdminGrowthPage() {
       </section>
 
       <section>
-        <h2 className="border-b border-border pb-2 text-base font-semibold">Weekly cohorts: active in week…</h2>
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Accounts and activation</h2>
+        <table className="mt-2 w-full text-sm">
+          <tbody className="divide-y divide-border">
+            {accountSteps.map(([label, n]) => (
+              <tr key={label}>
+                <td className="py-2">{label}</td>
+                <td className="py-2 text-right tabular-nums">{n}</td>
+                <td className="w-20 py-2 text-right tabular-nums text-muted-foreground">{label === "Accounts created" ? "" : pct(n, g.signups)}</td>
+              </tr>
+            ))}
+            <tr>
+              <td className="py-2">Active the day after signing up</td>
+              <td className="py-2 text-right tabular-nums" colSpan={2}>{rate(g.day1)}</td>
+            </tr>
+            <tr>
+              <td className="py-2">Active in their second week (days 7–13)</td>
+              <td className="py-2 text-right tabular-nums" colSpan={2}>{rate(g.day7)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Invites</h2>
+        <table className="mt-2 w-full text-sm">
+          <tbody className="divide-y divide-border">
+            <tr><td className="py-2">Invite link visitors</td><td className="py-2 text-right tabular-nums">{g.referralVisits}</td><td className="w-20" /></tr>
+            <tr><td className="py-2">Joined through an invite</td><td className="py-2 text-right tabular-nums">{g.referralsJoined}</td><td className="w-20 py-2 text-right tabular-nums text-muted-foreground">{pct(g.referralsJoined, g.referralVisits)}</td></tr>
+            <tr><td className="py-2">Invite counted (friend studied for real)</td><td className="py-2 text-right tabular-nums">{g.referralsActivated}</td><td className="w-20 py-2 text-right tabular-nums text-muted-foreground">{pct(g.referralsActivated, g.referralsJoined)}</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Weekly cohorts: active in week… (real student actions only)</h2>
         <table className="mt-2 w-full text-sm">
           <thead className="text-left text-xs text-muted-foreground">
             <tr><th className="py-1 font-medium">Signup week</th><th className="py-1 text-right font-medium">Users</th><th className="py-1 text-right font-medium">1</th><th className="py-1 text-right font-medium">2</th><th className="py-1 text-right font-medium">4</th></tr>

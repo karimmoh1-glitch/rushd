@@ -9,6 +9,7 @@ import { generatePlan } from "@/lib/planning/schedule";
 import { presetToWindows } from "@/lib/planning/availability-presets";
 import { formatDateKey, formatMinuteOfDay, localDateKey, diffDateKeys } from "@/lib/time/zone";
 import type { PlanResult } from "@/lib/planning/types";
+import { countOnce } from "@/lib/analytics/beacon";
 
 // Exam study planner: list the tests and how much prep each needs; Rushd's
 // scheduler spreads the prep over the days before each one, inside the study
@@ -26,14 +27,6 @@ const PRESETS = [
   { id: "weekend-afternoon", label: "Weekend afternoons" },
 ];
 
-function count(path: string) {
-  try {
-    if (!navigator.sendBeacon?.("/api/pv", path)) void fetch("/api/pv", { method: "POST", body: path, keepalive: true });
-  } catch {
-    // Analytics never affects the page.
-  }
-}
-
 function hours(m: number) {
   const h = Math.round((m / 60) * 10) / 10;
   return `${h}h`;
@@ -44,7 +37,6 @@ export function ExamPlanner() {
   const [presets, setPresets] = useState<string[]>(["weekday-evening", "weekend-afternoon"]);
   const [session, setSession] = useState(60);
   const [plan, setPlan] = useState<{ result: PlanResult; tz: string } | null>(null);
-  const [counted, setCounted] = useState(false);
 
   function build() {
     const now = new Date();
@@ -63,10 +55,7 @@ export function ExamPlanner() {
       preferences: { preferredSessionMinutes: session, maxDailyMinutes: 240, breakMinutes: 10 },
     });
     setPlan({ result, tz });
-    if (!counted) {
-      setCounted(true);
-      count("#exam-plan");
-    }
+    countOnce("#exam-plan");
   }
 
   const byDay = new Map<string, PlanResult["sessions"]>();
