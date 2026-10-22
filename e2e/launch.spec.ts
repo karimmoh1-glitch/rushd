@@ -102,3 +102,34 @@ test("a visitor ranks their week, signs up, and keeps it", async ({ page }) => {
   await page.goto("/exams");
   await expect(page.getByText("Calc quiz")).toBeVisible();
 });
+
+test("an invite link credits the inviter when a friend joins", async ({ browser }) => {
+  test.setTimeout(90_000);
+  async function signUp(page: import("@playwright/test").Page, email: string) {
+    await page.goto("/signup");
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill("password123");
+    await page.getByRole("checkbox", { name: /13 or older/ }).check();
+    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByLabel("What should we call you?").fill("Invite Tester");
+    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Finish setup" }).click();
+    await expect(page.getByRole("heading", { name: "Your Rushd profile is ready." })).toBeVisible();
+  }
+  const stamp = Date.now();
+  const inviter = await (await browser.newContext()).newPage();
+  await signUp(inviter, `e2e-inviter-${stamp}@example.com`);
+  await inviter.goto("/settings#invite");
+  const link = (await inviter.locator("#invite code").innerText()).trim();
+  expect(link).toMatch(/\/r\/[a-z2-9]{8}$/);
+
+  const friend = await (await browser.newContext()).newPage();
+  await friend.goto(new URL(link).pathname);
+  await expect(friend.getByText("A friend invited you to Rushd.")).toBeVisible();
+  await friend.goto("/signup");
+  await expect(friend.getByText(/A friend invited you\. Study once/)).toBeVisible();
+  await signUp(friend, `e2e-friend-${stamp}@example.com`);
+
+  await inviter.reload();
+  await expect(inviter.getByText(/1 joined · 0 studied/)).toBeVisible();
+});

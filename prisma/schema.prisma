@@ -30,6 +30,8 @@ model User {
   // Bumped to revoke every outstanding session (password change, "sign out
   // everywhere"). Session tokens carry the version they were issued under.
   sessionVersion        Int       @default(0)
+  // Personal invite code for /r/<code>; created the first time it's needed.
+  referralCode          String?   @unique
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -48,6 +50,8 @@ model User {
   canvasConnection CanvasConnection?
   teamsConnection  TeamsConnection?
   calendarFeed     CalendarFeed?
+  referralsMade    Referral[]          @relation("Referrer")
+  referredBy       Referral?           @relation("Referred")
   scheduleBlocks   ScheduleBlock[]
   passwordResets   PasswordResetToken[]
   courseModules    CourseModule[]
@@ -870,4 +874,20 @@ model CalendarFeed {
   updatedAt     DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One student inviting another. It counts (both get bonus tutor messages)
+// once the invited student does a real study action, which keeps throwaway
+// sign-ups from earning anything.
+model Referral {
+  id          String    @id @default(cuid())
+  referrerId  String
+  referredId  String    @unique
+  createdAt   DateTime  @default(now())
+  qualifiedAt DateTime?
+
+  referrer User @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred User @relation("Referred", fields: [referredId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId, qualifiedAt])
 }

@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
+import { STUDY_EVENTS } from "@/lib/streak/streak";
+import { qualifyReferral } from "@/lib/referral/referral";
 
 // Product analytics events — see docs/PRODUCT.md#analytics for the event
 // list and the "understand, don't surveil" intent behind it.
@@ -21,6 +23,8 @@ export async function logEvent(
         properties: properties as Prisma.InputJsonValue | undefined,
       },
     });
+    // A real study action is what makes an invite count.
+    if (STUDY_EVENTS.includes(name)) await qualifyReferral(userId);
   } catch (error) {
     console.error(`[analytics] failed to log event "${name}"`, error);
   }

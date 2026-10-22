@@ -1,13 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { SignupSchema, LoginSchema } from "@/lib/validation/auth";
 import { logEvent } from "@/lib/analytics/log-event";
+import { attachReferral, REF_COOKIE } from "@/lib/referral/referral";
 
 export type AuthFormState =
   | {
@@ -89,8 +90,15 @@ export async function signup(
     select: { id: true },
   });
 
+  const jar = await cookies();
+  const refCode = jar.get(REF_COOKIE)?.value;
+  if (refCode) {
+    await attachReferral(user.id, refCode);
+    jar.delete(REF_COOKIE);
+  }
+
   await createSession(user.id);
-  await logEvent(user.id, "signup", invite ? { inviteCode } : undefined);
+  await logEvent(user.id, "signup", invite || refCode ? { ...(invite ? { inviteCode } : {}), ...(refCode ? { referred: true } : {}) } : undefined);
 
   redirect("/onboarding");
 }

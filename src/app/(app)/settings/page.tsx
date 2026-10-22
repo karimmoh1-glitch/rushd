@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { InviteCard } from "@/components/referral/invite-card";
+import { BONUS_MESSAGES, MAX_FRIENDS, referralStats } from "@/lib/referral/referral";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { ProfileForm } from "./profile-form";
@@ -55,6 +57,8 @@ export default async function SettingsPage() {
     db.teamsConnection.findUnique({ where: { userId: user.id }, select: { status: true, accountName: true, lastSyncAt: true } }),
     db.calendarFeed.findUnique({ where: { userId: user.id }, select: { status: true, host: true } }),
   ]);
+  const invites = await referralStats(user.id);
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://therushd.com").replace(/\/$/, "");
 
   return (
     <div className="max-w-2xl space-y-10">
@@ -79,6 +83,18 @@ export default async function SettingsPage() {
                 }
               : null
           }
+        />
+      </section>
+
+      <section id="invite" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
+        <h2 className="text-base font-semibold">Invite friends</h2>
+        <InviteCard
+          url={`${appUrl}/r/${invites.code}`}
+          joined={invites.joined}
+          qualified={invites.qualified}
+          bonus={invites.bonus}
+          perFriend={BONUS_MESSAGES}
+          maxFriends={MAX_FRIENDS}
         />
       </section>
 

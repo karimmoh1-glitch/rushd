@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { PLANS, monthlyAllowance, type AiFeature, type Plan, type PlanId } from "@/lib/billing/plans";
 import { costMicros, toMicros, type TokenUsage } from "./pricing";
+import { BONUS_COST_PER_MESSAGE_USD, referralBonus } from "@/lib/referral/referral";
 
 // Server-side AI metering. Every AI call goes reserve → provider → settle (or
 // fail). Reservation happens inside one transaction holding a Postgres
@@ -96,12 +97,16 @@ export async function reserveAi(userId: string, feature: AiFeature, now: Date = 
 
       const plan = PLANS[await getPlanId(userId, tx)];
       const counted = { userId, status: { in: ["reserved", "completed"] } };
-      const allowance = monthlyAllowance(plan, feature);
+      // Invite bonus: extra tutor messages, with the cost room to use them.
+      const bonus = await referralBonus(userId, tx);
+      const baseAllowance = monthlyAllowance(plan, feature);
+      const allowance = baseAllowance === null ? null : baseAllowance + (feature === "tutor_message" ? bonus : 0);
       if (allowance !== null) {
         const used = await tx.aiUsage.count({ where: { ...counted, feature, createdAt: { gte: since } } });
         if (used >= allowance) return reject("monthly_quota");
       }
-      if ((await spendSince(tx, since, userId)) + estimate > toMicros(plan.monthlyCostCapUsd)) return reject("monthly_cost");
+      const costCap = toMicros(plan.monthlyCostCapUsd + bonus * BONUS_COST_PER_MESSAGE_USD);
+      if ((await spendSince(tx, since, userId)) + estimate > costCap) return reject("monthly_cost");
       const today = await tx.aiUsage.count({ where: { ...counted, createdAt: { gte: dayStart(now) } } });
       if (today >= plan.dailyRequests) return reject("daily_limit");
       const inFlight = await tx.aiUsage.count({
@@ -167,13 +172,14 @@ export interface UsageSummary {
 export async function getUsageSummary(userId: string, now: Date = new Date()): Promise<UsageSummary> {
   const since = monthStart(now);
   const plan = PLANS[await getPlanId(userId)];
-  const [counts, spent] = await Promise.all([
+  const [counts, spent, bonus] = await Promise.all([
     db.aiUsage.groupBy({
       by: ["feature"],
       where: { userId, status: { in: ["reserved", "completed"] }, createdAt: { gte: since } },
       _count: { _all: true },
     }),
     spendSince(db, since, userId),
+    referralBonus(userId),
   ]);
   const used = new Map(counts.map((c) => [c.feature, c._count._all]));
   return {
@@ -181,9 +187,9 @@ export async function getUsageSummary(userId: string, now: Date = new Date()): P
     features: (Object.keys(plan.monthly) as (keyof Plan["monthly"])[]).map((feature) => ({
       feature,
       used: used.get(feature) ?? 0,
-      limit: plan.monthly[feature],
+      limit: plan.monthly[feature] + (feature === "tutor_message" ? bonus : 0),
     })),
-    costUsedFraction: plan.monthlyCostCapUsd > 0 ? Math.min(1, spent / toMicros(plan.monthlyCostCapUsd)) : 1,
+    costUsedFraction: Math.min(1, spent / toMicros(plan.monthlyCostCapUsd + bonus * BONUS_COST_PER_MESSAGE_USD)),
     periodStart: since,
   };
 }

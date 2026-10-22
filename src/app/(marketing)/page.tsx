@@ -5,6 +5,9 @@ import { AgentPath } from "@/components/marketing/agent-path";
 import { SubjectCycle } from "@/components/marketing/subject-cycle";
 import { SignatureLoop } from "@/components/marketing/signature-loop";
 import { RankMyWeek } from "@/components/marketing/rank-my-week";
+import { InvitedNote } from "@/components/marketing/invited-note";
+import { Suspense } from "react";
+import { BONUS_MESSAGES } from "@/lib/referral/constants";
 import { GlyphContext, GlyphGap, GlyphNext } from "@/components/marketing/benefit-glyphs";
 import { PageViewBeacon } from "@/components/marketing/page-view-beacon";
 import { PLANS } from "@/lib/billing/plans";
@@ -59,6 +62,9 @@ export default function LandingPage() {
       <script dangerouslySetInnerHTML={{ __html: INTRO }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }} />
       <PageViewBeacon path="/" />
+      <Suspense fallback={null}>
+        <InvitedNote bonus={BONUS_MESSAGES} />
+      </Suspense>
 
       {/* 1. Hero: what it is in three seconds, why it's better in five. */}
       <section className="overflow-x-clip">
