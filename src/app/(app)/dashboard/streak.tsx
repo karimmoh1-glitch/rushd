@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
 import type { Streak } from "@/lib/streak/streak";
+import { ShareStreak } from "./share-streak";
 
 // The study streak drawn as the Rushd path: the last seven days as points on
 // a line, today's point lit once something real gets done.
-export function StreakPath({ streak }: { streak: Streak }) {
+export function StreakPath({ streak, shareUrl }: { streak: Streak; shareUrl?: string | null }) {
   const label =
     streak.current === 0
       ? "Start a streak today"
@@ -31,7 +32,10 @@ export function StreakPath({ streak }: { streak: Streak }) {
         ))}
       </div>
       <div className="text-sm leading-tight">
-        <p className="font-medium tabular-nums">{label}</p>
+        <p className="flex items-center gap-3 font-medium tabular-nums">
+          {label}
+          {shareUrl && streak.current >= 2 && <ShareStreak url={shareUrl} streak={streak.current} />}
+        </p>
         <p className="text-xs text-muted-foreground">
           {sub}
           {streak.restDays > 0 ? ` ${streak.restDays} rest day${streak.restDays === 1 ? "" : "s"} saved.` : ""}

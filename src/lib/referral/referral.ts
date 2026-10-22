@@ -2,19 +2,18 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { BONUS_MESSAGES, MAX_FRIENDS } from "./constants";
+import { BONUS_MESSAGES, CODE_RE, MAX_FRIENDS } from "./constants";
 
 // Invite a friend: when the friend does a real study action, both get
 // BONUS_MESSAGES more tutor messages every month. The inviter's bonus counts
 // at most MAX_FRIENDS friends.
 
-export { BONUS_MESSAGES, MAX_FRIENDS };
+export { BONUS_MESSAGES, CODE_RE, MAX_FRIENDS };
 export const REF_COOKIE = "rushd_ref";
 /** Extra monthly AI cost allowed per bonus message, so the bonus is usable on Free's cost cap. */
 export const BONUS_COST_PER_MESSAGE_USD = 0.1;
 
 const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
-export const CODE_RE = /^[a-z2-9]{8}$/;
 
 function newCode(): string {
   const bytes = randomBytes(8);

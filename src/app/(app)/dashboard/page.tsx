@@ -29,6 +29,9 @@ import { TryWeekImport } from "./try-week-import";
 import { StartWeek } from "./start-week";
 import { StreakPath } from "./streak";
 import { getStreak } from "@/lib/streak/load";
+import { encodeStreakCard } from "@/lib/share/streak-card";
+import { getOrCreateReferralCode } from "@/lib/referral/referral";
+import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Today",
@@ -125,6 +128,14 @@ export default async function DashboardPage() {
   const tz = plan.timeZone;
   const today = dateKey(now, tz);
   const streak = await getStreak(user.id, tz, now);
+  let streakShareUrl: string | null = null;
+  if (streak.current >= 2) {
+    const weekMinutes = sessionHistory
+      .filter((s) => s.status === "COMPLETED" && s.startedAt.getTime() > now.getTime() - WEEK_MS)
+      .reduce((sum, s) => sum + (s.actualMinutes ?? s.plannedMinutes), 0);
+    const token = encodeStreakCard({ code: await getOrCreateReferralCode(user.id), streak: streak.current, minutes: weekMinutes });
+    streakShareUrl = `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/s/${token}`;
+  }
   const todaySessions = plan.sessions.filter((s) => s.scheduledDate === today);
   const plannedMinutesToday = todaySessions.reduce((sum, s) => sum + s.scheduledMinutes, 0);
   const todayAvailable = plan.days?.[0]?.availableMinutes ?? 0;
@@ -210,7 +221,7 @@ export default async function DashboardPage() {
             {dueThisWeek === 0 ? "Nothing else due this week" : `${dueThisWeek} due in the next 7 days`}
           </p>
         </div>
-        <StreakPath streak={streak} />
+        <StreakPath streak={streak} shareUrl={streakShareUrl} />
       </header>
 
       <TryWeekImport />

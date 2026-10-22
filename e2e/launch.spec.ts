@@ -176,3 +176,14 @@ test("exam study planner builds a day-by-day plan without an account", async ({ 
   await expect(page.getByText("Chem quiz").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Keep this plan up to date, free" })).toBeVisible();
 });
+
+test("a shared streak card shows signed numbers and carries the invite", async ({ page, request }) => {
+  const { createHmac } = await import("node:crypto");
+  const body = "abcdefgh-9-125";
+  const sig = createHmac("sha256", process.env.SESSION_SECRET!).update(`share:${body}`).digest("base64url").slice(0, 22);
+  await page.goto(`/s/${body}-${sig}`);
+  await expect(page.getByText("days in a row of real studying")).toBeVisible();
+  await expect(page.getByText("2h 5m studied this week")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start free with this invite" })).toHaveAttribute("href", "/r/abcdefgh");
+  expect((await request.get(`/s/abcdefgh-99-125-${sig}`)).status()).toBe(404);
+});
