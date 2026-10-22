@@ -133,3 +133,21 @@ test("an invite link credits the inviter when a friend joins", async ({ browser 
   await inviter.reload();
   await expect(inviter.getByText(/1 joined · 0 studied/)).toBeVisible();
 });
+
+test("first visit: the hero types an example week and ranks it by itself", async ({ page }) => {
+  await page.goto("/");
+  const ranked = page.getByRole("list", { name: "Your week ranked by Pulse" });
+  await expect(ranked).toBeVisible({ timeout: 8000 });
+  await expect(ranked.getByRole("listitem")).toHaveCount(5);
+  await page.getByRole("button", { name: "Now type yours" }).click();
+  await expect(page.getByLabel("Your assignments and tests this week, one per line")).toHaveValue("");
+});
+
+test("reduced motion: nothing plays by itself", async ({ browser }) => {
+  const context = await browser.newContext({ reducedMotion: "reduce" });
+  const page = await context.newPage();
+  await page.goto("/");
+  await page.waitForTimeout(3500);
+  await expect(page.getByRole("list", { name: "Your week ranked by Pulse" })).toHaveCount(0);
+  await context.close();
+});

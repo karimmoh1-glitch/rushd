@@ -72,7 +72,7 @@ function fmtMinutes(m: number) {
   return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`;
 }
 
-export function RankMyWeek({ compact = false }: { compact?: boolean }) {
+export function RankMyWeek({ compact = false, autoplay = false }: { compact?: boolean; autoplay?: boolean }) {
   const router = useRouter();
   const reduce = useSyncExternalStore(subscribeReduce, () => window.matchMedia(REDUCE).matches, () => false);
   const [text, setText] = useState(EXAMPLE);
@@ -81,7 +81,11 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
   const [settled, setSettled] = useState(false);
   const [progress, setProgress] = useState(0);
   const [shared, setShared] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [autoRanked, setAutoRanked] = useState(false);
   const counted = useRef(false);
+  const touched = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   function rank(source = text) {
@@ -117,6 +121,51 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
       count("#try");
     }
   }
+
+  // First homepage visit this session (the brand intro is playing): type the
+  // example out and rank it once, so the payoff shows without a click. Any
+  // touch stops it; reduced motion never sees it.
+  useEffect(() => {
+    if (!autoplay || reduce || !document.documentElement.classList.contains("rushd-intro") || window.location.hash) return;
+    const el = rootRef.current;
+    if (!el) return;
+    let timer = 0;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || touched.current) return;
+        io.disconnect();
+        let i = 0;
+        setTyping(true);
+        setText("");
+        const tick = () => {
+          if (touched.current) {
+            setText(EXAMPLE);
+            setTyping(false);
+            return;
+          }
+          i = Math.min(EXAMPLE.length, i + 2);
+          setText(EXAMPLE.slice(0, i));
+          if (i < EXAMPLE.length) timer = window.setTimeout(tick, 16);
+          else {
+            setTyping(false);
+            timer = window.setTimeout(() => {
+              if (touched.current) return;
+              rank(EXAMPLE);
+              setAutoRanked(true);
+            }, 450);
+          }
+        };
+        timer = window.setTimeout(tick, 900);
+      },
+      { threshold: 0.6 },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on load
+  }, [autoplay, reduce]);
 
   // Opened from a shared link: show that week, ranked for today.
   useEffect(() => {
@@ -180,7 +229,12 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
   const total = rows?.reduce((s, r) => s + r.minutes, 0) ?? 0;
 
   return (
-    <div className={cn("relative z-10 rounded-2xl border border-border bg-card shadow-[0_30px_80px_-40px_hsl(var(--shadow-tint)/0.55)]", compact ? "p-4" : "p-4 sm:p-5")}>
+    <div
+      ref={rootRef}
+      onPointerDown={() => (touched.current = true)}
+      onKeyDown={() => (touched.current = true)}
+      onFocusCapture={() => (touched.current = true)}
+      className={cn("relative z-10 rounded-2xl border border-border bg-card shadow-[0_30px_80px_-40px_hsl(var(--shadow-tint)/0.55)]", compact ? "p-4" : "p-4 sm:p-5")}>
       <div className="flex items-center justify-between gap-3 px-1">
         <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-signal" />
@@ -190,12 +244,23 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
           <button
             type="button"
             onClick={() => {
+              if (autoRanked) setText("");
+              setAutoRanked(false);
               setRows(null);
               requestAnimationFrame(() => inputRef.current?.focus());
             }}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className={cn(
+              "inline-flex items-center gap-1 text-xs hover:text-foreground",
+              autoRanked ? "font-medium text-foreground underline underline-offset-4" : "text-muted-foreground",
+            )}
           >
-            <RotateCcw className="h-3 w-3" aria-hidden="true" /> Edit
+            {autoRanked ? (
+              "Now type yours"
+            ) : (
+              <>
+                <RotateCcw className="h-3 w-3" aria-hidden="true" /> Edit
+              </>
+            )}
           </button>
         )}
       </div>
@@ -215,7 +280,10 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
             id="try-week"
             ref={inputRef}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              touched.current = true;
+              setText(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
@@ -223,6 +291,7 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
               }
             }}
             rows={6}
+            readOnly={typing}
             maxLength={2400}
             spellCheck={false}
             className="block w-full resize-none rounded-xl border border-border bg-background px-3.5 py-3 font-mono text-[13px] leading-[1.7] outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground/40"

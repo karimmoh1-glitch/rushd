@@ -93,6 +93,45 @@ export default function PrivacyPage() {
         </section>
 
         <section>
+          <h2 className="font-heading text-lg font-semibold">If you connect a Canvas calendar feed</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>
+              Your Canvas calendar feed link is private to you, so Rushd stores it encrypted (AES-256-GCM), like a password.
+            </li>
+            <li>
+              Rushd reads only the assignment entries in it (title, course name, due date, link) and ignores other calendar
+              events. Disconnecting deletes the stored link immediately.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 className="font-heading text-lg font-semibold">&ldquo;Rank my week&rdquo; on the homepage</h2>
+          <p className="mt-2">
+            The ranking runs in your browser; what you type isn&apos;t sent to Rushd. If you choose to save it before signing
+            up, it stays in your browser until you add it to your account or dismiss it. A shared ranking link carries the
+            list inside the link itself.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-heading text-lg font-semibold">Email</h2>
+          <p className="mt-2">
+            Rushd emails you for password resets and, unless you turn them off, a Sunday summary of your week and a reminder
+            when a study streak is about to end. Emails are delivered by Resend. Every study email has a one-click
+            unsubscribe, and Settings has the same switch.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-heading text-lg font-semibold">Invites</h2>
+          <p className="mt-2">
+            If you join through a friend&apos;s invite link, Rushd records who invited you so you both get the bonus. The
+            friend sees only how many people joined and studied, never who.
+          </p>
+        </section>
+
+        <section>
           <h2 className="font-heading text-lg font-semibold">Screenshot import</h2>
           <p className="mt-2">
             If you upload a screenshot of your calendar, it&apos;s sent to our AI provider (Anthropic) to read
@@ -170,7 +209,7 @@ export default function PrivacyPage() {
             actually useful. Neither is used for advertising, and neither is
             shared with third parties for their own purposes. Data is
             processed only by the services that run Rushd: hosting (Vercel),
-            the database (Neon), and, for the AI features above, Anthropic.
+            the database (Neon), email delivery (Resend), and, for the AI features above, Anthropic.
           </p>
         </section>
 

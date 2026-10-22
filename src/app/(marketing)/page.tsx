@@ -107,8 +107,29 @@ export default function LandingPage() {
             </ul>
           </div>
           <div className="intro-line" style={{ ["--i" as string]: 2 }}>
-            <RankMyWeek />
+            <RankMyWeek autoplay />
           </div>
+        </div>
+      </section>
+
+      {/* Honest proof: what it connects to and what it promises. */}
+      <section aria-label="Works with your school" className="border-t border-border">
+        <div className="mx-auto grid max-w-6xl gap-x-12 gap-y-5 px-4 py-7 text-sm sm:px-6 lg:grid-cols-[auto_1fr] lg:items-center lg:px-8">
+          <p className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <span className="text-muted-foreground">Brings in your work from</span>
+            {["Canvas", "Microsoft Teams", "Canvas calendar feeds"].map((n) => (
+              <span key={n} className="font-medium">{n}</span>
+            ))}
+            <span className="text-muted-foreground">or just type it</span>
+          </p>
+          <ul className="reveal-stagger flex flex-wrap gap-x-6 gap-y-2 text-muted-foreground lg:justify-end">
+            {["Read-only: never submits or posts", "No ads, never sells student data", "Delete everything anytime"].map((t, i) => (
+              <li key={t} className="flex items-center gap-2" style={{ ["--i" as string]: i }}>
+                <span aria-hidden="true" className="h-1 w-1 rounded-full bg-signal" />
+                {t}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
