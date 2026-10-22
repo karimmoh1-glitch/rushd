@@ -2,7 +2,7 @@
 // Only list a file here after confirming it exists on the release; the
 // download page links to exactly these URLs.
 
-export const DESKTOP_VERSION = "0.1.0";
+export const DESKTOP_VERSION = "0.1.1";
 const BASE = `https://github.com/karimmoh1-glitch/rushd/releases/download/desktop-v${DESKTOP_VERSION}`;
 
 export interface DesktopAsset {
@@ -13,11 +13,12 @@ export interface DesktopAsset {
   url: string;
 }
 
-// Verified 2026-10-22: all three return 200 from the release; the .dmg passes
-// `hdiutil verify` and holds a universal (arm64 + x86_64) app that launches.
+// Verified 2026-10-22 (0.1.1): both files download from the release; the .dmg
+// passes `hdiutil verify` and holds a universal (arm64 + x86_64) app that
+// launches, with the Rushd mark as its icon. The .exe is an NSIS installer.
 const files: Omit<DesktopAsset, "url">[] = [
-  { os: "macOS", label: "Download for Mac", detail: "macOS 10.15 or later · Apple silicon and Intel · 3 MB", file: "Rushd_0.1.0_darwin_universal.dmg" },
-  { os: "Windows", label: "Download for Windows", detail: "Windows 10 or 11 · 64-bit installer · 1 MB", file: "Rushd_0.1.0_windows_x64-setup.exe" },
+  { os: "macOS", label: "Download for Mac", detail: "macOS 10.15 or later · Apple silicon and Intel · 3 MB", file: "Rushd_0.1.1_darwin_universal.dmg" },
+  { os: "Windows", label: "Download for Windows", detail: "Windows 10 or 11 · 64-bit installer · 1 MB", file: "Rushd_0.1.1_windows_x64-setup.exe" },
 ];
 
 export const DESKTOP_ASSETS: DesktopAsset[] = files.map((f) => ({ ...f, url: `${BASE}/${f.file}` }));
