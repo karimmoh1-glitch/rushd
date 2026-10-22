@@ -28,7 +28,8 @@ for (const path of PAGES) {
 
 test("a11y: signed-in pages", async ({ browser }) => {
   test.setTimeout(120_000);
-  const context = await browser.newContext({ colorScheme: "dark", reducedMotion: "reduce" });
+  // Its own client address, so this signup doesn't count against the others' limit.
+  const context = await browser.newContext({ colorScheme: "dark", reducedMotion: "reduce", extraHTTPHeaders: { "x-forwarded-for": "127.0.0.2" } });
   const page = await context.newPage();
   await page.goto("/signup");
   await page.getByLabel("Email").fill(`e2e-a11y-${Date.now()}@example.com`);

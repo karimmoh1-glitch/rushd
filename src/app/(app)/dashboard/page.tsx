@@ -27,6 +27,7 @@ import { AddExamButton } from "../exams/add-exam-button";
 import { QuickAdd } from "./quick-add";
 import { TryWeekImport } from "./try-week-import";
 import { StartWeek } from "./start-week";
+import { teamsAvailable } from "@/lib/teams/service";
 import { StreakPath } from "./streak";
 import { getStreak } from "@/lib/streak/load";
 import { encodeStreakCard } from "@/lib/share/streak-card";
@@ -225,7 +226,7 @@ export default async function DashboardPage() {
       </header>
 
       <TryWeekImport />
-      {overdueCount === 0 && upcoming.length === 0 && exams.length === 0 && <StartWeek />}
+      {overdueCount === 0 && upcoming.length === 0 && exams.length === 0 && <StartWeek teams={teamsAvailable()} />}
 
       {canvasConnection?.status === "NEEDS_REAUTH" && (
         <Link

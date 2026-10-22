@@ -11,7 +11,7 @@ import { importTriedWeek } from "@/server/actions/try-week";
 // "Class:" prefix or guessed from the words), or connect a school system.
 // Uses the same parser and import as "Rank my week" on the homepage.
 
-export function StartWeek() {
+export function StartWeek({ teams = false }: { teams?: boolean }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +73,9 @@ export function StartWeek() {
           </button>
           <span className="px-1 text-sm text-muted-foreground">or bring it in from</span>
           <Link href="/integrations/canvas" className={buttonVariants({ variant: "outline" })}>Canvas</Link>
-          <Link href="/integrations/teams" className={buttonVariants({ variant: "outline" })}>Teams</Link>
+          {teams && (
+            <Link href="/integrations/teams" className={buttonVariants({ variant: "outline" })}>Teams</Link>
+          )}
         </div>
       </form>
     </section>

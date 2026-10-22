@@ -52,7 +52,7 @@ interface ClassDraft {
 
 const STEPS = ["Basics", "Study time", "Classes", "Challenge"] as const;
 
-export function OnboardingWizard() {
+export function OnboardingWizard({ teams = false }: { teams?: boolean }) {
   // Came from "Rank my week" on the homepage: lead with adding that week.
   const fromTry = useSyncExternalStore(noopSubscribe, hasTriedWeek, () => false);
   const router = useRouter();
@@ -211,9 +211,13 @@ export function OnboardingWizard() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Use Microsoft Teams?{" "}
-          <a href="/integrations/teams" className="underline underline-offset-4">Connect Teams</a>. School turned Canvas
-          tokens off?{" "}
+          {teams && (
+            <>
+              Use Microsoft Teams?{" "}
+              <a href="/integrations/teams" className="underline underline-offset-4">Connect Teams</a>.{" "}
+            </>
+          )}
+          School turned Canvas tokens off?{" "}
           <a href="/integrations/canvas-calendar" className="underline underline-offset-4">Use your calendar feed</a>.
         </p>
       </div>

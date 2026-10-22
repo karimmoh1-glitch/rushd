@@ -17,6 +17,7 @@ import { explainScore } from "@/lib/planning/explain";
 import { pulseOf } from "@/lib/planning/pulse";
 import { formatDateInZone, formatTimeInZone } from "@/lib/time/zone";
 import { organizationJsonLd } from "@/lib/seo";
+import { teamsConfigured } from "@/lib/teams/oauth";
 
 
 export const metadata: Metadata = {
@@ -118,7 +119,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-7 text-sm sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <p className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <span className="text-muted-foreground">Brings in your work from</span>
-            {["Canvas", "Microsoft Teams"].map((n) => (
+            {(teamsConfigured() ? ["Canvas", "Microsoft Teams"] : ["Canvas"]).map((n) => (
               <span key={n} className="font-medium">{n}</span>
             ))}
             <span className="text-muted-foreground">or just type it</span>

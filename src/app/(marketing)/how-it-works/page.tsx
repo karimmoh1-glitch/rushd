@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, Camera, Check, Lock, MessageSquareText, Route } f
 import { Reveal } from "@/components/reveal";
 import { ScheduleDemo } from "@/components/marketing/schedule-demo";
 import { FAQ, faqJsonLd } from "@/components/marketing/faq";
+import { teamsConfigured } from "@/lib/teams/oauth";
 import { DownloadButtons } from "@/components/marketing/download-buttons";
 
 export const metadata: Metadata = {
@@ -72,7 +73,7 @@ export default function HowItWorksPage() {
                 <p className="mt-3 leading-relaxed text-muted-foreground">
                   Connect Canvas and Rushd brings in your courses, deadlines, modules, pages, assignment instructions, rubrics, and
                   announcements, read-only. It shows when each course last synced and says plainly when a school hides something
-                  from students. School turned off Canvas tokens? Connect with your calendar feed instead. On Microsoft Teams? Connect that. Or just type your week.
+                  from students. School turned off Canvas tokens? Connect with your calendar feed instead.{teamsConfigured() ? " On Microsoft Teams? Connect that." : ""} Or just type your week.
                 </p>
               </div>
               <div className="surface rounded-xl p-5 lg:order-1">

@@ -1,4 +1,6 @@
-const QA: [string, string][] = [
+import { teamsConfigured } from "@/lib/teams/oauth";
+
+const ALL: [string, string][] = [
   ["What is Rushd?", "A personal AI learning system for high school and college students. It brings your coursework into one place, tutors you from your own class materials, checks practice work and drafts, tracks which topics you've mastered, and builds a study plan around your deadlines."],
   ["Do I need Canvas?", "No. Canvas makes setup faster because Rushd imports your courses, deadlines, and materials (read-only). Without it, add assignments by hand, by typing a sentence, or from a screenshot."],
   ["My school turned off Canvas access tokens. Can I still connect?", "Yes. Use your Canvas calendar feed instead (Canvas → Calendar → Calendar Feed). Every student has one, and Rushd reads your assignments and due dates from it."],
@@ -10,7 +12,13 @@ const QA: [string, string][] = [
   ["Can my school use Rushd?", "Rushd is built for individual students today. If you're an educator interested in a pilot, see the Schools page; it lists what's available now and what isn't."],
 ];
 
+// The Teams answer appears once Teams can actually be connected on this server.
+function qa(): [string, string][] {
+  return teamsConfigured() ? ALL : ALL.filter(([q]) => !q.includes("Microsoft Teams"));
+}
+
 export function FAQ() {
+  const QA = qa();
   return (
     <div className="mt-8 divide-y divide-border border-y border-border">
       {QA.map(([q, a]) => (
@@ -27,6 +35,7 @@ export function FAQ() {
 }
 
 export function faqJsonLd() {
+  const QA = qa();
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
