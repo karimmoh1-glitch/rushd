@@ -352,6 +352,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
                       className={cn(
                         "h-2 w-2 rounded-full",
                         r.pulse >= 70 ? "bg-signal" : r.pulse >= 40 ? "bg-foreground" : "border-[1.5px] border-foreground/45",
+                        first && r.pulse >= 70 && "pulse-live",
                       )}
                     />
                     <span className="font-mono text-sm tabular-nums">{Math.max(1, Math.round(r.pulse * progress))}</span>

@@ -57,7 +57,7 @@ export function NextUp({
           <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal" />
           Next up
         </h2>
-        <PulseBadge pulse={pulse} showLabel />
+        <PulseBadge pulse={pulse} showLabel live />
       </div>
       <div className="mt-2 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">

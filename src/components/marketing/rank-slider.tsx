@@ -104,6 +104,7 @@ export function RankSlider({ rows }: { rows: RankRow[] }) {
                   className={cn(
                     "h-2 w-2 rounded-full",
                     r.pulse >= 70 ? "bg-signal" : r.pulse >= 40 ? "bg-foreground" : "border-[1.5px] border-foreground/45",
+                    first && "pulse-live",
                   )}
                 />
                 <span className="font-mono text-sm tabular-nums">{r.pulse}</span>
