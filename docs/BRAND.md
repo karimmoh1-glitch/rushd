@@ -78,7 +78,7 @@ panels). Prefer dividers and spacing over nested cards.
   into Rushd's Pulse order when the section enters view (the student can drag
   it back); the top item lights. Pulse values come from the real planner run
   on an example week. Server-rendered and no-JS views show the ranked result.
-- **Living detail**: on the hero's agent path a light travels the path and each
+- **Living detail**: on the agent path ("What your agent does") a light travels the path and each
   point glows as it passes.
 - **Hero demo** (`RankMyWeek`): on the first visit of a session the example
   week types itself out and ranks by Pulse; tapping any item shows what went

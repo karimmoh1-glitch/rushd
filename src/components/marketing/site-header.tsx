@@ -5,6 +5,7 @@ import { RushdLogo } from "@/components/brand/rushd-mark";
 
 const LINKS = [
   { href: "/how-it-works", label: "How it works" },
+  { href: "/tools", label: "Free tools" },
   { href: "/pricing", label: "Pricing" },
   { href: "/schools", label: "Schools" },
   { href: "/founder", label: "Founder" },
