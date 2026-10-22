@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Production CSP is set in src-tauri/tauri.conf.json (app.security.csp). -->
+    <title>Rushd</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="launcher.js" defer></script>
+  </head>
+  <body data-state="connecting">
+    <main>
+      <div class="mark" aria-hidden="true">r</div>
+
+      <section class="connecting" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Connecting to Rushd…</p>
+      </section>
+
+      <section class="offline" aria-live="polite">
+        <h1>Can't reach Rushd</h1>
+        <p>Rushd for desktop needs an internet connection. Check your connection and try again.</p>
+        <button id="retry" type="button">Try again</button>
+        <p class="hint" id="detail"></p>
+      </section>
+    </main>
+  </body>
+</html>

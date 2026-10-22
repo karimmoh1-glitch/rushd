@@ -1,0 +1,29 @@
+[package]
+name = "rushd-desktop"
+version = "0.1.0"
+description = "Rushd desktop: a secure native wrapper around https://therushd.com"
+authors = ["Rushd"]
+license = "UNLICENSED"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+
+[lib]
+name = "rushd_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Keep on the 2.x line; Cargo.lock pins the exact versions that were tested.
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+url = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
