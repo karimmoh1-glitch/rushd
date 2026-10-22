@@ -27,6 +27,9 @@ model User {
   isAdmin               Boolean   @default(false)
   onboardingCompletedAt DateTime?
   invitedByCodeId       String?
+  // Bumped to revoke every outstanding session (password change, "sign out
+  // everywhere"). Session tokens carry the version they were issued under.
+  sessionVersion        Int       @default(0)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -44,6 +47,7 @@ model User {
   invitedByCode    InviteCode?         @relation(fields: [invitedByCodeId], references: [id])
   canvasConnection CanvasConnection?
   scheduleBlocks   ScheduleBlock[]
+  passwordResets   PasswordResetToken[]
 
   @@index([createdAt])
 }
@@ -485,4 +489,29 @@ model ScheduleBlock {
   exam       Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
 
   @@index([userId, localDate])
+}
+
+// Shared fixed-window counters for rate limiting, so limits hold across
+// serverless instances. Keys are SHA-256 digests (never raw emails or IPs).
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+// Single-use password reset links. Only a SHA-256 digest of the token is
+// stored; the raw token exists only in the link handed to the student.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

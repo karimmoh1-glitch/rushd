@@ -43,7 +43,7 @@ export async function connectCanvas(
   input: z.infer<typeof ConnectSchema>,
 ): Promise<CanvasActionResult<{ canvasUserName: string; courseCount: number }>> {
   const user = await requireUserOrThrow();
-  const rate = checkRateLimit(`canvas-connect:${user.id}`);
+  const rate = await checkRateLimit(`canvas-connect:${user.id}`);
   if (!rate.allowed) return { error: "Too many attempts. Try again in a few minutes." };
 
   const parsed = ConnectSchema.safeParse(input);
@@ -61,7 +61,7 @@ export async function connectCanvas(
 
 export async function refreshCourses(): Promise<CanvasActionResult<{ courseCount: number }>> {
   const user = await requireUserOrThrow();
-  const rate = checkRateLimit(`canvas-refresh:${user.id}`);
+  const rate = await checkRateLimit(`canvas-refresh:${user.id}`);
   if (!rate.allowed) return { error: "Too many refreshes. Try again in a few minutes." };
   const result = await refreshCanvasCourses(user.id);
   if (!result.ok) return { error: result.error, code: result.code };
@@ -89,7 +89,7 @@ export async function saveCourseSelection(
  * plan would shift. Writes nothing. */
 export async function previewCanvasSync(): Promise<CanvasActionResult<SyncReport>> {
   const user = await requireUserOrThrow();
-  const rate = checkRateLimit(`canvas-sync:${user.id}`);
+  const rate = await checkRateLimit(`canvas-sync:${user.id}`);
   if (!rate.allowed) return { error: "Syncing too often. Try again in a few minutes." };
   const result = await runCanvasSync(user.id, { dryRun: true });
   if (!result.ok) {
@@ -103,7 +103,7 @@ export async function previewCanvasSync(): Promise<CanvasActionResult<SyncReport
  * nothing stale is written) and applies in a single transaction. */
 export async function applyCanvasSync(): Promise<CanvasActionResult<SyncReport>> {
   const user = await requireUserOrThrow();
-  const rate = checkRateLimit(`canvas-sync:${user.id}`);
+  const rate = await checkRateLimit(`canvas-sync:${user.id}`);
   if (!rate.allowed) return { error: "Syncing too often. Try again in a few minutes." };
   const result = await runCanvasSync(user.id, { dryRun: false });
   if (!result.ok) {

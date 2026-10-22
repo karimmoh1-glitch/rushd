@@ -4,6 +4,7 @@ import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InviteCodeForm } from "./invite-code-form";
+import { ResetLinkForm } from "./reset-link-form";
 
 const MIN_SESSIONS_PER_STUDENT = 3;
 
@@ -250,7 +251,7 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="font-heading text-2xl font-semibold">Admin</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((s) => (
@@ -264,7 +265,7 @@ export default async function AdminPage() {
       </div>
 
       <section>
-        <h2 className="mb-1 font-heading text-lg font-semibold">Adoption funnel</h2>
+        <h2 className="mb-1 text-base font-semibold">Adoption funnel</h2>
         <p className="mb-3 text-sm text-muted-foreground">
           Each stage as a share of total signups — where students actually drop off.
         </p>
@@ -284,7 +285,7 @@ export default async function AdminPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-1 font-heading text-lg font-semibold">Returning students</h2>
+          <h2 className="mb-1 text-base font-semibold">Returning students</h2>
           <p className="mb-3 text-sm text-muted-foreground">
             Of students active in the last 30 days, how many came back on a second separate day.
           </p>
@@ -302,7 +303,7 @@ export default async function AdminPage() {
         </section>
 
         <section>
-          <h2 className="mb-1 font-heading text-lg font-semibold">Feature usage</h2>
+          <h2 className="mb-1 text-base font-semibold">Feature usage</h2>
           <p className="mb-3 text-sm text-muted-foreground">
             Distinct users who have ever used each feature, of all signups.
           </p>
@@ -327,7 +328,7 @@ export default async function AdminPage() {
       </div>
 
       <section>
-        <h2 className="mb-1 font-heading text-lg font-semibold">&ldquo;Was this helpful?&rdquo; feedback</h2>
+        <h2 className="mb-1 text-base font-semibold">&ldquo;Was this helpful?&rdquo; feedback</h2>
         <p className="mb-3 text-sm text-muted-foreground">
           Per-feature helpful/not-helpful votes, collected inline on each feature.
         </p>
@@ -352,7 +353,15 @@ export default async function AdminPage() {
       </section>
 
       <section>
-        <h2 className="mb-1 font-heading text-lg font-semibold">Pilot invites</h2>
+        <h2 className="mb-1 text-base font-semibold">Account recovery</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Rushd doesn&apos;t send email yet. Create a one-time reset link for a locked-out student and send it to them yourself.
+        </p>
+        <ResetLinkForm />
+      </section>
+
+      <section>
+        <h2 className="mb-1 text-base font-semibold">Pilot invites</h2>
         <p className="mb-3 text-sm text-muted-foreground">
           Generate codes for a staged rollout. Signup stays open to everyone unless
           REQUIRE_INVITE_CODE is set — see .env.example.
@@ -381,7 +390,7 @@ export default async function AdminPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold">Recent signups</h2>
+          <h2 className="mb-3 text-base font-semibold">Recent signups</h2>
           <div className="space-y-2">
             {recentSignups.map((u) => (
               <div
@@ -406,7 +415,7 @@ export default async function AdminPage() {
         </section>
 
         <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold">
+          <h2 className="mb-3 text-base font-semibold">
             Events, last 7 days
           </h2>
           <div className="space-y-2">
@@ -427,7 +436,7 @@ export default async function AdminPage() {
       </div>
 
       <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">Recent activity</h2>
+        <h2 className="mb-3 text-base font-semibold">Recent activity</h2>
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-muted-foreground">
@@ -460,7 +469,7 @@ export default async function AdminPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">Feedback</h2>
+        <h2 className="mb-3 text-base font-semibold">Feedback</h2>
         <div className="space-y-2">
           {recentFeedback.map((f, i) => (
             <div key={i} className="rounded-lg border border-border px-4 py-3 text-sm">
@@ -483,7 +492,7 @@ export default async function AdminPage() {
       </section>
 
       <section>
-        <h2 className="mb-1 font-heading text-lg font-semibold">Prediction accuracy</h2>
+        <h2 className="mb-1 text-base font-semibold">Prediction accuracy</h2>
         <p className="mb-3 text-sm text-muted-foreground">
           Pooled across every student — same estimate-accuracy math as their Insights page, run
           platform-wide. Answers which classes are underestimated, in aggregate.

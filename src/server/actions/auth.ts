@@ -16,6 +16,12 @@ export type AuthFormState =
     }
   | undefined;
 
+let dummy: Promise<string> | undefined;
+function dummyHash() {
+  dummy ??= hashPassword("not-a-real-password-for-timing-only");
+  return dummy;
+}
+
 async function clientKey() {
   const h = await headers();
   return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
@@ -25,7 +31,7 @@ export async function signup(
   _prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
-  const rate = checkRateLimit(`signup:${await clientKey()}`);
+  const rate = await checkRateLimit(`signup:${await clientKey()}`);
   if (!rate.allowed) {
     return { message: "Too many attempts. Try again in a few minutes." };
   }
@@ -99,26 +105,26 @@ export async function login(
 
   const { email, password } = parsed.data;
 
-  const rate = checkRateLimit(`login:${await clientKey()}:${email}`);
+  const rate = await checkRateLimit(`login:${await clientKey()}:${email}`);
   if (!rate.allowed) {
     return { message: "Too many attempts. Try again in a few minutes." };
   }
 
   const user = await db.user.findUnique({
     where: { email },
-    select: { id: true, passwordHash: true, onboardingCompletedAt: true },
+    select: { id: true, passwordHash: true, onboardingCompletedAt: true, sessionVersion: true },
   });
 
   // Same generic message whether the email doesn't exist or the password is
   // wrong — do not let this endpoint reveal which emails have accounts.
   const invalidMessage = { message: "Invalid email or password." };
 
-  if (!user) return invalidMessage;
+  // Compare against a throwaway hash when the account doesn't exist so both
+  // paths take the same bcrypt time and response timing reveals nothing.
+  const valid = await verifyPassword(password, user?.passwordHash ?? (await dummyHash()));
+  if (!user || !valid) return invalidMessage;
 
-  const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) return invalidMessage;
-
-  await createSession(user.id);
+  await createSession(user.id, user.sessionVersion);
 
   redirect(user.onboardingCompletedAt ? "/dashboard" : "/onboarding");
 }

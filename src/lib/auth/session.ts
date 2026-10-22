@@ -9,6 +9,9 @@ const encodedKey = new TextEncoder().encode(env.SESSION_SECRET);
 
 export interface SessionPayload extends JWTPayload {
   userId: string;
+  /** User.sessionVersion at issue time; tokens from before a bump are void.
+   * Absent on tokens issued before versioning existed (treated as 0). */
+  sv?: number;
 }
 
 async function encrypt(payload: SessionPayload): Promise<string> {
@@ -25,14 +28,15 @@ async function decrypt(token: string): Promise<SessionPayload | null> {
       algorithms: ["HS256"],
     });
     if (typeof payload.userId !== "string") return null;
+    if (payload.sv !== undefined && !Number.isInteger(payload.sv)) return null;
     return payload;
   } catch {
     return null;
   }
 }
 
-export async function createSession(userId: string): Promise<void> {
-  const token = await encrypt({ userId });
+export async function createSession(userId: string, sessionVersion = 0): Promise<void> {
+  const token = await encrypt({ userId, sv: sessionVersion });
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,

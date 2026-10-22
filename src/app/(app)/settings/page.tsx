@@ -7,6 +7,8 @@ import { AvailabilityForm } from "./availability-form";
 import { PasswordForm } from "./password-form";
 import { DeleteAccount } from "./delete-account";
 import { PlanningForm } from "./planning-form";
+import { buttonVariants } from "@/components/ui/button";
+import { signOutEverywhere } from "@/server/actions/settings";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -42,11 +44,11 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-10">
       <div>
-        <h1 className="font-heading text-2xl font-semibold">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       </div>
 
       <section className="space-y-4">
-        <h2 className="font-heading text-lg font-semibold">Profile</h2>
+        <h2 className="text-base font-semibold">Profile</h2>
         <ProfileForm
           initial={{
             displayName: profile?.displayName ?? "",
@@ -61,7 +63,7 @@ export default async function SettingsPage() {
 
       <section id="availability" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
         <div>
-          <h2 className="font-heading text-lg font-semibold">Study availability</h2>
+          <h2 className="text-base font-semibold">Study availability</h2>
           <p className="text-sm text-muted-foreground">
             Used to build your plan. Changes take effect immediately.
           </p>
@@ -71,7 +73,7 @@ export default async function SettingsPage() {
 
       <section id="planning" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
         <div>
-          <h2 className="font-heading text-lg font-semibold">Planning</h2>
+          <h2 className="text-base font-semibold">Planning</h2>
           <p className="text-sm text-muted-foreground">
             How Rushd shapes your study blocks. These are yours to set; Rushd never assumes more capacity than this.
           </p>
@@ -85,7 +87,7 @@ export default async function SettingsPage() {
       </section>
 
       <section id="integrations" className="scroll-mt-24 space-y-3 border-t border-border pt-8">
-        <h2 className="font-heading text-lg font-semibold">Integrations</h2>
+        <h2 className="text-base font-semibold">Integrations</h2>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
           <div>
             <p className="font-medium">Canvas LMS</p>
@@ -99,7 +101,7 @@ export default async function SettingsPage() {
           </div>
           <Link
             href="/integrations/canvas"
-            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            className={buttonVariants({ variant: "outline" })}
           >
             {canvas ? "Manage" : "Connect"}
           </Link>
@@ -107,18 +109,27 @@ export default async function SettingsPage() {
       </section>
 
       <section className="space-y-4 border-t border-border pt-8">
-        <h2 className="font-heading text-lg font-semibold">Account</h2>
+        <h2 className="text-base font-semibold">Account</h2>
         <p className="text-sm text-muted-foreground">Signed in as {user.email}</p>
         <PasswordForm />
+        <form action={signOutEverywhere} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
+          <div>
+            <p className="text-sm font-medium">Sign out everywhere</p>
+            <p className="text-sm text-muted-foreground">Ends every session on every device, including this one.</p>
+          </div>
+          <button type="submit" className={buttonVariants({ variant: "outline" })}>
+            Sign out everywhere
+          </button>
+        </form>
       </section>
 
       <section className="space-y-2 border-t border-border pt-8">
-        <h2 className="font-heading text-lg font-semibold">Privacy</h2>
+        <h2 className="text-base font-semibold">Privacy</h2>
         <p className="text-sm text-muted-foreground">
           Rushd stores your email, academic data (classes, assignments, exams,
-          study availability), and basic usage events so the planning engine
-          can work and so we can tell whether Rushd is actually helping.
-          We don&apos;t sell data or share it with third parties. Full details:{" "}
+          study availability), and basic usage events so planning works and we
+          can tell whether Rushd helps. We don&apos;t sell your data. It is
+          processed only by the services that run Rushd, listed in the{" "}
           <Link href="/privacy" className="underline underline-offset-4">
             Privacy Policy
           </Link>
@@ -127,7 +138,7 @@ export default async function SettingsPage() {
       </section>
 
       <section className="space-y-4 border-t border-destructive/30 pt-8">
-        <h2 className="font-heading text-lg font-semibold text-destructive">
+        <h2 className="text-base font-semibold text-destructive">
           Danger zone
         </h2>
         <DeleteAccount />

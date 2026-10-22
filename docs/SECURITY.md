@@ -7,11 +7,31 @@ upload path is added.
 ## Authentication
 
 bcrypt (cost 12) password hashing, `jose`-signed JWT in an httpOnly,
-`secure` (production), `sameSite=lax` cookie. Rate-limited signup/login
-(in-memory, single-instance — see `docs/ARCHITECTURE.md` for the scaling
-caveat). Session identity is read from the cookie in `src/lib/auth/dal.ts`
-and is the *only* trusted source of "who is making this request" — never a
-client-supplied field.
+`secure` (production), `sameSite=lax` cookie, 30-day expiry. Session identity
+is read from the cookie in `src/lib/auth/dal.ts` and is the *only* trusted
+source of "who is making this request" — never a client-supplied field.
+
+- **Revocation:** every token carries `User.sessionVersion` at issue time;
+  `getCurrentUser` rejects tokens from an older version. Changing the
+  password, redeeming a reset link, or "Sign out everywhere" (Settings) bumps
+  the version, which voids every existing session at once.
+- **Rate limiting:** signup, login, password reset, and Canvas connect/sync
+  share a Postgres-backed fixed-window limiter (`src/lib/auth/rate-limit.ts`,
+  table `RateLimitBucket`), so limits hold across serverless instances. Keys
+  are SHA-256 digests; raw IPs and emails are never stored. It fails open on
+  a database error (the action itself still needs the database).
+- **Login timing:** unknown emails are checked against a throwaway bcrypt
+  hash so response time doesn't reveal which emails have accounts. (Signup
+  does say "an account with this email already exists"; it is rate limited.)
+- **Recovery:** Rushd doesn't send email yet. An admin issues a single-use,
+  1-hour reset link (`/admin` → Account recovery). Only a SHA-256 digest of
+  the token is stored; the token rides in the URL fragment (`#token=…`), which
+  browsers don't send to servers, so it can't reach access logs or Referer
+  headers. Redemption is atomic (one winner under concurrency).
+- **Headers:** `frame-ancestors 'none'` CSP, `X-Frame-Options: DENY`,
+  `nosniff`, a strict referrer policy, and a Permissions-Policy that denies
+  camera/mic/geolocation/payment (`next.config.ts`). There is no script-src
+  CSP yet; adding one needs nonce plumbing through Next.
 
 ## Authorization / ownership
 
@@ -119,7 +139,8 @@ so it's handled as a secret end to end.
 
 - Per-user AI rate limiting (see `docs/AI_ARCHITECTURE.md`) — not yet
   needed at current usage, add before wider release.
-- Rate limiter is in-memory, single-instance only — needs a shared store
-  before horizontal scaling.
+- Self-serve password reset needs an email provider; until then recovery
+  goes through an admin-issued link.
+- No script-src Content-Security-Policy (see Headers above).
 - No audit log of admin actions (there currently are none beyond viewing
   data, so nothing to log yet — add when admin gets write actions).

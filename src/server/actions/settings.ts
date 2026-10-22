@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { deleteSession } from "@/lib/auth/session";
+import { createSession, deleteSession } from "@/lib/auth/session";
 import {
   ProfileSettingsSchema,
   AvailabilitySettingsSchema,
@@ -115,9 +115,23 @@ export async function changePassword(
   if (!valid) return { error: "Current password is incorrect." };
 
   const passwordHash = await hashPassword(parsed.data.newPassword);
-  await db.user.update({ where: { id: user.id }, data: { passwordHash } });
+  // Bumping the session version signs out every other device; this one gets
+  // a fresh token under the new version.
+  const updated = await db.user.update({
+    where: { id: user.id },
+    data: { passwordHash, sessionVersion: { increment: 1 } },
+    select: { sessionVersion: true },
+  });
+  await createSession(user.id, updated.sessionVersion);
 
   return { success: true };
+}
+
+export async function signOutEverywhere(): Promise<void> {
+  const user = await requireUserOrThrow();
+  await db.user.update({ where: { id: user.id }, data: { sessionVersion: { increment: 1 } } });
+  await deleteSession();
+  redirect("/login");
 }
 
 export async function deleteAccount(confirmText: string): Promise<ActionResult> {

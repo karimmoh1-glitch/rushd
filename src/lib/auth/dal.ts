@@ -4,12 +4,12 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { readSessionFromCookies } from "@/lib/auth/session";
 
-// Verifies the session cookie only — no database round trip. Safe to call
-// often; memoized per request via React's cache().
+// Verifies the session cookie's signature only — no database round trip, so
+// it cannot see revocation. Use getCurrentUser for anything that matters.
 export const verifySession = cache(async () => {
   const session = await readSessionFromCookies();
   if (!session?.userId) return null;
-  return { userId: session.userId };
+  return { userId: session.userId, sessionVersion: session.sv ?? 0 };
 });
 
 // The trusted source of "who is the current user." Every server action and
@@ -25,10 +25,14 @@ export const getCurrentUser = cache(async () => {
       email: true,
       isAdmin: true,
       onboardingCompletedAt: true,
+      sessionVersion: true,
       profile: { select: { displayName: true, timezone: true } },
     },
   });
 
+  // A password change or "sign out everywhere" bumps the version, which
+  // voids every token issued before it.
+  if (!user || user.sessionVersion !== session.sessionVersion) return null;
   return user;
 });
 
