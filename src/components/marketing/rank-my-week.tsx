@@ -238,7 +238,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
       <div className="flex items-center justify-between gap-3 px-1">
         <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-signal" />
-          {rows ? "Your week, ranked by Pulse" : "Try it: rank your week"}
+          {rows ? "Ranked by Pulse" : "Try it: rank your week"}
         </p>
         {rows && (
           <button
@@ -250,7 +250,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
               requestAnimationFrame(() => inputRef.current?.focus());
             }}
             className={cn(
-              "inline-flex items-center gap-1 text-xs hover:text-foreground",
+              "inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs hover:text-foreground",
               autoRanked ? "font-medium text-foreground underline underline-offset-4" : "text-muted-foreground",
             )}
           >
