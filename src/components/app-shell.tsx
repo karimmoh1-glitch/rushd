@@ -12,8 +12,6 @@ import {
   LogOut,
   ShieldCheck,
   BarChart3,
-  UserRound,
-  Plug,
 } from "lucide-react";
 import { logout } from "@/server/actions/auth";
 import { FeedbackDialog } from "@/components/feedback-dialog";
@@ -23,33 +21,35 @@ import { ActiveSessionBar } from "@/components/active-session-bar";
 import type { ActiveSessionData } from "@/server/actions/study-sessions";
 import { cn } from "@/lib/utils";
 
-// Ordered around the student's mental model: what's happening right now
-// (Home), the week ahead (Plan), then the underlying data (Assignments/
-// Exams/Classes). Settings is separate, per the section-47 nav guidance.
+// Ordered around the student's day: what to do now (Today), when (Schedule),
+// then the underlying work. Canvas lives under Settings; the academic profile
+// is reached from Progress.
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/plan", label: "Plan", icon: CalendarRange },
+  { href: "/dashboard", label: "Today", icon: Home },
+  { href: "/plan", label: "Schedule", icon: CalendarRange },
   { href: "/assignments", label: "Assignments", icon: ListChecks },
   { href: "/exams", label: "Exams", icon: GraduationCap },
   { href: "/classes", label: "Classes", icon: BookOpen },
-  { href: "/integrations/canvas", label: "Canvas", icon: Plug },
-  { href: "/profile", label: "Profile", icon: UserRound },
-  { href: "/insights", label: "Insights", icon: BarChart3 },
+  { href: "/insights", label: "Progress", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-// A curated subset for the mobile bottom bar — not just the desktop nav
-// shrunk down. Classes, Profile, and Insights are set up once / checked in
-// periodically rather than revisited every day, so they drop off the tab
-// bar (still reachable from the sidebar on larger screens, and one tap
-// further via Home on mobile).
-const MOBILE_NAV_ITEMS = NAV_ITEMS.filter(
-  (item) =>
-    item.href !== "/classes" &&
-    item.href !== "/insights" &&
-    item.href !== "/profile" &&
-    item.href !== "/integrations/canvas",
-);
+// Paths that belong to a nav section without sharing its prefix.
+const SECTION_ALIASES: Record<string, string> = {
+  "/integrations": "/settings",
+  "/import": "/assignments",
+  "/profile": "/insights",
+  "/how-rushd-thinks": "/insights",
+};
+
+function isActive(pathname: string, href: string): boolean {
+  if (pathname.startsWith(href)) return true;
+  return Object.entries(SECTION_ALIASES).some(([prefix, section]) => section === href && pathname.startsWith(prefix));
+}
+
+// The phone tab bar keeps the daily destinations; the rest are one tap away
+// from Settings or the page that links to them.
+const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== "/classes" && item.href !== "/insights");
 
 export function AppShell({
   displayName,
@@ -76,13 +76,13 @@ export function AppShell({
       <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r border-border bg-background md:flex">
         <Link
           href="/dashboard"
-          className="flex h-16 items-center px-6 font-heading text-lg font-semibold tracking-tight"
+          className="flex h-16 items-center px-6 text-lg font-semibold tracking-tight"
         >
           Rushd
         </Link>
         <nav className="flex-1 space-y-1 px-3" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
-            const active = pathname.startsWith(item.href);
+            const active = isActive(pathname, item.href);
             return (
               <Link
                 key={item.href}
@@ -90,9 +90,7 @@ export function AppShell({
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )}
               >
                 <item.icon className="h-4 w-4" aria-hidden="true" />
@@ -107,8 +105,8 @@ export function AppShell({
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 pathname.startsWith("/admin")
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
               )}
             >
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
@@ -128,9 +126,10 @@ export function AppShell({
                 <button
                   type="submit"
                   aria-label="Log out"
-                  className="text-muted-foreground hover:text-foreground"
+                  title="Log out"
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
                 </button>
               </form>
             </div>
@@ -139,7 +138,7 @@ export function AppShell({
       </aside>
 
       <div className="flex h-14 items-center justify-between border-b border-border px-4 md:hidden">
-        <Link href="/dashboard" className="font-heading text-lg font-semibold">
+        <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
           Rushd
         </Link>
         <div className="flex items-center gap-1">
@@ -148,9 +147,9 @@ export function AppShell({
             <button
               type="submit"
               aria-label="Log out"
-              className="text-muted-foreground hover:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-5 w-5" aria-hidden="true" />
             </button>
           </form>
         </div>
@@ -168,7 +167,7 @@ export function AppShell({
         aria-label="Main navigation"
       >
         {MOBILE_NAV_ITEMS.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const active = isActive(pathname, item.href);
           return (
             <Link
               key={item.href}
@@ -176,7 +175,7 @@ export function AppShell({
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium",
-                active ? "text-primary" : "text-muted-foreground",
+                active ? "text-foreground" : "text-muted-foreground",
               )}
             >
               <item.icon className="h-5 w-5" aria-hidden="true" />

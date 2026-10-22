@@ -7,7 +7,7 @@ export default function NotFound() {
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent">
         <Compass className="h-6 w-6 text-primary" aria-hidden="true" />
       </div>
-      <h1 className="mt-4 font-heading text-2xl font-semibold">Page not found.</h1>
+      <h1 className="mt-4 text-2xl font-semibold tracking-tight">Page not found.</h1>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
         Whatever you were looking for isn&apos;t here — it may have moved, or the link was wrong.
       </p>

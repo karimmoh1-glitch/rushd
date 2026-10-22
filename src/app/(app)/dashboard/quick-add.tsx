@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -61,22 +60,21 @@ export function QuickAdd({ classes }: { classes: ClassOption[] }) {
   return (
     <>
       <form onSubmit={handleSubmit} className="flex gap-2">
-        <div className="relative flex-1">
-          <Sparkles className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="flex-1">
           <Input
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={
               classes.length === 0
                 ? "Add a class first to use quick add"
-                : "Quick add — e.g. \"AP Chem lab due Friday, ~2 hours\""
+                : "Type it: \"Chem lab report due Friday, about 2 hours\""
             }
-            className="pl-9"
+            aria-label="Describe an assignment or exam"
             disabled={classes.length === 0 || pending}
             maxLength={300}
           />
         </div>
-        <Button type="submit" disabled={classes.length === 0 || pending || !text.trim()}>
+        <Button type="submit" variant="outline" disabled={classes.length === 0 || pending || !text.trim()}>
           {pending ? "Parsing…" : "Add"}
         </Button>
       </form>

@@ -8,7 +8,6 @@ import { CHALLENGE_OPTIONS } from "@/lib/validation/onboarding";
 import { logEvent } from "@/lib/analytics/log-event";
 import { formatDuration } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
-import { Reveal } from "@/components/reveal";
 
 export const metadata: Metadata = {
   title: "Academic Profile",
@@ -88,10 +87,10 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="font-heading text-3xl font-semibold">
+        <h1 className="text-2xl font-semibold tracking-tight">
           {profile?.displayName ?? "Your"}&apos;s Academic Profile
         </h1>
-        <p className="mt-1 text-base text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           {[profile?.grade ? `${profile.grade}th grade` : null, profile?.school]
             .filter(Boolean)
             .join(" · ") || "How Rushd sees your academic life."}
@@ -99,7 +98,7 @@ export default async function ProfilePage() {
       </div>
 
       {challenge && (
-        <Reveal>
+        <div>
           <Card className="border-primary/40 bg-accent/30">
             <CardContent className="flex items-start gap-3 py-4">
               <Target className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
@@ -113,10 +112,10 @@ export default async function ProfilePage() {
               </div>
             </CardContent>
           </Card>
-        </Reveal>
+        </div>
       )}
 
-      <Reveal delay={0.06}>
+      <div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Card>
             <CardContent className="py-4">
@@ -147,9 +146,9 @@ export default async function ProfilePage() {
             </CardContent>
           </Card>
         </div>
-      </Reveal>
+      </div>
 
-      <Reveal delay={0.12}>
+      <div>
         <section>
           <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold">
             <GraduationCap className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -181,10 +180,10 @@ export default async function ProfilePage() {
             </div>
           )}
         </section>
-      </Reveal>
+      </div>
 
       {showStrongestAndHardest && (
-        <Reveal delay={0.18}>
+        <div>
           <section>
             <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -229,10 +228,10 @@ export default async function ProfilePage() {
               </Card>
             </div>
           </section>
-        </Reveal>
+        </div>
       )}
 
-      <Reveal delay={0.24}>
+      <div>
         <section>
           <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold">
             <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -270,16 +269,16 @@ export default async function ProfilePage() {
             </p>
           )}
         </section>
-      </Reveal>
+      </div>
 
-      <Reveal delay={0.3}>
+      <div>
         <Link
           href="/how-rushd-thinks"
           className="block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           See how Rushd calculates all of this →
         </Link>
-      </Reveal>
+      </div>
     </div>
   );
 }

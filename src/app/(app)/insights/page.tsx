@@ -7,11 +7,10 @@ import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights
 import { logEvent } from "@/lib/analytics/log-event";
 import { formatDuration } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
-import { Reveal } from "@/components/reveal";
 import { HelpfulWidget } from "@/components/helpful-widget";
 
 export const metadata: Metadata = {
-  title: "Insights",
+  title: "Progress",
 };
 
 function formatHour(hour: number): string {
@@ -57,14 +56,22 @@ export default async function InsightsPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="font-heading text-3xl font-semibold">Insights</h1>
-        <p className="mt-1 text-base text-muted-foreground">
-          What your own study history says — computed from real sessions, not guesses.
+        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          What your study sessions show, computed from what you actually logged.
+        </p>
+        <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <Link href="/profile" className="underline underline-offset-4">
+            Academic profile
+          </Link>
+          <Link href="/how-rushd-thinks" className="underline underline-offset-4">
+            How Rushd plans
+          </Link>
         </p>
       </div>
 
       {insights.totalSessions === 0 ? (
-        <Reveal>
+        <div>
           <div className="rounded-lg border border-dashed border-border py-14 text-center">
             <BarChart3 className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
             <p className="mt-3 text-muted-foreground">
@@ -72,10 +79,10 @@ export default async function InsightsPage() {
               how accurate your estimates are, when you actually get things done.
             </p>
           </div>
-        </Reveal>
+        </div>
       ) : (
         <>
-          <Reveal>
+          <div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <Card>
                 <CardContent className="py-4">
@@ -102,19 +109,19 @@ export default async function InsightsPage() {
                 </CardContent>
               </Card>
             </div>
-          </Reveal>
+          </div>
 
           {!hasAnyPattern && (
-            <Reveal delay={0.06}>
+            <div>
               <p className="text-sm text-muted-foreground">
                 Keep going — Rushd needs a few more sessions per class and time of day before it
                 can point out real patterns instead of noise.
               </p>
-            </Reveal>
+            </div>
           )}
 
           {insights.estimateAccuracy.length > 0 && (
-            <Reveal delay={0.06}>
+            <div>
               <section>
                 <h2 className="mb-1 flex items-center gap-2 font-heading text-lg font-semibold">
                   <Gauge className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -161,11 +168,11 @@ export default async function InsightsPage() {
                   ))}
                 </div>
               </section>
-            </Reveal>
+            </div>
           )}
 
           {insights.timeOfDay && (
-            <Reveal delay={0.12}>
+            <div>
               <section>
                 <h2 className="mb-1 flex items-center gap-2 font-heading text-lg font-semibold">
                   <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -199,11 +206,11 @@ export default async function InsightsPage() {
                   </Card>
                 </div>
               </section>
-            </Reveal>
+            </div>
           )}
 
           {insights.busiestDay && (
-            <Reveal delay={0.18}>
+            <div>
               <section>
                 <h2 className="mb-1 flex items-center gap-2 font-heading text-lg font-semibold">
                   <Flame className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -216,13 +223,13 @@ export default async function InsightsPage() {
                   started that day. Worth building in extra buffer around it.
                 </p>
               </section>
-            </Reveal>
+            </div>
           )}
 
           {insights.difficulty.length > 0 && (
-            <Reveal delay={0.24}>
+            <div>
               <section>
-                <h2 className="mb-1 font-heading text-lg font-semibold">How work feels, by class</h2>
+                <h2 className="mb-1 text-base font-semibold">How work feels, by class</h2>
                 <p className="mb-3 text-sm text-muted-foreground">
                   Based on how you rated sessions right after finishing them.
                 </p>
@@ -247,10 +254,10 @@ export default async function InsightsPage() {
                   ))}
                 </div>
               </section>
-            </Reveal>
+            </div>
           )}
 
-          <Reveal delay={0.3}>
+          <div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Link
                 href="/how-rushd-thinks"
@@ -260,7 +267,7 @@ export default async function InsightsPage() {
               </Link>
               <HelpfulWidget feature="insights" />
             </div>
-          </Reveal>
+          </div>
         </>
       )}
     </div>

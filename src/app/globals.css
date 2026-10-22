@@ -235,3 +235,15 @@
   animation: grow-y 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
   transform-origin: bottom;
 }
+
+/* Scroll reveal: visible by default, enhanced only where the browser supports
+   scroll-driven animations and the reader hasn't asked for less motion. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: rise-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+}

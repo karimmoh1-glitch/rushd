@@ -68,14 +68,14 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   await expect(page.getByText("Playwright reading response")).toBeVisible();
 
   // The plan should reflect it on the dashboard's Today section.
-  await page.getByRole("link", { name: "Home", exact: true }).click();
+  await page.getByRole("link", { name: "Today", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByText("Playwright reading response").first()).toBeVisible();
 
   // ...and on the dedicated weekly Plan screen, under today's column. It
   // may also appear in the Academic Forecast's "top items" list further
   // down the page, so use .first() rather than assuming a unique match.
-  await page.getByRole("link", { name: "Plan", exact: true }).click();
+  await page.getByRole("link", { name: "Schedule", exact: true }).click();
   await expect(page).toHaveURL(/\/plan/);
   await expect(page.getByText("Playwright reading response").first()).toBeVisible();
 
@@ -85,7 +85,7 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   await row.getByRole("checkbox").click();
   await expect(page.getByText("Completed")).toBeVisible();
 
-  await page.getByRole("link", { name: "Home", exact: true }).click();
+  await page.getByRole("link", { name: "Today", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   // Completed work should no longer show as an active plan item.
   const activePlanItem = page
@@ -152,14 +152,14 @@ test("study session: start, persists across navigation, completes with an edited
 
   // Persists across navigation — this is the point of the shared context,
   // not a page-local timer.
-  await page.getByRole("link", { name: "Plan", exact: true }).click();
+  await page.getByRole("link", { name: "Schedule", exact: true }).click();
   await expect(page).toHaveURL(/\/plan/);
   await expect(page.getByRole("button", { name: "Complete", exact: true })).toBeVisible();
 
   // A second Start attempt anywhere should be blocked — only one session at
   // a time. (The dashboard may show this exact assignment again via One
   // Thing/Today; either way, no Start button should be clickable right now.)
-  await page.getByRole("link", { name: "Home", exact: true }).click();
+  await page.getByRole("link", { name: "Today", exact: true }).click();
   const anyStartButton = page.getByRole("button", { name: "Start" }).first();
   if (await anyStartButton.count()) {
     await expect(anyStartButton).toBeDisabled();
@@ -262,5 +262,6 @@ test("onboarding offers Canvas, rejects an unsafe address, and can be skipped", 
 
   await page.getByRole("link", { name: "Skip for now" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByText("Bring in your real workload from Canvas")).toBeVisible();
+  // Skipping leaves Canvas one click away from the dashboard.
+  await expect(page.getByRole("link", { name: "Connect Canvas" })).toBeVisible();
 });

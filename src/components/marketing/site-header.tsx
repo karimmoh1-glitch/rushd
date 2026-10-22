@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, useMotionValueEvent, useScroll } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -12,16 +11,11 @@ const LINKS = [
   { href: "#how", id: "how", label: "How it works" },
 ] as const;
 
-/** Sticky header: transparent over the hero, a hairline + blurred surface
- * once the page scrolls, and the link for the section in view is marked.
- * Uses Motion's scroll value and IntersectionObserver, never a raw scroll
- * listener. */
+/** Sticky header with an opaque surface from first paint (no JS needed to
+ * keep content from showing through); the link for the section in view is
+ * marked via IntersectionObserver. */
 export function SiteHeader() {
-  const { scrollY } = useScroll();
-  const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<string | null>(null);
-
-  useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 8));
 
   useEffect(() => {
     // Track which sections cross the middle band of the viewport; none (e.g.
@@ -45,12 +39,7 @@ export function SiteHeader() {
   }, []);
 
   return (
-    <motion.header
-      className={cn(
-        "sticky top-0 z-40 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
-        scrolled ? "border-border bg-background/75 backdrop-blur-xl" : "border-transparent bg-transparent",
-      )}
-    >
+    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-baseline gap-2" aria-label="Rushd home">
           <span className="text-lg font-semibold tracking-tight">Rushd</span>
@@ -71,11 +60,7 @@ export function SiteHeader() {
             >
               {l.label}
               {active === l.id && (
-                <motion.span
-                  layoutId="nav-active"
-                  className="absolute inset-x-3 -bottom-px h-px bg-brand"
-                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                />
+                <span aria-hidden="true" className="absolute inset-x-3 -bottom-px h-px bg-foreground" />
               )}
             </a>
           ))}
@@ -91,6 +76,6 @@ export function SiteHeader() {
           </Link>
         </nav>
       </div>
-    </motion.header>
+    </header>
   );
 }

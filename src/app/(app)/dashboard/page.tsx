@@ -1,69 +1,66 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Upload } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle, Upload } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
 import { dateKey, explainScore } from "@/lib/planning";
-import { formatDateKey, formatMinuteOfDay } from "@/lib/time/zone";
-import { formatDueDate, formatDuration, formatDaysUntil } from "@/lib/format";
-import { buildHealthScore } from "@/lib/health/build-health-score";
+import type { ScheduledSession } from "@/lib/planning/types";
+import { formatDateInZone, formatDateKey, formatMinuteOfDay, zonedParts } from "@/lib/time/zone";
+import { formatDueDate, formatDuration } from "@/lib/format";
 import type { SessionRecord } from "@/lib/insights/build-insights";
 import { buildEstimationProfile, adjustEstimate } from "@/lib/estimation/build-estimation-profile";
 import { buildPatterns } from "@/lib/patterns/build-patterns";
 import { logEvent } from "@/lib/analytics/log-event";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { TodayPlanItem } from "./today-plan-item";
-import { OneThing } from "./one-thing";
+import { NextUp } from "./next-up";
 import { WorkloadBars } from "./workload-bars";
-import { HealthScoreCard } from "./health-score-card";
 import { buildOneThingReasons } from "./one-thing-reasons";
 import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
 import { QuickAdd } from "./quick-add";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
+  title: "Today",
 };
 
-type DayPeriod = "morning" | "afternoon" | "evening";
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const COMING_UP_LIMIT = 7;
 
-function dayPeriod(now: Date): DayPeriod {
-  const hour = now.getHours();
-  if (hour < 12) return "morning";
-  if (hour < 18) return "afternoon";
-  return "evening";
+function greeting(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
 }
 
-function greeting(period: DayPeriod): string {
-  if (period === "morning") return "Good morning";
-  if (period === "afternoon") return "Good afternoon";
-  return "Good evening";
+interface ComingUpRow {
+  key: string;
+  href: string;
+  title: string;
+  className: string;
+  classColor: string;
+  at: Date;
+  kind: "assignment" | "exam";
+  fromCanvas: boolean;
+  overdue: boolean;
 }
 
 export default async function DashboardPage() {
   const user = await requireUser();
   const now = new Date();
+  const notDone = { userId: user.id, status: { not: "COMPLETED" as const }, class: { archived: false } };
+  const rowSelect = {
+    id: true,
+    title: true,
+    dueAt: true,
+    source: true,
+    class: { select: { name: true, color: true } },
+  } as const;
 
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-  const [
-    classes,
-    plan,
-    overdueAssignments,
-    upcomingAssignments,
-    upcomingExams,
-    completedThisWeek,
-    completedToday,
-    overdueCount,
-    openCount,
-    healthSessions,
-    recentAssignments,
-    canvasConnection,
-  ] = await Promise.all([
+  const [classes, plan, overdue, upcoming, exams, overdueCount, dueThisWeek, sessionHistory, canvasConnection] =
+    await Promise.all([
       db.class.findMany({
         where: { userId: user.id, archived: false },
         orderBy: { createdAt: "asc" },
@@ -71,54 +68,25 @@ export default async function DashboardPage() {
       }),
       generatePlanForUser(user.id, now),
       db.assignment.findMany({
-        where: {
-          userId: user.id,
-          status: { not: "COMPLETED" },
-          dueAt: { lt: now },
-          class: { archived: false },
-        },
+        where: { ...notDone, dueAt: { lt: now } },
         orderBy: { dueAt: "asc" },
-        take: 5,
-        select: { id: true, title: true, dueAt: true, class: { select: { name: true, color: true } } },
+        take: COMING_UP_LIMIT,
+        select: rowSelect,
       }),
       db.assignment.findMany({
-        where: {
-          userId: user.id,
-          status: { not: "COMPLETED" },
-          dueAt: { gte: now },
-          class: { archived: false },
-        },
+        where: { ...notDone, dueAt: { gte: now } },
         orderBy: { dueAt: "asc" },
-        take: 5,
-        select: { id: true, title: true, dueAt: true, class: { select: { name: true, color: true } } },
+        take: COMING_UP_LIMIT,
+        select: rowSelect,
       }),
       db.exam.findMany({
         where: { userId: user.id, examAt: { gte: now }, class: { archived: false } },
         orderBy: { examAt: "asc" },
-        take: 5,
+        take: COMING_UP_LIMIT,
         select: { id: true, title: true, examAt: true, class: { select: { name: true, color: true } } },
       }),
-      db.assignment.count({
-        where: {
-          userId: user.id,
-          status: "COMPLETED",
-          completedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
-        },
-      }),
-      db.assignment.count({
-        where: { userId: user.id, status: "COMPLETED", completedAt: { gte: startOfToday } },
-      }),
-      db.assignment.count({
-        where: {
-          userId: user.id,
-          status: { not: "COMPLETED" },
-          dueAt: { lt: now },
-          class: { archived: false },
-        },
-      }),
-      db.assignment.count({
-        where: { userId: user.id, status: { not: "COMPLETED" }, class: { archived: false } },
-      }),
+      db.assignment.count({ where: { ...notDone, dueAt: { lt: now } } }),
+      db.assignment.count({ where: { ...notDone, dueAt: { gte: now, lt: new Date(now.getTime() + WEEK_MS) } } }),
       db.studySession.findMany({
         where: { userId: user.id, status: { in: ["COMPLETED", "ABANDONED"] } },
         select: {
@@ -131,17 +99,9 @@ export default async function DashboardPage() {
           startedAt: true,
         },
       }),
-      db.assignment.findMany({
-        where: {
-          userId: user.id,
-          dueAt: { gte: fourteenDaysAgo, lte: now },
-          class: { archived: false },
-        },
-        select: { status: true },
-      }),
       db.canvasConnection.findUnique({
         where: { userId: user.id },
-        select: { status: true, lastSyncAt: true },
+        select: { status: true },
       }),
       logEvent(user.id, "dashboard_viewed"),
     ]);
@@ -149,157 +109,123 @@ export default async function DashboardPage() {
   const tz = plan.timeZone;
   const today = dateKey(now, tz);
   const todaySessions = plan.sessions.filter((s) => s.scheduledDate === today);
-
-  // Fallback: if nothing landed on today's schedule (no availability set,
-  // or today's capacity went to other days), still surface the highest
-  // priority work so the dashboard never shows an empty "today" when work
-  // actually exists.
-  const fallbackItems = todaySessions.length === 0 ? plan.scored.slice(0, 3) : [];
-  const showingFallback = todaySessions.length === 0 && fallbackItems.length > 0;
-
   const plannedMinutesToday = todaySessions.reduce((sum, s) => sum + s.scheduledMinutes, 0);
+  const todayAvailable = plan.days?.[0]?.availableMinutes ?? 0;
+  const noAvailability = (plan.warnings ?? []).some((w) => w.type === "NO_AVAILABILITY");
+  const laterSession = plan.sessions.find((s) => s.scheduledDate > today);
 
   const scoredById = new Map(plan.scored.map((s) => [s.item.id, s]));
   const reasonsFor = (itemId: string) => {
     const scored = scoredById.get(itemId);
     return scored ? explainScore(scored, now, plan.scored, tz) : [];
   };
+  const blockLabel = (s: ScheduledSession) =>
+    `${s.scheduledDate === today ? "today" : formatDateKey(s.scheduledDate, { weekday: "long" })} at ${formatMinuteOfDay(s.startMinute ?? 0)}`;
 
-  const workloadDays = (plan.days ?? []).slice(0, 7).map((d) => ({
+  const history: SessionRecord[] = sessionHistory.map((r) => ({
+    ...r,
+    status: r.status as "COMPLETED" | "ABANDONED",
+  }));
+  const next = plan.scored[0];
+  const nextBlock = next ? plan.sessions.find((s) => s.item.id === next.item.id) : undefined;
+  const nextReasons = next
+    ? buildOneThingReasons(
+        next,
+        now,
+        plan.scored,
+        adjustEstimate(next.item.rawEstimatedMinutes, next.item.className, buildEstimationProfile(history)),
+        buildPatterns(history),
+        tz,
+      ).slice(0, 3)
+    : [];
+
+  const comingUp: ComingUpRow[] = [
+    ...overdue.map((a) => ({ ...assignmentRow(a), overdue: true })),
+    ...[
+      ...upcoming.map((a) => ({ ...assignmentRow(a), overdue: false })),
+      ...exams.map(
+        (e): ComingUpRow => ({
+          key: `e-${e.id}`,
+          href: "/exams",
+          title: e.title,
+          className: e.class.name,
+          classColor: e.class.color,
+          at: e.examAt,
+          kind: "exam",
+          fromCanvas: false,
+          overdue: false,
+        }),
+      ),
+    ].sort((a, b) => a.at.getTime() - b.at.getTime()),
+  ].slice(0, COMING_UP_LIMIT);
+
+  const week = (plan.days ?? []).slice(0, 7).map((d) => ({
     key: d.date,
-    label: formatDateKey(d.date, { weekday: "short", month: "short", day: "numeric" }),
+    label: formatDateKey(d.date, { weekday: "long", month: "short", day: "numeric" }),
     letter: formatDateKey(d.date, { weekday: "narrow" }),
     minutes: d.plannedMinutes,
+    availableMinutes: d.availableMinutes,
   }));
+  const weekMinutes = week.reduce((n, d) => n + d.minutes, 0);
   const shortfallMinutes = Object.values(plan.unscheduledMinutesByItem).reduce((a, b) => a + b, 0);
-
-  const statusLine =
-    overdueCount > 0
-      ? `You have ${overdueCount} thing${overdueCount === 1 ? "" : "s"} overdue.`
-      : "You're on track.";
-
-  const upcomingCount = openCount - overdueCount;
-
-  const sessionsForHealth: SessionRecord[] = healthSessions.map((r) => ({
-    className: r.className,
-    classColor: r.classColor,
-    status: r.status as "COMPLETED" | "ABANDONED",
-    plannedMinutes: r.plannedMinutes,
-    actualMinutes: r.actualMinutes,
-    perceivedDifficulty: r.perceivedDifficulty,
-    startedAt: r.startedAt,
-  }));
-  const health = buildHealthScore({
-    sessions: sessionsForHealth,
-    recentAssignments: recentAssignments.map((a) => ({ status: a.status })),
-    overdueCount,
-    openCount,
-  });
-  // A trivial "100, nothing open" from a brand-new account with zero
-  // history isn't a real signal — only surface the score once there's at
-  // least one genuine behavioral component behind it.
-  const showHealthScore = health.components.some((c) => c.key !== "overdue");
-
-  const period = dayPeriod(now);
-  const dailyContext = (() => {
-    if (period === "evening") {
-      if (todaySessions.length === 0) return null;
-      return completedToday > 0
-        ? `${completedToday} of ${todaySessions.length} done today.`
-        : `${todaySessions.length} planned for today, still open — there's time.`;
-    }
-    if (period === "afternoon" && todaySessions.length > 0 && completedToday === 0) {
-      return "A good stretch of time for a focused session.";
-    }
-    return null;
-  })();
-
-  const oneThing = plan.scored[0];
-  const estimationProfile = buildEstimationProfile(sessionsForHealth);
-  const patterns = buildPatterns(sessionsForHealth);
-  const oneThingEstimate = oneThing
-    ? adjustEstimate(oneThing.item.rawEstimatedMinutes, oneThing.item.className, estimationProfile)
-    : null;
+  const name = user.profile?.displayName?.trim();
+  const hasWork = plan.scored.length > 0;
 
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="font-heading text-3xl font-semibold">
-          {greeting(period)}, {user.profile?.displayName}.
-        </h1>
-        <p
-          className={`mt-1 text-base ${overdueCount > 0 ? "text-destructive" : "text-success"}`}
-        >
-          {statusLine}
+      <header>
+        <p className="text-sm text-muted-foreground">
+          {formatDateInZone(now, tz, { weekday: "long", month: "long", day: "numeric" })}
         </p>
-        {dailyContext && (
-          <p className="mt-0.5 text-sm text-muted-foreground">{dailyContext}</p>
-        )}
-      </div>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+          {greeting(zonedParts(now, tz).hour)}
+          {name ? `, ${name}` : ""}.
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {overdueCount > 0 && <span className="font-medium text-destructive">{overdueCount} overdue</span>}
+          {overdueCount > 0 && " · "}
+          {dueThisWeek === 0 ? "Nothing else due this week" : `${dueThisWeek} due in the next 7 days`}
+        </p>
+      </header>
 
-      {shortfallMinutes > 0 && (
+      {canvasConnection?.status === "NEEDS_REAUTH" && (
         <Link
-          href="/plan"
-          className="flex items-center justify-between gap-3 rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-sm transition-colors hover:bg-warning/10"
+          href="/integrations/canvas"
+          className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm hover:bg-warning/10"
         >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
           <span>
-            <span className="font-medium">{formatDuration(shortfallMinutes)} won&apos;t fit before its deadline.</span>{" "}
-            <span className="text-muted-foreground">Rushd ranked what to do first.</span>
+            <span className="font-medium">Canvas needs reconnecting.</span>{" "}
+            <span className="text-muted-foreground">It stopped accepting your token, so new assignments aren&apos;t syncing.</span>
           </span>
-          <span className="shrink-0 font-medium">Review plan</span>
         </Link>
       )}
 
-      {!canvasConnection ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-medium">Bring in your real workload from Canvas</p>
-            <p className="text-sm text-muted-foreground">
-              Import every assignment and due date, then Rushd plans around them. Optional; you can keep adding work by hand.
-            </p>
-          </div>
-          <Link
-            href="/integrations/canvas"
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Connect Canvas
-          </Link>
-        </div>
-      ) : canvasConnection.status === "NEEDS_REAUTH" ? (
-        <Link
-          href="/integrations/canvas"
-          className="block rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-sm hover:bg-warning/10"
-        >
-          <span className="font-medium">Canvas needs reconnecting.</span>{" "}
-          <span className="text-muted-foreground">It stopped accepting your token, so new assignments aren&apos;t syncing.</span>
-        </Link>
-      ) : null}
-
-      {oneThing && oneThingEstimate && (
-        <OneThing
-          itemId={oneThing.item.id}
-          itemKind={oneThing.item.kind}
-          assignmentId={oneThing.item.kind === "assignment" ? oneThing.item.id : null}
-          title={oneThing.item.title}
-          className={oneThing.item.className}
-          classColor={oneThing.item.classColor}
-          minutes={oneThing.item.remainingMinutes}
-          reasons={buildOneThingReasons(oneThing, now, plan.scored, oneThingEstimate, patterns, tz)}
+      {next && (
+        <NextUp
+          itemId={next.item.id}
+          itemKind={next.item.kind}
+          assignmentId={next.item.kind === "assignment" ? next.item.id : null}
+          title={next.item.title}
+          className={next.item.className}
+          classColor={next.item.classColor}
+          minutes={next.item.remainingMinutes}
+          when={nextBlock ? `planned ${blockLabel(nextBlock)}` : undefined}
+          reasons={nextReasons}
         />
       )}
 
-      <section>
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="font-heading text-xl font-semibold">Today</h2>
+      <section aria-labelledby="today-heading">
+        <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+          <h2 id="today-heading" className="text-base font-semibold">
+            Today
+          </h2>
           {plannedMinutesToday > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {formatDuration(plannedMinutesToday)} planned
-            </span>
+            <span className="text-sm text-muted-foreground">{formatDuration(plannedMinutesToday)} planned</span>
           )}
         </div>
-
         {todaySessions.length > 0 ? (
-          <div className="space-y-2">
+          <ul className="divide-y divide-border">
             {todaySessions.map((s, i) => (
               <TodayPlanItem
                 key={`${s.item.id}-${i}`}
@@ -310,179 +236,158 @@ export default async function DashboardPage() {
                 className={s.item.className}
                 classColor={s.item.classColor}
                 scheduledMinutes={s.scheduledMinutes}
-                reasonCode={s.reasonCode}
                 reasons={reasonsFor(s.item.id)}
                 timeLabel={s.startMinute !== undefined ? formatMinuteOfDay(s.startMinute) : undefined}
               />
             ))}
-          </div>
-        ) : showingFallback ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Nothing scheduled for today yet — set your study availability in{" "}
-              <Link href="/settings" className="underline underline-offset-4">
-                Settings
-              </Link>{" "}
-              so Rushd can suggest specific times. Here&apos;s what matters most:
-            </p>
-            <div className="space-y-2">
-              {fallbackItems.map((s, i) => (
-                <TodayPlanItem
-                  key={`${s.item.id}-${i}`}
-                  itemId={s.item.id}
-                  itemKind={s.item.kind}
-                  assignmentId={s.item.kind === "assignment" ? s.item.id : null}
-                  title={s.item.title}
-                  className={s.item.className}
-                  classColor={s.item.classColor}
-                  scheduledMinutes={s.item.remainingMinutes}
-                  reasonCode={s.reasonCode}
-                  reasons={explainScore(s, now, plan.scored, tz)}
-                />
-              ))}
-            </div>
-          </div>
+          </ul>
         ) : (
-          <div className="rounded-lg border border-dashed border-border py-14 text-center">
-            <p className="text-muted-foreground">
-              You&apos;re all caught up. Nothing due right now.
-            </p>
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <QuickAdd classes={classes} />
-        <div className="flex flex-wrap gap-2">
-          <Link href="/import">
-            <Button variant="outline" size="sm">
-              <Upload className="h-4 w-4" />
-              Upload screenshot
-            </Button>
-          </Link>
-          <AddAssignmentButton classes={classes} />
-          <AddExamButton classes={classes} />
-        </div>
-      </section>
-
-      {showHealthScore && health.score !== null && (
-        <HealthScoreCard score={health.score} components={health.components} />
-      )}
-
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-2xl font-semibold text-destructive">
-              {overdueCount}
-            </p>
-            <p className="text-sm text-muted-foreground">Overdue</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-2xl font-semibold">{upcomingCount}</p>
-            <p className="text-sm text-muted-foreground">Upcoming</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-2xl font-semibold text-success">{completedThisWeek}</p>
-            <p className="text-sm text-muted-foreground">Done this week</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 sm:grid-cols-2">
-        <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold">Overdue</h2>
-          {overdueAssignments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing overdue.</p>
-          ) : (
-            <div className="space-y-2">
-              {overdueAssignments.map((a) => (
-                <Link
-                  key={a.id}
-                  href="/assignments"
-                  className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm hover:bg-destructive/10"
-                >
-                  <span className="truncate">{a.title}</span>
-                  <Badge variant="destructive" className="shrink-0">
-                    {formatDueDate(a.dueAt, tz, now)}
-                  </Badge>
+          <div className="py-5 text-sm">
+            {!hasWork ? (
+              <p className="text-muted-foreground">
+                Nothing to plan yet. Add an assignment below
+                {canvasConnection ? "" : " or connect Canvas to bring in your deadlines"}.
+              </p>
+            ) : noAvailability ? (
+              <p className="text-muted-foreground">
+                Rushd doesn&apos;t know when you can study yet, so it can&apos;t place work at specific times.{" "}
+                <Link href="/settings#availability" className="font-medium text-foreground underline underline-offset-4">
+                  Set your study times
                 </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold">Upcoming exams</h2>
-          {upcomingExams.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No exams scheduled.</p>
-          ) : (
-            <div className="space-y-2">
-              {upcomingExams.map((e) => (
-                <Link
-                  key={e.id}
-                  href="/exams"
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
-                >
-                  <span className="truncate">{e.title}</span>
-                  <Badge variant="outline" className="shrink-0 border-warning text-warning">
-                    {formatDaysUntil(e.examAt, tz, now)}
-                  </Badge>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">Upcoming deadlines</h2>
-        {upcomingAssignments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing on the horizon.</p>
-        ) : (
-          <div className="space-y-2">
-            {upcomingAssignments.map((a) => (
-              <Link
-                key={a.id}
-                href="/assignments"
-                className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <span
-                    aria-hidden="true"
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: a.class.color }}
-                  />
-                  {a.title}
-                </span>
-                <span className="shrink-0 text-muted-foreground">
-                  {formatDueDate(a.dueAt, tz, now)}
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">This week&apos;s workload</h2>
-        <Card>
-          <CardContent className="py-4">
-            <WorkloadBars days={workloadDays} />
-            {shortfallMinutes > 0 && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                {formatDuration(shortfallMinutes)} of work can&apos;t fit before its deadline in your study time.{" "}
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                {todayAvailable === 0
+                  ? "No study time left today."
+                  : "Nothing needs today's study time."}
+                {laterSession && (
+                  <>
+                    {" "}Next block: <span className="text-foreground">{laterSession.item.title}</span>,{" "}
+                    {blockLabel(laterSession)}.
+                  </>
+                )}{" "}
                 <Link href="/plan" className="font-medium text-foreground underline underline-offset-4">
-                  See what to do first
+                  Open schedule
                 </Link>
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="coming-up-heading">
+        <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+          <h2 id="coming-up-heading" className="text-base font-semibold">
+            Coming up
+          </h2>
+          <Link href="/assignments" className="text-sm text-muted-foreground hover:text-foreground">
+            All assignments
+          </Link>
+        </div>
+        {comingUp.length === 0 ? (
+          <p className="py-5 text-sm text-muted-foreground">No deadlines or exams ahead.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {comingUp.map((row) => (
+              <li key={row.key}>
+                <Link href={row.href} className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-muted/60">
+                  <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: row.classColor }} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm">{row.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {row.className}
+                      {row.kind === "exam" ? " · Exam" : ""}
+                      {row.fromCanvas ? " · Canvas" : ""}
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      "shrink-0 text-right text-xs tabular-nums",
+                      row.overdue ? "font-medium text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {row.overdue ? "Overdue · " : ""}
+                    {formatDueDate(row.at, tz, now)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {hasWork && !noAvailability && (
+        <section aria-labelledby="week-heading">
+          <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+            <h2 id="week-heading" className="text-base font-semibold">
+              This week
+            </h2>
+            <span className="text-sm text-muted-foreground">{formatDuration(weekMinutes)} planned</span>
+          </div>
+          <div className="pt-4">
+            <WorkloadBars days={week} />
+            {shortfallMinutes > 0 && (
+              <p className="mt-4 flex items-start gap-2 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                <span>
+                  {formatDuration(shortfallMinutes)} of work won&apos;t fit before its deadline in your study time.{" "}
+                  <Link href="/plan" className="font-medium underline underline-offset-4">
+                    See what to do first
+                  </Link>
+                </span>
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      <section aria-labelledby="add-heading" className="space-y-3">
+        <h2 id="add-heading" className="border-b border-border pb-2 text-base font-semibold">
+          Add work
+        </h2>
+        <QuickAdd classes={classes} />
+        <div className="flex flex-wrap gap-2">
+          <AddAssignmentButton classes={classes} variant="outline" />
+          <AddExamButton classes={classes} variant="outline" />
+          <Link href="/import" className={buttonVariants({ variant: "outline" })}>
+            <Upload className="h-4 w-4" aria-hidden="true" />
+            From a screenshot
+          </Link>
+          {!canvasConnection && (
+            <Link href="/integrations/canvas" className={buttonVariants({ variant: "outline" })}>
+              Connect Canvas
+            </Link>
+          )}
+        </div>
+        {classes.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Add a class first on{" "}
+            <Link href="/classes" className="underline underline-offset-4">
+              Classes
+            </Link>
+            , or connect Canvas to import them.
+          </p>
+        )}
       </section>
     </div>
   );
+}
+
+function assignmentRow(a: {
+  id: string;
+  title: string;
+  dueAt: Date;
+  source: string;
+  class: { name: string; color: string };
+}): Omit<ComingUpRow, "overdue"> {
+  return {
+    key: `a-${a.id}`,
+    href: "/assignments",
+    title: a.title,
+    className: a.class.name,
+    classColor: a.class.color,
+    at: a.dueAt,
+    kind: "assignment",
+    fromCanvas: a.source === "CANVAS",
+  };
 }

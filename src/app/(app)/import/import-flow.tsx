@@ -181,7 +181,7 @@ export function ImportFlow({ classes }: { classes: ClassOption[] }) {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="font-heading text-xl font-semibold">
+          <h2 className="text-base font-semibold">
             We found {stage.items.length} item{stage.items.length === 1 ? "" : "s"}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -214,7 +214,7 @@ export function ImportFlow({ classes }: { classes: ClassOption[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-2xl font-semibold">Bring your workload</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Bring your workload</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Upload your Canvas calendar or assignment list and Rushd will organize it for you.
         </p>

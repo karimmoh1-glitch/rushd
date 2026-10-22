@@ -85,11 +85,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* The problem, solved on scroll */}
-      <section aria-labelledby="problem" className="border-t border-border">
-        <span id="problem" className="sr-only">
-          Why Rushd
-        </span>
+      {/* The problem */}
+      <section className="border-t border-border">
         <ChaosToPlan items={chaosItems} />
       </section>
 
@@ -105,7 +102,7 @@ export default function LandingPage() {
               or drop in a surprise assignment, and every block moves to where it now belongs.
             </p>
           </Reveal>
-          <Reveal delay={0.1}>
+          <Reveal>
             <div className="mt-10">
               <ScheduleDemo />
             </div>
@@ -124,7 +121,7 @@ export default function LandingPage() {
           </Reveal>
 
           <div className="mt-12 grid gap-4 md:grid-cols-6">
-            <Reveal delay={0.05} className="md:col-span-4 md:row-span-2">
+            <Reveal className="md:col-span-4 md:row-span-2">
               <div className="surface flex h-full flex-col justify-between gap-8 rounded-2xl p-6">
                 <div>
                   <h3 className="text-xl font-semibold tracking-tight">Connect once. Every course comes with it.</h3>
@@ -143,11 +140,11 @@ export default function LandingPage() {
                     ].map((c) => (
                       <li
                         key={c.name}
-                        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${c.on ? "border-primary/40 bg-accent/40" : "border-border"}`}
+                        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${c.on ? "border-foreground/20" : "border-border text-muted-foreground"}`}
                       >
                         <span
                           aria-hidden="true"
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${c.on ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${c.on ? "border-foreground bg-foreground text-background" : "border-border"}`}
                         >
                           {c.on && <Check className="h-3 w-3" strokeWidth={3} />}
                         </span>
@@ -167,9 +164,7 @@ export default function LandingPage() {
                       { n: "Plan rebuilt around real deadlines", ok: true },
                     ].map((s) => (
                       <li key={s.n} className="flex items-center gap-2.5">
-                        <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                          <Check className="h-3 w-3" strokeWidth={3} />
-                        </span>
+                        <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
                         {s.n}
                       </li>
                     ))}
@@ -178,9 +173,9 @@ export default function LandingPage() {
               </div>
             </Reveal>
 
-            <Reveal delay={0.1} className="md:col-span-2">
-              <div className="flex h-full flex-col gap-3 rounded-2xl border border-brand/30 bg-accent/40 p-6">
-                <KeyRound className="h-5 w-5 text-brand-ink" aria-hidden="true" />
+            <Reveal className="md:col-span-2">
+              <div className="flex h-full flex-col gap-3 rounded-2xl border border-border p-6">
+                <KeyRound className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                 <h3 className="font-semibold">Your token stays sealed</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   Encrypted with AES-256-GCM before it&apos;s stored, used only by Rushd&apos;s server, never shown again.
@@ -189,8 +184,8 @@ export default function LandingPage() {
               </div>
             </Reveal>
 
-            <Reveal delay={0.15} className="md:col-span-2">
-              <div className="dot-field flex h-full flex-col gap-3 rounded-2xl border border-border p-6">
+            <Reveal className="md:col-span-2">
+              <div className="flex h-full flex-col gap-3 rounded-2xl border border-border p-6">
                 <Pencil className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                 <h3 className="font-semibold">Your edits stay yours</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
@@ -200,7 +195,7 @@ export default function LandingPage() {
               </div>
             </Reveal>
 
-            <Reveal delay={0.2} className="md:col-span-6">
+            <Reveal className="md:col-span-6">
               <div className="flex h-full flex-col gap-4 rounded-2xl border border-border p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex gap-4">
                   <ScanText className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -225,13 +220,14 @@ export default function LandingPage() {
           <Reveal>
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">It shows its work.</h2>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
-              Every block comes with the arithmetic behind it. No black box, no AI guessing at your priorities.
+              Every block comes with the reasons behind it: what&apos;s due, how much it&apos;s worth, and how much time
+              is left. The schedule is computed by rules you can read, not guessed by a model.
             </p>
           </Reveal>
-          <Reveal delay={0.1}>
+          <Reveal>
             <ol className="mt-12 space-y-6">
               {topFour.map((s, i) => (
-                <li key={s.item.id} className="grid grid-cols-[1.5rem_1fr_auto] items-center gap-x-4 gap-y-2">
+                <li key={s.item.id} className="grid grid-cols-[1.5rem_1fr] items-center gap-x-4 gap-y-2">
                   <span className="font-mono text-sm tabular-nums text-muted-foreground">{i + 1}</span>
                   <div className="min-w-0">
                     <p className="truncate font-medium">{s.item.title}</p>
@@ -239,9 +235,8 @@ export default function LandingPage() {
                       {s.item.className} · {REASON_LABELS[s.reasonCode]}
                     </p>
                   </div>
-                  <span className="font-mono text-sm tabular-nums">{s.score.toFixed(0)}</span>
                   <div
-                    className="col-start-2 col-end-4 flex h-2 overflow-hidden rounded-full"
+                    className="col-start-2 flex h-2 overflow-hidden rounded-full"
                     style={{ width: `${(s.score / maxScore) * 100}%` }}
                     role="img"
                     aria-label={SEGMENTS.map((seg) => {
@@ -292,8 +287,7 @@ export default function LandingPage() {
       <section className="border-t border-border">
         <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
           <Reveal>
-            <div className="relative overflow-hidden rounded-3xl bg-primary px-6 py-16 text-primary-foreground sm:px-12 sm:py-20">
-              <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(circle,color-mix(in_oklch,var(--brand)_45%,transparent),transparent_70%)] dark:bg-[radial-gradient(circle,oklch(1_0_0/0.35),transparent_70%)]" />
+            <div className="relative overflow-hidden rounded-2xl bg-primary px-6 py-16 text-primary-foreground sm:px-12 sm:py-20">
               <h2 className="relative max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">
                 Tonight&apos;s plan is two minutes away.
               </h2>

@@ -1,7 +1,3 @@
-"use client";
-
-import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { formatDuration } from "@/lib/format";
 import { formatMinuteOfDay } from "@/lib/time/zone";
 
@@ -25,28 +21,16 @@ export interface PreviewData {
 /**
  * The hero's product preview. Every value comes from running Rushd's real
  * planning engine on a sample student's week (see sample-week.ts); the
- * layout mirrors the dashboard. It settles into place on load and tilts
- * back gently as the page scrolls.
+ * layout mirrors the dashboard. Server-rendered; the CSS entrance runs from
+ * first paint and collapses under reduced motion.
  */
 export function HeroPreview({ data }: { data: PreviewData }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [24, -48]);
-  const rotateX = useTransform(scrollYProgress, [0.35, 1], reduce ? [0, 0] : [0, 6]);
   const maxWeek = Math.max(1, ...data.week.map((d) => d.minutes));
 
   return (
-    <div ref={ref} className="relative [perspective:1400px]">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-10 rounded-[2rem] bg-[radial-gradient(ellipse_at_60%_40%,color-mix(in_oklch,var(--brand)_18%,transparent),transparent_65%)] opacity-70 dark:opacity-50"
-      />
-      {/* Entrance is CSS on this wrapper (visible from first paint); Motion
-          only drives the scroll-linked tilt on the inner panel. */}
+    <div className="relative">
       <div className="anim-rise" style={{ animationDelay: "150ms" }}>
-      <motion.div
-        style={{ y, rotateX, transformOrigin: "50% 0%" }}
+      <div
         className="surface relative rounded-2xl p-4 sm:p-5"
         role="img"
         aria-label={`Sample Rushd plan for ${data.dayLabel}: ${data.blocks.length} study blocks tonight, starting with ${data.next.title}.`}
@@ -58,8 +42,8 @@ export function HeroPreview({ data }: { data: PreviewData }) {
           </p>
         </div>
 
-        <div className="anim-rise mt-4 rounded-xl border border-brand/40 bg-accent/50 p-4" style={{ animationDelay: "350ms" }}>
-          <p className="text-xs font-medium text-accent-foreground">Next up</p>
+        <div className="anim-rise mt-4 rounded-xl border border-border bg-muted/40 p-4" style={{ animationDelay: "350ms" }}>
+          <p className="text-xs font-medium text-muted-foreground">Next up</p>
           <div className="mt-1.5 flex items-center gap-2">
             <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: data.next.classColor }} />
             <p className="truncate text-lg font-semibold tracking-tight">{data.next.title}</p>
@@ -116,7 +100,7 @@ export function HeroPreview({ data }: { data: PreviewData }) {
             ))}
           </div>
         </div>
-      </motion.div>
+      </div>
       </div>
       <p className="mt-3 text-center text-xs text-muted-foreground">
         A sample student&apos;s week, planned by the same engine you get.

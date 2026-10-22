@@ -38,7 +38,7 @@ export function CanvasIntegration({
   return (
     <div className="space-y-10">
       <header className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">Canvas</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Canvas</h1>
         <p className="mt-2 text-base text-muted-foreground">
           {view
             ? "Pick the courses to sync. Rushd imports their assignments and due dates, then builds your plan around your real workload."

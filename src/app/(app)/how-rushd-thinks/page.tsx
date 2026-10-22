@@ -8,7 +8,6 @@ import type { SessionRecord } from "@/lib/insights/build-insights";
 import { SCORING_WEIGHTS } from "@/lib/planning/constants";
 import { logEvent } from "@/lib/analytics/log-event";
 import { Card, CardContent } from "@/components/ui/card";
-import { Reveal } from "@/components/reveal";
 
 export const metadata: Metadata = {
   title: "How Rushd thinks",
@@ -71,14 +70,14 @@ export default async function HowRushdThinksPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="font-heading text-3xl font-semibold">How Rushd thinks</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">How Rushd thinks</h1>
         <p className="mt-1 max-w-2xl text-base text-muted-foreground">
           Nothing here is a black box. Every recommendation is arithmetic over your real data —
           no model guessing at what you should do.
         </p>
       </div>
 
-      <Reveal>
+      <div>
         <Card className="border-primary/30 bg-accent/20">
           <CardContent className="flex items-start gap-3 py-4">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
@@ -89,9 +88,9 @@ export default async function HowRushdThinksPage() {
             </p>
           </CardContent>
         </Card>
-      </Reveal>
+      </div>
 
-      <Reveal delay={0.06}>
+      <div>
         <section>
           <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold">
             <Scale className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -106,9 +105,9 @@ export default async function HowRushdThinksPage() {
             ))}
           </div>
         </section>
-      </Reveal>
+      </div>
 
-      <Reveal delay={0.12}>
+      <div>
         <section>
           <h2 className="mb-1 flex items-center gap-2 font-heading text-lg font-semibold">
             <Clock3 className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -143,9 +142,9 @@ export default async function HowRushdThinksPage() {
             </div>
           )}
         </section>
-      </Reveal>
+      </div>
 
-      <Reveal delay={0.18}>
+      <div>
         <section>
           <h2 className="mb-1 flex items-center gap-2 font-heading text-lg font-semibold">
             <Brain className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -173,7 +172,7 @@ export default async function HowRushdThinksPage() {
             </div>
           )}
         </section>
-      </Reveal>
+      </div>
     </div>
   );
 }

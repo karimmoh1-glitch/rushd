@@ -163,7 +163,7 @@ export function OnboardingWizard() {
           <Sparkles className="h-6 w-6 text-primary" aria-hidden="true" />
         </div>
         <div>
-          <h1 className="font-heading text-2xl font-semibold">
+          <h1 className="text-2xl font-semibold tracking-tight">
             Your Rushd profile is ready.
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -219,7 +219,7 @@ export function OnboardingWizard() {
 
       {step === 0 && (
         <div className="space-y-4">
-          <h1 className="font-heading text-2xl font-semibold">
+          <h1 className="text-2xl font-semibold tracking-tight">
             Let&apos;s set up your plan
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -300,7 +300,7 @@ export function OnboardingWizard() {
 
       {step === 1 && (
         <div className="space-y-4">
-          <h1 className="font-heading text-2xl font-semibold">
+          <h1 className="text-2xl font-semibold tracking-tight">
             When can you usually study?
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -366,7 +366,7 @@ export function OnboardingWizard() {
 
       {step === 2 && (
         <div className="space-y-4">
-          <h1 className="font-heading text-2xl font-semibold">Add your classes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Add your classes</h1>
           <p className="text-sm text-muted-foreground">
             Optional — you can always add these later from your dashboard.
           </p>
@@ -426,7 +426,7 @@ export function OnboardingWizard() {
 
       {step === 3 && (
         <div className="space-y-4">
-          <h1 className="font-heading text-2xl font-semibold">
+          <h1 className="text-2xl font-semibold tracking-tight">
             What&apos;s your biggest academic challenge?
           </h1>
           <p className="text-sm text-muted-foreground">

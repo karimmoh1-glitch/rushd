@@ -23,7 +23,7 @@ export function ForecastSection({ weeks }: { weeks: WeekForecast[] }) {
 
   return (
     <section>
-      <h2 className="mb-1 font-heading text-lg font-semibold">Academic forecast</h2>
+      <h2 className="mb-1 text-base font-semibold">Academic forecast</h2>
       <p className="mb-3 text-sm text-muted-foreground">
         If you keep working at your current pace, here&apos;s what the next three weeks look like.
       </p>

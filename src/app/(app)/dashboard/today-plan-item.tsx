@@ -4,20 +4,14 @@ import { useTransition } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
 import { StartSessionButton } from "@/components/start-session-button";
 import { formatDuration } from "@/lib/format";
-import { REASON_LABELS } from "@/lib/planning/constants";
-import type { ReasonCode } from "@/lib/planning/types";
 
+/** One timed block in today's plan. */
 export function TodayPlanItem({
   itemId,
   itemKind,
@@ -26,7 +20,6 @@ export function TodayPlanItem({
   className,
   classColor,
   scheduledMinutes,
-  reasonCode,
   reasons,
   timeLabel,
 }: {
@@ -37,7 +30,6 @@ export function TodayPlanItem({
   className: string;
   classColor: string;
   scheduledMinutes: number;
-  reasonCode: ReasonCode;
   reasons: string[];
   /** e.g. "4:00 PM", when the block has a planned start time. */
   timeLabel?: string;
@@ -59,80 +51,70 @@ export function TodayPlanItem({
   function skip() {
     startTransition(async () => {
       await logPlanItemInteraction("skipped", itemId, itemKind);
-      toast.info("Noted. This helps Rushd learn what's actually a priority.");
+      toast.info("Skipped for today.");
     });
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border px-4 py-3">
-      {assignmentId ? (
-        <Checkbox
-          onCheckedChange={(v) => v === true && complete()}
-          disabled={pending}
-          aria-label="Mark completed"
-        />
-      ) : (
-        <span
-          aria-hidden="true"
-          className="h-4 w-4 shrink-0 rounded-full border-2"
-          style={{ borderColor: classColor }}
-        />
+    <li className="flex items-center gap-3 py-3">
+      {timeLabel && (
+        <span className="w-16 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{timeLabel}</span>
       )}
+      <span aria-hidden="true" className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: classColor }} />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{title}</p>
-        <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
-          <span
-            aria-hidden="true"
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: classColor }}
-          />
-          {timeLabel && <span className="font-mono tabular-nums text-foreground/80">{timeLabel}</span>}
-          {timeLabel && " · "}
+        <p className="truncate text-sm font-medium">{title}</p>
+        <p className="truncate text-xs text-muted-foreground">
           {className} · {formatDuration(scheduledMinutes)}
+          {reasons.length > 0 && (
+            <>
+              {" · "}
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button type="button" className="underline decoration-dotted underline-offset-2 hover:text-foreground">
+                      Why now?
+                    </button>
+                  }
+                />
+                <PopoverContent className="w-72" align="start">
+                  <ul className="space-y-1 text-sm">
+                    {reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
         </p>
       </div>
-      <Popover>
-        <PopoverTrigger
-          render={
-            <button
-              type="button"
-              className="hidden shrink-0 sm:inline-flex"
-              aria-label={`Why: ${REASON_LABELS[reasonCode]}`}
-            >
-              <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                {REASON_LABELS[reasonCode]}
-              </Badge>
-            </button>
-          }
+      <div className="flex shrink-0 items-center gap-1">
+        <StartSessionButton
+          target={assignmentId ? { assignmentId } : { examId: itemId }}
+          source="PLANNED"
+          variant="ghost"
         />
-        <PopoverContent className="w-64" align="end">
-          <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Why this?
-          </p>
-          <ul className="space-y-1">
-            {reasons.map((reason) => (
-              <li key={reason} className="text-sm">
-                {reason}
-              </li>
-            ))}
-          </ul>
-        </PopoverContent>
-      </Popover>
-      <StartSessionButton
-        target={assignmentId ? { assignmentId } : { examId: itemId }}
-        source="PLANNED"
-      />
-      <Button
-        variant="ghost"
-        size="icon"
-        className="shrink-0"
-        disabled={pending}
-        onClick={skip}
-        aria-label={`Not doing "${title}" today`}
-        title="Not today"
-      >
-        <X className="h-4 w-4" />
-      </Button>
-    </div>
+        {assignmentId && (
+          <span className="flex h-8 w-8 items-center justify-center">
+            <Checkbox
+              onCheckedChange={(v) => v === true && complete()}
+              disabled={pending}
+              aria-label={`Mark "${title}" done`}
+            />
+          </span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          disabled={pending}
+          onClick={skip}
+          aria-label={`Skip "${title}" today`}
+          title="Not today"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </li>
   );
 }
