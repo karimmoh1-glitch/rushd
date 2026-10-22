@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { PLANS, monthlyAllowance, type AiFeature, type Plan, type PlanId } from "@/lib/billing/plans";
 import { costMicros, toMicros, type TokenUsage } from "./pricing";
-import { BONUS_COST_PER_MESSAGE_USD, referralBonus } from "@/lib/referral/referral";
+import { BONUS_COST_PER_MESSAGE_USD, BONUS_MESSAGES, referralBonus } from "@/lib/referral/referral";
 
 // Server-side AI metering. Every AI call goes reserve → provider → settle (or
 // fail). Reservation happens inside one transaction holding a Postgres
@@ -103,7 +103,10 @@ export async function reserveAi(userId: string, feature: AiFeature, now: Date = 
       const allowance = baseAllowance === null ? null : baseAllowance + (feature === "tutor_message" ? bonus : 0);
       if (allowance !== null) {
         const used = await tx.aiUsage.count({ where: { ...counted, feature, createdAt: { gte: since } } });
-        if (used >= allowance) return reject("monthly_quota");
+        if (used >= allowance) {
+          if (feature !== "tutor_message") return reject("monthly_quota");
+          return { ok: false, reason: "monthly_quota", message: `${MESSAGES.monthly_quota} Invite a friend from Settings and you both get ${BONUS_MESSAGES} more tutor messages every month.` };
+        }
       }
       const costCap = toMicros(plan.monthlyCostCapUsd + bonus * BONUS_COST_PER_MESSAGE_USD);
       if ((await spendSince(tx, since, userId)) + estimate > costCap) return reject("monthly_cost");

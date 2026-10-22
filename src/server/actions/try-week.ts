@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { CLASS_COLORS } from "@/lib/class-colors";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
@@ -26,6 +27,8 @@ export type TryImportResult = { error: string } | { success: true; created: numb
 
 export async function importTriedWeek(raw: unknown): Promise<TryImportResult> {
   const user = await requireUserOrThrow();
+  const rate = await checkRateLimit(`try-import:${user.id}`, { max: 10, windowMs: 60 * 60 * 1000 });
+  if (!rate.allowed) return { error: "That's a lot of adding at once. Try again in a bit." };
   const parsed = z.array(ItemSchema).min(1).max(TRY_MAX_ITEMS).safeParse(raw);
   if (!parsed.success) return { error: "That list couldn't be read. Add the items by hand instead." };
 
