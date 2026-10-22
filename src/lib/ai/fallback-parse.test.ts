@@ -51,6 +51,22 @@ describe("fallbackParseQuickAdd", () => {
     expect(date.getDate()).toBe(20);
   });
 
+  it("resolves month-name dates, rolling past ones into next year", () => {
+    const dec = new Date(fallbackParseQuickAdd("AP Bio final Dec 12th 6h", [], NOW).dueAt!);
+    expect([dec.getFullYear(), dec.getMonth(), dec.getDate()]).toEqual([2026, 11, 12]);
+    expect(fallbackParseQuickAdd("AP Bio final Dec 12th 6h", [], NOW).title).toBe("AP Bio final");
+    const march = new Date(fallbackParseQuickAdd("Essay march 3", [], NOW).dueAt!);
+    expect([march.getFullYear(), march.getMonth()]).toEqual([2027, 2]);
+    expect(fallbackParseQuickAdd("I may need help", [], NOW).dueAt).toBeNull();
+  });
+
+  it("understands 'in N days' and 'next week'", () => {
+    const inTen = new Date(fallbackParseQuickAdd("Bio final in 10 days 3h", [], NOW).dueAt!);
+    expect(inTen.getDate()).toBe(25);
+    expect(fallbackParseQuickAdd("Bio final in 10 days 3h", [], NOW).title).toBe("Bio final");
+    expect(new Date(fallbackParseQuickAdd("Essay next week", [], NOW).dueAt!).getDate()).toBe(22);
+  });
+
   it("matches an existing class by exact name", () => {
     const draft = fallbackParseQuickAdd("AP Chemistry lab due Friday", CLASSES, NOW);
     expect(draft.classId).toBe("chem1");

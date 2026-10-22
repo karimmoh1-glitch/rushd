@@ -168,3 +168,11 @@ test("a new student types their week on Today and gets it ranked", async ({ page
   await expect(page.getByRole("heading", { name: "What's due this week?" })).toBeHidden();
   await expect(page.getByText("Titration lab").first()).toBeVisible();
 });
+
+test("exam study planner builds a day-by-day plan without an account", async ({ page }) => {
+  await page.goto("/tools/exam-study-planner");
+  await page.getByLabel(/Your tests and big assignments/).fill("Bio final in 10 days 3h\nChem quiz tomorrow 1h");
+  await page.getByRole("button", { name: "Make my plan" }).click();
+  await expect(page.getByText("Chem quiz").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Keep this plan up to date, free" })).toBeVisible();
+});

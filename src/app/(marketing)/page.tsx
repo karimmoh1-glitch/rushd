@@ -184,6 +184,12 @@ export default function LandingPage() {
               Start with what&apos;s due this week.
             </h2>
             <p className="reveal-rise mt-4 max-w-md text-lg text-muted-foreground">Setup takes about a minute. Connect Canvas now or later.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Free tools, no account:{" "}
+              <Link href="/tools/rank-my-week" className="font-medium text-foreground underline-offset-4 hover:underline">Rank my homework</Link>
+              {" · "}
+              <Link href="/tools/exam-study-planner" className="font-medium text-foreground underline-offset-4 hover:underline">Plan my finals</Link>
+            </p>
             <Link
               href="/signup"
               className="group mt-8 inline-flex h-12 items-center gap-2.5 rounded-full bg-primary pl-5 pr-6 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
