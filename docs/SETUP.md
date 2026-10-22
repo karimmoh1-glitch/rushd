@@ -6,6 +6,40 @@ with a Neon Postgres database, at https://therushd.com. It already has
 `NEXT_PUBLIC_APP_URL`. Everything below is optional: each feature explains
 itself in the app and falls back gracefully until its keys are set.
 
+## Status (verified October 22, 2026)
+
+**Working and verified in production**
+- Homepage "Rank my week", /tools, Rank my homework, Plan my finals: no account,
+  and an automated test confirms what you type is never sent anywhere.
+- Saving a ranked week, signing up, onboarding, the week landing on Today.
+- Canvas sync code, calendar-feed import (duplicates, sync lock, bad links,
+  failures covered by tests); daily re-sync cron. Cron runs confirmed on
+  their own on Oct 22 (daily 09:53 UTC, evening 17:43 UTC).
+- Streaks, studied-time, share cards, referrals recorded, admin growth metrics
+  (test/staff accounts and background jobs excluded).
+- Accessibility: automated WCAG 2.1 AA audit of 10 public and 9 app pages,
+  zero violations.
+
+**Built, waiting on configuration (hidden or marked "not yet" until then)**
+- AI tutor, quizzes, photo practice checks, draft feedback, screenshot import,
+  and the invite bonus → `ANTHROPIC_API_KEY`.
+- Password reset email, Sunday plan email, streak reminders → `RESEND_API_KEY`
+  + `EMAIL_FROM` (opt-in only).
+- Video recommendations → `YOUTUBE_API_KEY` (falls back to Khan Academy links).
+- Microsoft Teams → `MICROSOFT_CLIENT_ID` + `MICROSOFT_CLIENT_SECRET`; not
+  mentioned anywhere public until both are set.
+- Paid plans → Stripe keys.
+
+**Needs a real account to test end to end (only you can)**
+- Canvas with a real access token, and a real Canvas calendar feed link.
+- Teams with a school Microsoft account, once the Entra app exists.
+- Real email delivery to your inbox, once Resend is verified.
+
+**Known limits**
+- Vercel Hobby keeps runtime logs about an hour; /admin shows each cron's last
+  run instead.
+- Cron jobs fire within their scheduled hour, not on the minute (Hobby plan).
+
 ## Checklist, in order of impact
 
 - [ ] `ANTHROPIC_API_KEY`: turns on the tutor, quizzes, photo checks, draft review, and the invite bonus (section 1)

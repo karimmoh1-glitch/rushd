@@ -1,65 +1,130 @@
-# Growth plan: 10,000 recurring students in 12 months
+# Growth: the first 100 students
 
-**Recurring** means active in at least 2 of the last 4 weeks. It is the first
-number on /admin/growth. Week-over-week return rate ("came back") sits next to
-it. That return rate is the number to watch: Duolingo grew daily users about
-4.5x in four years mostly by improving how many current users came back.
+## Where things actually stand (October 22, 2026)
 
-Rough math: 10,000 recurring students at a 40% recurring rate means about
-25,000 sign-ups in a year, around 70 a day by the end. That doesn't come from
-the website alone. It comes from loops that bring students in, plus retention
-that keeps them.
+- Accounts: no real students yet beyond the founder's own test accounts.
+- Measurement was rebuilt on October 22. Numbers before that date overcount:
+  every page load counted, test accounts included, and background jobs looked
+  like activity. Read /admin/growth from October 23 on.
+- Not live until keys are added (see SETUP.md): the AI tutor, practice checks,
+  draft feedback, video picks, email, Microsoft Teams. Until then the site says
+  so plainly, and the app hides those features.
+- What a student can use today: the free ranker and exam planner (no account),
+  Canvas sync (token or calendar feed), the study plan, Pulse ranking, Today,
+  study sessions, and streaks.
 
-## What's built (in the product today)
+Everything below that has a number is a **target**, not a result.
 
-| Lever | Where | Funnel signal |
+## How we measure (all on /admin/growth)
+
+| Stage | What counts | Where it comes from |
 |---|---|---|
-| Instant value, no sign-up: the hero ranks a typed week | `/`, `RankMyWeek` | "Ranked a week", "Saved a ranked week" on /admin/growth |
-| Saved week carried into the new account | onboarding finish screen + Today | "Added the week they ranked" |
-| Free SEO tools | `/tools/rank-my-week`, `/tools/exam-study-planner` | page counts |
-| Shareable rankings (the list lives in the link hash) | "Share this ranking" | `#try-share` count |
-| Two-sided invites: +10 tutor messages a month each (shown once AI is on; referrals are recorded already) | Settings → Invite friends, `/r/<code>` | Referral rows |
-| Streak share cards that double as invites | Today → Share, `/s/<token>` | Referral rows |
-| Study streak with rest days | Today header | "Came back" |
-| Sunday "your week" email + evening streak nudge | cron + Resend | "Came back" |
-| Daily re-sync of Canvas, Teams, calendar feeds | cron | plans stay current without a visit |
-| Calendar-feed fallback for schools that block Canvas tokens | `/integrations/canvas-calendar` | — |
-| New-student "Start here": type the week on Today | Today | "First meaningful action" |
-| Hitting the tutor limit points to invites | tutor | — |
+| Visitors | A browser on the homepage, once a day | Cookieless count; automation excluded |
+| Planner starts | Someone typed in "Rank my week" (the demo doesn't count) | `#try-start` |
+| Rankings | Someone pressed Rank it | `#try` |
+| Saves | "Save my week" | `#try-save` |
+| Sign-up starts | Sign-up page visitors | `/signup` |
+| Sign-ups | Accounts created (test and staff excluded) | User table |
+| First plan | Added work: typed it, imported it, or synced Canvas | setup events |
+| First real study | Session, completed assignment, practice check, tutor message, draft review | study events |
+| Day 1 / Day 7 | Active the day after signing up / in days 7–13 | Same events, per student |
+| Weekly active | Added work or studied this week | Same events |
+| Recurring | Active in 2+ of the last 4 weeks | Same events |
+| Invites | Link visits, joins, invites that counted (friend studied 10+ real minutes) | `#ref-visit`, Referral table |
 
-## What only you can do (highest leverage first)
+Page views and Rushd's own background jobs never count as activity.
 
-1. **Turn on the keys** (docs/SETUP.md): Anthropic (the AI study agent is
-   the product; without it the tutor, quizzes and photo checks are off),
-   Resend (email: retention and password resets), then YouTube, Stripe, and
-   Microsoft.
-2. **Short-form video, weekly.** The proven student channel. Hook: a
-   10-second screen recording, "Canvas shows 14 things due. Here's what I
-   actually need to do tonight," then the Rank my homework tool. Post from a
-   Rushd account and your own. If you pay creators: flat fee, real use of the
-   product, and a clear #ad every time. Don't frame it as "does your homework."
-   That's false and it's the criticism photo-solver apps get.
-3. **One school at a time.** Pick 2–3 schools whose students can connect
-   (Canvas tokens on, or the calendar feed). Get 10 students at one school
-   using it weekly before the next. Density makes word of mouth work.
-   /schools already takes inquiries.
-4. **Campus ambassadors** at those schools: free Pro, a small stipend, and they
-   disclose the relationship. They run a "plan your finals" session using
-   /tools/exam-study-planner in late November and late April.
-5. **Finals pushes.** Exam season is when students look for help. Push Plan my
-   finals in the last two weeks of November and April.
-6. **Search Console + the sitemap** (SETUP.md step 5). The two tools and the
-   homepage are built to rank for "assignment prioritizer," "homework
-   planner," and "finals study schedule."
-7. **Real social proof, as it appears.** Ask early students for a one-line
-   quote with first name and school, with permission. Add it only once it's
-   real. Never invent users, counts, or quotes.
-8. **A day-14 question** to early students: "How would you feel if you could
-   no longer use Rushd?" If fewer than 40% say "very disappointed," fix the
-   product before spending on growth.
+## The 30-day plan
 
-## Weekly review (15 minutes, Mondays)
+### Week 0 (before day 1): make the product whole
 
-/admin/growth: recurring students, came-back %, the try-it funnel
-(visits → ranked → saved → signed up → added), invites joined/studied. Pick
-the weakest step and change one thing.
+1. Add `ANTHROPIC_API_KEY` and `RESEND_API_KEY` (SETUP.md). The AI tutor and
+   practice checks are what students tell friends about; email resets and the
+   Sunday plan are what bring them back.
+2. Make yourself an admin and check /admin/growth works.
+3. Connect your own Canvas (token and calendar feed) and use Rushd for a week.
+   Fix anything that annoys you before a student sees it.
+
+### Days 1–7: one community, 20–30 students
+
+Pick **one** school or student community where you can reach people directly:
+your own school, a club, a class group chat, or a Discord server. Density
+matters more than reach: classmates comparing plans is the loop.
+
+Before inviting anyone, check their Canvas lets students create access tokens.
+If not, the calendar feed works everywhere.
+
+**Recruit:**
+- Ask 5 friends to try it in front of you (in person or on a call). Watch where
+  they get stuck. Don't explain anything.
+- Post once in each group chat or club channel with a screen recording of Rank
+  my homework on a real week (yours).
+- Offer what it actually does: "It ranks everything you have due and plans
+  your week around your free time. Free. Takes a minute."
+
+**Onboard:** for the first 20, offer a 10-minute call to connect Canvas
+together. Write down every question they ask; each one is a missing sentence
+on the site.
+
+### Days 8–14: five video experiments
+
+One video every other day; 15–30 seconds; screen recording of the real
+product with your voice. Never fake usage, never a fabricated testimonial,
+never an AI-generated demo of things Rushd doesn't do. Track each with its own
+invite link (Settings → Invite friends, once AI is on) or note the date and
+watch homepage visitors that day.
+
+| # | Hook (first 2 seconds) | What the video shows |
+|---|---|---|
+| 1 | "Canvas says I have 14 things due. Here's what I actually need to do tonight." | Paste the week into Rank my homework; the list reorders; tap the top item to see why. |
+| 2 | "I stopped making to-do lists." | Canvas connected → Today shows Next up → start a session. |
+| 3 | "Finals are in 6 weeks. This is my whole plan." | Plan my finals: tests in, a day-by-day schedule out. |
+| 4 | "Why is this due-tomorrow worksheet ranked below a quiz on Friday?" | The Pulse breakdown: due date vs test-coming-up points. |
+| 5 | "Day 12 of studying every day." | The streak on Today and the share card (only if it's a real streak). |
+
+Keep the one with the most homepage visitors and rankings per view; make
+three more variations of it.
+
+### Days 15–21: feedback loop
+
+- **Every Sunday, ask 5 active students** (not the same 5): "What did you use
+  Rushd for this week? What almost made you stop?" Write answers down verbatim.
+- **Every Monday, 15 minutes on /admin/growth.** Find the weakest step
+  (biggest drop) and pick one change for the week.
+- **Turning feedback into work:** a complaint heard from 3 different students
+  becomes a task. Fix it, ship it, tell those 3 students it's fixed.
+- **On day 14 for each student, ask:** "How would you feel if you could no
+  longer use Rushd?" (very / somewhat / not disappointed). Record the share
+  of "very".
+
+### Days 22–30: from the first cohort to 100
+
+- Ask every student with a 3+ day streak to share their invite link with two
+  classmates.
+- Add a second school or community only after the first has 15+ weekly active
+  students.
+- Late November and late April: push Plan my finals hard (videos 3 and 4).
+
+## Targets and what we do if we miss them
+
+| Metric | Target by day 30 | If below |
+|---|---|---|
+| Visitors → got a ranking | 25% | The hero isn't clear. Test a shorter headline and the demo playing sooner. |
+| Got a ranking → sign-up | 10% | Saving isn't compelling. Test "Save my week" copy, show what Today looks like. |
+| Sign-up → first plan | 70% | Onboarding is too long. Cut steps; make "type your week" the first screen. |
+| Sign-up → first real study | 40% | Today doesn't make the next step obvious. Watch 3 students use it. |
+| Day 7 active | 30% | Students aren't coming back. Prioritize the Sunday email and streaks; ask why. |
+| "Very disappointed" on day 14 | 40%+ | Below 40%: stop recruiting and fix the product with the students you have. |
+| Students | 30 sign-ups, 15 weekly active | Recruit in person before posting more videos. |
+
+Day 60 target: 100 sign-ups, 40 recurring students, at one or two schools.
+These are targets, not predictions.
+
+## Rules
+
+- Never invent users, counts, quotes, testimonials, or product-market-fit
+  claims. Real quotes need the student's permission and first name only.
+- Never claim a feature works until it's live (see the changelog).
+- Don't email anyone who didn't opt in. Don't add students' schools to the
+  site without permission.
+- Paid creators, if any: they use the product for real and disclose (#ad).
