@@ -8,6 +8,7 @@ import { parseWeek, toWorkItems, TRY_STORAGE_KEY, type TryItem } from "@/lib/try
 import { scoreAndRank } from "@/lib/planning/score";
 import { explainScore } from "@/lib/planning/explain";
 import { pulseOf } from "@/lib/planning/pulse";
+import { SCORING_WEIGHTS } from "@/lib/planning/constants";
 
 // The homepage's instant-value moment: type your week, the real planner ranks
 // it by Pulse right here in the browser. Nothing typed is sent anywhere; the
@@ -49,6 +50,8 @@ interface Ranked {
   reason: string;
   assumedDate: boolean;
   minutes: number;
+  /** What went into the score, from the planner's own breakdown. */
+  parts: { label: string; points: number }[];
 }
 
 function count(path: string) {
@@ -83,6 +86,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
   const [shared, setShared] = useState(false);
   const [typing, setTyping] = useState(false);
   const [autoRanked, setAutoRanked] = useState(false);
+  const [selected, setSelected] = useState(0);
   const counted = useRef(false);
   const touched = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -111,10 +115,23 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
         reason: explainScore(s, now, scored, tz)[0] ?? s.item.className,
         assumedDate: parsed[inputIndex].assumedDate,
         minutes: s.item.remainingMinutes,
+        parts: (
+          [
+            ["How soon it's due", s.breakdown.urgency],
+            ["Test coming up", s.breakdown.examProximity],
+            ["Already late", s.breakdown.overdue],
+            ["Priority", s.breakdown.importance],
+            ["Quick win", s.breakdown.effortTiebreak * SCORING_WEIGHTS.effortTiebreakWeight],
+          ] as [string, number][]
+        )
+          .filter(([, p]) => p >= 0.5)
+          .sort((a, b) => b[1] - a[1])
+          .map(([label, points]) => ({ label, points })),
       };
     });
     setItems(parsed);
     setRows(next);
+    setSelected(0);
     setSettled(reduce);
     setProgress(reduce ? 1 : 0);
     if (!counted.current) {
@@ -231,6 +248,8 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
   }
 
   const top = rows?.[0];
+  const pick = rows?.[Math.min(selected, rows.length - 1)] ?? top;
+  const partsMax = Math.max(1, ...(pick?.parts.map((p) => p.points) ?? [1]));
   const total = rows?.reduce((s, r) => s + r.minutes, 0) ?? 0;
 
   return (
@@ -342,11 +361,19 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
                   key={r.key}
                   className={cn(
                     "absolute inset-x-0 flex h-[50px] items-center gap-3 rounded-lg border bg-background px-3",
-                    first ? "border-signal/70" : "border-border",
+                    first ? "border-signal/70" : selected === r.rank && settled ? "border-foreground/40" : "border-border",
+                    "hover:border-foreground/30",
                     !reduce && "transition-[transform,border-color] duration-700 ease-[cubic-bezier(.2,.8,.2,1)]",
                   )}
                   style={{ transform: `translateY(${pos * ROW}px)`, transitionDelay: reduce ? undefined : `${r.inputIndex * 40}ms`, zIndex: rows.length - r.rank }}
                 >
+                  <button
+                    type="button"
+                    onClick={() => setSelected(r.rank)}
+                    aria-pressed={selected === r.rank}
+                    aria-label={`${r.title}, Pulse ${r.pulse}. Show why.`}
+                    className="flex h-full w-full min-w-0 items-center gap-3 text-left"
+                  >
                   <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: r.color }} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{r.title}</span>
@@ -366,15 +393,37 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
                     />
                     <span className="font-mono text-sm tabular-nums">{Math.max(1, Math.round(r.pulse * progress))}</span>
                   </span>
+                  </button>
                 </li>
               );
             })}
           </ol>
-          {top && (
+          {top && pick && (
             <div className={cn("mt-4 rounded-xl bg-secondary/70 p-4", !reduce && "transition-opacity duration-500", settled ? "opacity-100" : "opacity-0")}>
-              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">Start here</p>
-              <p className="mt-1 font-display text-xl font-medium leading-snug">{top.title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">
+                {pick.rank === 0 ? "Start here" : `Number ${pick.rank + 1} of ${rows.length}`}
+              </p>
+              <p className="mt-1 font-display text-xl font-medium leading-snug">{pick.title}</p>
+              {pick.parts.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-muted-foreground">What went into its Pulse of {pick.pulse}</p>
+                  <ul className="mt-2 space-y-1.5">
+                    {pick.parts.map((part) => (
+                      <li key={part.label} className="grid grid-cols-[8.5rem_1fr] items-center gap-3 text-xs">
+                        <span>{part.label}</span>
+                        <span className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                          <span
+                            className={cn("block h-full rounded-full", pick.rank === 0 ? "bg-signal" : "bg-foreground/70")}
+                            style={{ width: `${Math.max(4, (part.points / partsMax) * 100)}%` }}
+                          />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {rows.length > 1 && <p className="mt-2 text-xs text-muted-foreground">Tap any item to see why it ranks where it does.</p>}
+                </div>
+              )}
+              <p className="mt-3 text-sm text-muted-foreground">
                 {fmtMinutes(total)} of work this week. Rushd would plan it around your free time and re-rank it every day.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
