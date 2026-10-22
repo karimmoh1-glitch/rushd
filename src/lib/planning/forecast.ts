@@ -45,6 +45,7 @@ export function buildForecast(
   scored: ScoredItem[],
   weeklyAvailableMinutes: number,
   now: Date,
+  timeZone?: string | null,
 ): WeekForecast[] {
   const weeks: WeekForecast[] = Array.from({ length: WEEK_COUNT }, (_, i) => ({
     label: WEEK_LABELS[i],
@@ -58,7 +59,7 @@ export function buildForecast(
   const byWeek: ScoredItem[][] = Array.from({ length: WEEK_COUNT }, () => []);
 
   for (const s of scored) {
-    const daysUntil = calendarDaysUntil(s.item.dueAt, now);
+    const daysUntil = calendarDaysUntil(s.item.dueAt, now, timeZone);
     const weekIndex = daysUntil <= 0 ? 0 : Math.min(WEEK_COUNT - 1, Math.floor(daysUntil / DAYS_PER_WEEK));
     if (daysUntil < WEEK_COUNT * DAYS_PER_WEEK || daysUntil <= 0) {
       weeks[weekIndex].estimatedMinutes += s.item.remainingMinutes;

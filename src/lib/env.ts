@@ -7,6 +7,10 @@ const envSchema = z.object({
     .string()
     .min(16, "SESSION_SECRET must be at least 16 characters"),
   ANTHROPIC_API_KEY: z.string().optional(),
+  // 32 random bytes, base64 — see src/lib/canvas/token-vault.ts. Optional so
+  // the app boots without it; the Canvas integration reports itself as
+  // unavailable until it's set.
+  CANVAS_TOKEN_ENCRYPTION_KEY: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000"),
 });
 

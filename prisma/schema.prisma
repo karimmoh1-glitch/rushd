@@ -30,18 +30,20 @@ model User {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  profile        Profile?
-  availability   StudyAvailability[]
-  classes        Class[]
-  assignments    Assignment[]
-  exams          Exam[]
-  plans          Plan[]
-  planItems      PlanItem[]
-  studySessions  StudySession[]
-  notifications  Notification[]
-  feedback       Feedback[]
-  events         Event[]
-  invitedByCode  InviteCode?         @relation(fields: [invitedByCodeId], references: [id])
+  profile          Profile?
+  availability     StudyAvailability[]
+  classes          Class[]
+  assignments      Assignment[]
+  exams            Exam[]
+  plans            Plan[]
+  planItems        PlanItem[]
+  studySessions    StudySession[]
+  notifications    Notification[]
+  feedback         Feedback[]
+  events           Event[]
+  invitedByCode    InviteCode?         @relation(fields: [invitedByCodeId], references: [id])
+  canvasConnection CanvasConnection?
+  scheduleBlocks   ScheduleBlock[]
 
   @@index([createdAt])
 }
@@ -49,16 +51,20 @@ model User {
 // Onboarding-collected profile data. Split from User so auth logic never
 // touches product-preference fields.
 model Profile {
-  id               String             @id @default(cuid())
-  userId           String             @unique
-  displayName      String
-  grade            Int? // 9-12; null if not disclosed
-  school           String? // optional, never required
-  timezone         String // IANA tz, e.g. "America/New_York"
-  goals            String? // free-text academic goals, optional
-  primaryChallenge AcademicChallenge? // self-reported at onboarding, optional
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id                      String             @id @default(cuid())
+  userId                  String             @unique
+  displayName             String
+  grade                   Int? // 9-12; null if not disclosed
+  school                  String? // optional, never required
+  timezone                String // IANA tz, e.g. "America/New_York"
+  goals                   String? // free-text academic goals, optional
+  primaryChallenge        AcademicChallenge? // self-reported at onboarding, optional
+  // Scheduler preferences. Editable in Settings; the planner never assumes a
+  // student's capacity beyond what they set here.
+  preferredSessionMinutes Int                @default(60) // target length of one study block
+  maxDailyMinutes         Int                @default(240) // ceiling on planned study per day
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -113,9 +119,10 @@ model Class {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignments Assignment[]
-  exams       Exam[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments   Assignment[]
+  exams         Exam[]
+  canvasCourses CanvasCourse[]
 
   @@index([userId, archived])
 }
@@ -124,6 +131,14 @@ enum AssignmentStatus {
   NOT_STARTED
   IN_PROGRESS
   COMPLETED
+}
+
+// Where an assignment came from. Canvas-sourced rows are owned by the sync
+// (Canvas is the source of truth for title/due date/completion); MANUAL rows
+// are never touched by a sync, whether or not Canvas knows about them.
+enum AssignmentSource {
+  MANUAL
+  CANVAS
 }
 
 model Assignment {
@@ -140,13 +155,34 @@ model Assignment {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class         Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
-  planItems     PlanItem[]
-  studySessions StudySession[]
+  // --- Canvas sync identity & provenance (all null for MANUAL rows). ---------
+  source             AssignmentSource @default(MANUAL)
+  canvasCourseId     String? // Canvas's own course id
+  canvasAssignmentId String? // Canvas's own assignment id
+  canvasUrl          String? // link back to the assignment in Canvas
+  pointsPossible     Float?
+  canvasSubmittedAt  DateTime?
+  canvasSyncedAt     DateTime?
+  // Set when Canvas stops returning the assignment (deleted/unpublished). The
+  // row is kept — it's the student's data — but dropped from planning.
+  canvasRemovedAt    DateTime?
+  // True while estimatedMinutes is Rushd's own default for an imported
+  // assignment rather than a number the student chose. Editing it flips this
+  // off, and a sync never overwrites a student-chosen estimate.
+  estimatedByRushd   Boolean          @default(false)
 
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class          Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  planItems      PlanItem[]
+  studySessions  StudySession[]
+  scheduleBlocks ScheduleBlock[]
+
+  // One row per Canvas assignment per student — the backbone of idempotent
+  // sync. NULL canvas ids (manual rows) never collide in Postgres.
+  @@unique([userId, canvasCourseId, canvasAssignmentId])
   @@index([userId, status, dueAt])
   @@index([classId])
+  @@index([userId, source])
 }
 
 model Exam {
@@ -161,10 +197,11 @@ model Exam {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class         Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
-  planItems     PlanItem[]
-  studySessions StudySession[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class          Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  planItems      PlanItem[]
+  studySessions  StudySession[]
+  scheduleBlocks ScheduleBlock[]
 
   @@index([userId, examAt])
   @@index([classId])
@@ -368,4 +405,84 @@ model InviteCode {
   createdAt DateTime @default(now())
 
   users User[]
+}
+
+// ---------------------------------------------------------------------------
+// Canvas LMS integration
+// ---------------------------------------------------------------------------
+
+enum CanvasConnectionStatus {
+  ACTIVE
+  NEEDS_REAUTH // Canvas rejected the token (expired/revoked) — reconnect to resume
+  ERROR // last sync failed for a non-auth reason; safe to retry
+}
+
+// One Canvas account per student. The personal access token is stored ONLY as
+// AES-256-GCM ciphertext (see src/lib/canvas/token-vault.ts), bound to the
+// owning userId, and is never selected into any client-facing query. Deleting
+// the row IS the revocation on Rushd's side; the student should also delete
+// the token in Canvas (Account > Settings > Approved Integrations).
+model CanvasConnection {
+  id              String                 @id @default(cuid())
+  userId          String                 @unique
+  baseUrl         String // normalized origin, e.g. https://school.instructure.com
+  encryptedToken  String
+  canvasUserId    String?
+  canvasUserName  String?
+  status          CanvasConnectionStatus @default(ACTIVE)
+  lastSyncAt      DateTime?
+  lastSyncStatus  String? // "ok" | "partial" | "error"
+  lastSyncError   String? // user-facing, never contains the token
+  lastSyncSummary Json?
+  syncStartedAt   DateTime? // soft lock so two syncs can't interleave
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courses CanvasCourse[]
+}
+
+model CanvasCourse {
+  id             String    @id @default(cuid())
+  connectionId   String
+  canvasCourseId String
+  name           String
+  courseCode     String?
+  termName       String?
+  selected       Boolean   @default(false)
+  classId        String? // the Rushd Class this course syncs into
+  lastSyncedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  connection CanvasConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  class      Class?           @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, canvasCourseId])
+  @@index([classId])
+}
+
+// ---------------------------------------------------------------------------
+// Student-controlled schedule
+// ---------------------------------------------------------------------------
+
+// A study block the student placed or locked by hand. The auto-planner treats
+// these as fixed commitments (see src/lib/planning/schedule.ts): it plans
+// around them, counts them toward the item's remaining work, and never moves
+// them on regeneration. Everything else in the plan is recomputed.
+model ScheduleBlock {
+  id              String   @id @default(cuid())
+  userId          String
+  assignmentId    String?
+  examId          String?
+  localDate       String // "YYYY-MM-DD" in the student's timezone
+  startMinute     Int // minutes from local midnight
+  durationMinutes Int
+  createdAt       DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  exam       Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([userId, localDate])
 }

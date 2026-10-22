@@ -35,9 +35,14 @@ function isEffortStandout(scored: ScoredItem, allScored: ScoredItem[]): boolean 
  * item needs meaningfully more time than the rest of the open workload —
  * a real comparison, computed from the same numbers the scheduler used.
  */
-export function explainScore(scored: ScoredItem, now: Date, allScored?: ScoredItem[]): string[] {
+export function explainScore(
+  scored: ScoredItem,
+  now: Date,
+  allScored?: ScoredItem[],
+  timeZone?: string | null,
+): string[] {
   const { item, breakdown } = scored;
-  const daysUntil = calendarDaysUntil(item.dueAt, now);
+  const daysUntil = calendarDaysUntil(item.dueAt, now, timeZone);
   const reasons: string[] = [];
 
   if (breakdown.overdue > 0) {

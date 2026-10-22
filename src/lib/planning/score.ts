@@ -1,22 +1,17 @@
 import { SCORING_WEIGHTS } from "./constants";
+import { calendarDaysBetween } from "@/lib/time/zone";
 import type { WorkItem, ScoredItem, ReasonCode } from "./types";
 
-/** Whole calendar days between two dates, ignoring time-of-day. Negative
- * means `date` is in the past relative to `now`. */
-export function calendarDaysUntil(date: Date, now: Date): number {
-  const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfDate = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-  );
-  const msPerDay = 24 * 60 * 60 * 1000;
-  return Math.round((startOfDate.getTime() - startOfNow.getTime()) / msPerDay);
+/** Whole calendar days between two instants, read in the student's
+ * timezone (the runtime's zone when none is given), ignoring time-of-day.
+ * Negative means `date` is in the past relative to `now`. */
+export function calendarDaysUntil(date: Date, now: Date, timeZone?: string | null): number {
+  return calendarDaysBetween(date, now, timeZone);
 }
 
-export function scoreItem(item: WorkItem, now: Date): ScoredItem {
+export function scoreItem(item: WorkItem, now: Date, timeZone?: string | null): ScoredItem {
   const w = SCORING_WEIGHTS;
-  const daysUntil = calendarDaysUntil(item.dueAt, now);
+  const daysUntil = calendarDaysUntil(item.dueAt, now, timeZone);
   const preciselyOverdue = item.dueAt.getTime() < now.getTime();
 
   const urgency = Math.max(0, w.urgencyMax - Math.max(0, daysUntil) * w.urgencyPerDay);
@@ -67,6 +62,19 @@ export function scoreItem(item: WorkItem, now: Date): ScoredItem {
   };
 }
 
-export function scoreAndRank(items: WorkItem[], now: Date): ScoredItem[] {
-  return items.map((item) => scoreItem(item, now)).sort((a, b) => b.score - a.score);
+export function scoreAndRank(
+  items: WorkItem[],
+  now: Date,
+  timeZone?: string | null,
+): ScoredItem[] {
+  // Ties break on due date then id so the ranking — and therefore the whole
+  // schedule — is stable regardless of the order rows come back from the DB.
+  return items
+    .map((item) => scoreItem(item, now, timeZone))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.item.dueAt.getTime() - b.item.dueAt.getTime() ||
+        a.item.id.localeCompare(b.item.id),
+    );
 }

@@ -34,8 +34,28 @@ export const SCORING_WEIGHTS = {
  * across multiple sessions/days instead of one unrealistic sitting. */
 export const MAX_SESSION_MINUTES = 90;
 
-/** Default planning horizon when the caller doesn't specify one. */
+/** Default planning horizon when the caller doesn't specify one. Also the
+ * number of days the plan page shows. */
 export const DEFAULT_HORIZON_DAYS = 7;
+
+/** How far ahead the scheduler looks when checking whether deadlines are
+ * actually achievable. Longer than the days shown, so a crunch three weeks
+ * out is reported before it's an emergency. */
+export const PLANNING_HORIZON_DAYS = 28;
+
+/** Work is not scheduled earlier than this many days before it's due. A
+ * semester of imported Canvas assignments would otherwise bury this week
+ * under work that isn't due for a month. */
+export const LEAD_WINDOW_DAYS = 14;
+
+/** Smallest block worth scheduling (unless the whole task is shorter). */
+export const MIN_BLOCK_MINUTES = 15;
+
+/** Student-configurable defaults (Profile.preferredSessionMinutes etc.). */
+export const DEFAULT_PREFERRED_SESSION_MINUTES = 60;
+export const DEFAULT_MAX_DAILY_MINUTES = 240;
+export const DEFAULT_BREAK_MINUTES = 10;
+export const SESSION_LENGTH_OPTIONS = [30, 45, 60, 90] as const;
 
 export const REASON_LABELS: Record<
   import("./types").ReasonCode,
