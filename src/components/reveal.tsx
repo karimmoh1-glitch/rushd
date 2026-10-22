@@ -19,13 +19,20 @@ function useRevealMotion() {
 export function Reveal({
   children,
   delay = 0,
+  className,
 }: {
   children: React.ReactNode;
   delay?: number;
+  /** Layout classes for the wrapper itself (e.g. grid column spans). */
+  className?: string;
 }) {
   const revealMotion = useRevealMotion();
   return (
-    <motion.div {...revealMotion} transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}>
+    <motion.div
+      {...revealMotion}
+      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      className={className}
+    >
       {children}
     </motion.div>
   );

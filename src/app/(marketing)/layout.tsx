@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteHeader } from "@/components/marketing/site-header";
 
 export default function MarketingLayout({
   children,
@@ -14,75 +14,52 @@ export default function MarketingLayout({
       >
         Skip to content
       </a>
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-baseline gap-2">
-            <span className="font-heading text-lg font-semibold tracking-tight">
-              Rushd
-            </span>
-            <span className="hidden text-sm text-muted-foreground sm:inline" lang="ar" dir="rtl">
-              رُشد
-            </span>
-          </Link>
-          <nav className="flex items-center gap-4" aria-label="Main">
-            <Link
-              href="/#how-it-works"
-              className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-            >
-              How it works
-            </Link>
-            <Link
-              href="/login"
-              className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
-            >
-              Log in
-            </Link>
-            <ThemeToggle />
-            <Link
-              href="/signup"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Get started
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
-      <main id="main-content" className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1">
+        {children}
+      </main>
 
       <footer className="border-t border-border">
-        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col justify-between gap-6 sm:flex-row">
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-heading text-base font-semibold">Rushd</span>
-                <span className="text-sm text-muted-foreground" lang="ar" dir="rtl">
-                  رُشد
-                </span>
-              </div>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                Guidance, sound judgment, being on the right path. A free
-                academic planning platform for high-school students.
-              </p>
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr] lg:px-8">
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-base font-semibold tracking-tight">Rushd</span>
+              <span className="text-sm text-muted-foreground" lang="ar" dir="rtl">
+                رُشد
+              </span>
             </div>
-            <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm" aria-label="Footer">
-              <Link href="/#how-it-works" className="text-muted-foreground hover:text-foreground">
-                How it works
-              </Link>
-              <Link href="/privacy" className="text-muted-foreground hover:text-foreground">
-                Privacy
-              </Link>
-              <Link href="/terms" className="text-muted-foreground hover:text-foreground">
-                Terms
-              </Link>
-              <Link href="/contact" className="text-muted-foreground hover:text-foreground">
-                Contact
-              </Link>
-            </nav>
+            <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Arabic for guidance and sound judgment: being on the right path. A free planner for students with a lot
+              on their plate.
+            </p>
           </div>
-          <p className="mt-8 text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Rushd. therushd.com
-          </p>
+          <nav aria-label="Product">
+            <p className="text-xs font-medium text-muted-foreground">Product</p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li><Link href="/#demo" className="hover:text-brand-ink">Planner</Link></li>
+              <li><Link href="/#canvas" className="hover:text-brand-ink">Canvas integration</Link></li>
+              <li><Link href="/#how" className="hover:text-brand-ink">How it works</Link></li>
+            </ul>
+          </nav>
+          <nav aria-label="Account">
+            <p className="text-xs font-medium text-muted-foreground">Account</p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li><Link href="/signup" className="hover:text-brand-ink">Get started</Link></li>
+              <li><Link href="/login" className="hover:text-brand-ink">Log in</Link></li>
+            </ul>
+          </nav>
+          <nav aria-label="Company">
+            <p className="text-xs font-medium text-muted-foreground">Company</p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li><Link href="/privacy" className="hover:text-brand-ink">Privacy</Link></li>
+              <li><Link href="/terms" className="hover:text-brand-ink">Terms</Link></li>
+              <li><Link href="/contact" className="hover:text-brand-ink">Contact</Link></li>
+            </ul>
+          </nav>
+        </div>
+        <div className="mx-auto max-w-6xl border-t border-border px-4 py-6 text-xs text-muted-foreground sm:px-6 lg:px-8">
+          © {new Date().getFullYear()} Rushd · therushd.com
         </div>
       </footer>
     </div>

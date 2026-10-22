@@ -1,296 +1,312 @@
 import Link from "next/link";
-import { CheckCircle2, ShieldCheck, KeyRound, Trash2, Upload } from "lucide-react";
-import { HeroVisual } from "@/components/hero-visual";
-import { HeroContent } from "@/components/hero-content";
-import { Reveal, RevealListItem } from "@/components/reveal";
+import { ArrowRight, BookOpenCheck, Check, KeyRound, Pencil, ScanText } from "lucide-react";
+import { Reveal } from "@/components/reveal";
+import { HeroCopy } from "@/components/marketing/hero-copy";
+import { HeroPreview, type PreviewData } from "@/components/marketing/hero-preview";
+import { ChaosToPlan, type ChaosItem } from "@/components/marketing/chaos-to-plan";
+import { ScheduleDemo } from "@/components/marketing/schedule-demo";
+import { HowItWorks } from "@/components/marketing/how-it-works";
+import {
+  SAMPLE_NOW,
+  SAMPLE_START,
+  SAMPLE_TZ,
+  runSamplePlan,
+  sampleRanking,
+} from "@/components/marketing/sample-week";
+import { explainScore } from "@/lib/planning/explain";
+import { REASON_LABELS } from "@/lib/planning/constants";
+import { formatDateInZone, formatDateKey, formatTimeInZone } from "@/lib/time/zone";
 
-const STEPS = [
-  {
-    title: "Add your classes",
-    body: "Name, teacher, period, color. Takes about a minute.",
-  },
-  {
-    title: "Add assignments and exams",
-    body: "Upload a screenshot of your Canvas calendar and Rushd reads it for you, type it in plain language with quick-add, or enter it by hand.",
-  },
-  {
-    title: "Set your study availability",
-    body: "Tell Rushd when you're usually free to work.",
-  },
-  {
-    title: "Get a prioritized plan",
-    body: "Rushd scores everything by urgency, importance, and exam proximity, then schedules it into your available time.",
-  },
-  {
-    title: "Work the plan, and it adapts",
-    body: "Complete something, miss something, add something new — the plan updates.",
-  },
-];
+function shortDue(date: Date): string {
+  return `${formatDateInZone(date, SAMPLE_TZ, { weekday: "short" })} ${formatTimeInZone(date, SAMPLE_TZ)}`;
+}
 
-const FEATURES = [
-  {
-    title: "A real planning engine",
-    body: "Not a to-do list. Rushd scores every assignment and exam by urgency, effort, priority, and how close it is, then schedules your available time around what matters most. The logic is documented, not a black box.",
-  },
-  {
-    title: "Adapts as things change",
-    body: "Finish something, miss something, add something new — your plan updates to match, instead of going stale the moment reality doesn't match the schedule.",
-  },
-  {
-    title: "Quick add, in your own words",
-    body: 'Type "AP Chem lab due Friday, ~2 hours" and Rushd turns it into a structured assignment. You always see the parsed result before it\'s saved.',
-  },
-  {
-    title: "Built for one thing",
-    body: "No feed, no chat, no gamification. Rushd exists to answer one question: what should you work on right now.",
-  },
-];
+function buildPreview(): PreviewData {
+  const plan = runSamplePlan();
+  const tonight = plan.sessions.filter((s) => s.scheduledDate === SAMPLE_START);
+  const first = tonight[0];
+  const firstScored = plan.scored.find((s) => s.item.id === first.item.id)!;
+  return {
+    dayLabel: formatDateKey(SAMPLE_START, { weekday: "long", month: "short", day: "numeric" }),
+    tonightMinutes: tonight.reduce((n, s) => n + s.scheduledMinutes, 0),
+    next: {
+      title: first.item.title,
+      className: first.item.className,
+      classColor: first.item.classColor,
+      startMinute: first.startMinute ?? 0,
+      minutes: first.scheduledMinutes,
+      reasons: explainScore(firstScored, SAMPLE_NOW, plan.scored, SAMPLE_TZ).slice(0, 2),
+    },
+    blocks: tonight.slice(1).map((s, i) => ({
+      key: `${s.item.id}-${i}`,
+      title: s.item.title,
+      className: s.item.className,
+      classColor: s.item.classColor,
+      startMinute: s.startMinute ?? 0,
+      minutes: s.scheduledMinutes,
+    })),
+    week: (plan.days ?? []).map((d) => ({
+      key: d.date,
+      letter: formatDateKey(d.date, { weekday: "narrow" }),
+      minutes: d.plannedMinutes,
+    })),
+  };
+}
+
+const SEGMENTS = [
+  { key: "urgency", label: "Due soon", className: "bg-brand" },
+  { key: "importance", label: "Priority", className: "bg-chart-2" },
+  { key: "examProximity", label: "Exam proximity", className: "bg-chart-3" },
+  { key: "overdue", label: "Overdue", className: "bg-destructive" },
+  { key: "effortTiebreak", label: "Quick win", className: "bg-muted-foreground/40" },
+] as const;
 
 export default function LandingPage() {
+  const preview = buildPreview();
+  const ranking = sampleRanking();
+  const chaosItems: ChaosItem[] = ranking.map((s) => ({
+    key: s.item.id,
+    title: s.item.title,
+    className: s.item.className,
+    classColor: s.item.classColor,
+    dueLabel: shortDue(s.item.dueAt),
+  }));
+  const topFour = ranking.slice(0, 4);
+  const maxScore = Math.max(...topFour.map((s) => s.score));
+
   return (
     <>
       {/* Hero */}
-      <section className="relative mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8">
-        <HeroVisual />
-        <div className="relative">
-          <HeroContent />
+      <section className="relative overflow-hidden">
+        <div aria-hidden="true" className="dot-field pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_70%_60%_at_70%_30%,black,transparent)] opacity-60" />
+        <div className="relative mx-auto grid min-h-[calc(100dvh-4rem)] max-w-6xl items-center gap-14 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:gap-10 lg:px-8 lg:pt-16">
+          <HeroCopy />
+          <HeroPreview data={preview} />
         </div>
       </section>
 
-      {/* Problem */}
-      <section className="border-t border-border bg-muted/40">
-        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+      {/* The problem, solved on scroll */}
+      <section aria-labelledby="problem" className="border-t border-border">
+        <span id="problem" className="sr-only">
+          Why Rushd
+        </span>
+        <ChaosToPlan items={chaosItems} />
+      </section>
+
+      {/* Interactive planner */}
+      <section id="demo" className="scroll-mt-16 border-t border-border bg-muted/30">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
           <Reveal>
-            <h2 className="font-heading text-2xl font-semibold">
-              Your work is scattered. Your time isn&apos;t.
+            <h2 className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+              Change your week. Watch the plan answer.
             </h2>
-            <p className="mt-4 text-muted-foreground">
-              Assignments live in one app, exams in a calendar, deadlines in
-              your head. None of it accounts for how much time you actually
-              have. A planner that just lists everything you owe doesn&apos;t
-              help — you still have to figure out what to do first, and when.
-              Rushd does that part.
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
+              This is Rushd&apos;s real scheduler running in your browser on a sample week. Change when you&apos;re free
+              or drop in a surprise assignment, and every block moves to where it now belongs.
             </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="mt-10">
+              <ScheduleDemo />
+            </div>
           </Reveal>
         </div>
       </section>
 
-      {/* How it works */}
-      <section id="how-it-works" className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <h2 className="font-heading text-2xl font-semibold">How Rushd works</h2>
-        </Reveal>
-        <ol className="mt-8 space-y-8">
-          {STEPS.map((step, i) => (
-            <RevealListItem key={step.title} delay={i * 0.06} className="flex gap-4">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary font-heading text-sm font-semibold text-primary">
-                {i + 1}
-              </span>
-              <div>
-                <h3 className="font-medium">{step.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
-              </div>
-            </RevealListItem>
-          ))}
-        </ol>
-      </section>
-
-      {/* Screenshot import */}
-      <section className="border-t border-border">
-        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+      {/* Canvas */}
+      <section id="canvas" className="scroll-mt-16 border-t border-border">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
           <Reveal>
-            <div className="grid items-center gap-8 sm:grid-cols-2">
-              <div>
-                <h2 className="font-heading text-2xl font-semibold">Bring your workload</h2>
-                <p className="mt-4 text-muted-foreground">
-                  Upload a screenshot of your Canvas calendar or assignment list.
-                  Rushd reads it and drafts the assignments and exams for you —
-                  you review and correct everything before anything is saved. No
-                  account connection, no LMS integration required to get started.
-                </p>
-              </div>
-              <div className="flex items-center justify-center rounded-lg border border-dashed border-border p-10">
-                <div className="text-center">
-                  <Upload className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
-                  <p className="mt-3 text-sm font-medium">Drag a screenshot here</p>
-                  <p className="mt-1 text-xs text-muted-foreground">PNG or JPEG</p>
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-brand-ink">Canvas LMS integration</p>
+            <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+              Your whole workload, imported in a minute.
+            </h2>
+          </Reveal>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-6">
+            <Reveal delay={0.05} className="md:col-span-4 md:row-span-2">
+              <div className="surface flex h-full flex-col justify-between gap-8 rounded-2xl p-6">
+                <div>
+                  <h3 className="text-xl font-semibold tracking-tight">Connect once. Every course comes with it.</h3>
+                  <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                    Paste your school&apos;s Canvas address and an access token. Pick your courses. Rushd imports each
+                    assignment with its real due date, then plans it into your week.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-[1.3fr_1fr]">
+                  <ul className="space-y-2" aria-label="Example course selection">
+                    {[
+                      { name: "AP Chemistry", term: "CHEM-AP · Fall", color: "#2563eb", on: true },
+                      { name: "Precalculus", term: "MATH-PC · Fall", color: "#7c3aed", on: true },
+                      { name: "English 11", term: "ENG-11 · Fall", color: "#0d9488", on: true },
+                      { name: "Homeroom", term: "HR · Fall", color: "#525252", on: false },
+                    ].map((c) => (
+                      <li
+                        key={c.name}
+                        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${c.on ? "border-primary/40 bg-accent/40" : "border-border"}`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${c.on ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}
+                        >
+                          {c.on && <Check className="h-3 w-3" strokeWidth={3} />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{c.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{c.term}</span>
+                        </span>
+                        <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                      </li>
+                    ))}
+                  </ul>
+                  <ol className="flex flex-col justify-between gap-2 text-sm">
+                    {[
+                      { n: "Courses imported", ok: true },
+                      { n: "Assignments and due dates gathered", ok: true },
+                      { n: "Reviewed before anything changes", ok: true },
+                      { n: "Plan rebuilt around real deadlines", ok: true },
+                    ].map((s) => (
+                      <li key={s.n} className="flex items-center gap-2.5">
+                        <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                          <Check className="h-3 w-3" strokeWidth={3} />
+                        </span>
+                        {s.n}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
+            </Reveal>
 
-      {/* Example dashboard */}
-      <section className="border-t border-border bg-muted/40">
-        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-          <Reveal>
-            <h2 className="font-heading text-2xl font-semibold">What you&apos;ll see</h2>
-            <p className="mt-3 text-muted-foreground">
-              An illustrative example — every student&apos;s plan looks
-              different, built entirely from their own classes and deadlines.
-            </p>
-            <div className="mt-8 overflow-hidden rounded-lg border border-border bg-background shadow-sm">
-              <div className="border-b border-border px-5 py-4">
-                <p className="font-heading text-lg font-semibold">Today&apos;s plan</p>
+            <Reveal delay={0.1} className="md:col-span-2">
+              <div className="flex h-full flex-col gap-3 rounded-2xl border border-brand/30 bg-accent/40 p-6">
+                <KeyRound className="h-5 w-5 text-brand-ink" aria-hidden="true" />
+                <h3 className="font-semibold">Your token stays sealed</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Encrypted with AES-256-GCM before it&apos;s stored, used only by Rushd&apos;s server, never shown again.
+                  Disconnect anytime.
+                </p>
               </div>
-              <div className="divide-y divide-border">
-                {[
-                  {
-                    title: "Lab report: acid-base titration",
-                    meta: "AP Chemistry · 45 min",
-                    reason: "Overdue — do this first",
-                    tone: "text-destructive",
-                  },
-                  {
-                    title: "Unit 4 test prep",
-                    meta: "AP Chemistry · 1h 30m",
-                    reason: "Exam coming up soon",
-                    tone: "text-warning",
-                  },
-                  {
-                    title: "Read chapter 12",
-                    meta: "US History · 30 min",
-                    reason: "Due soon",
-                    tone: "text-muted-foreground",
-                  },
-                ].map((item) => (
-                  <div key={item.title} className="flex items-center gap-3 px-5 py-4">
-                    <span className="h-4 w-4 shrink-0 rounded-full border-2 border-primary" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{item.title}</p>
-                      <p className="truncate text-sm text-muted-foreground">{item.meta}</p>
-                    </div>
-                    <span className={`shrink-0 text-xs font-medium ${item.tone}`}>
-                      {item.reason}
-                    </span>
+            </Reveal>
+
+            <Reveal delay={0.15} className="md:col-span-2">
+              <div className="dot-field flex h-full flex-col gap-3 rounded-2xl border border-border p-6">
+                <Pencil className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                <h3 className="font-semibold">Your edits stay yours</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Canvas keeps titles and due dates current. Your estimates, priorities, and locked study blocks are
+                  never overwritten.
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.2} className="md:col-span-6">
+              <div className="flex h-full flex-col gap-4 rounded-2xl border border-border p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex gap-4">
+                  <ScanText className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <div>
+                    <h3 className="font-semibold">No Canvas, or your school blocks tokens?</h3>
+                    <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                      Upload a screenshot of any calendar and review what Rushd reads, or type work in plain language.
+                      Everything else works the same.
+                    </p>
                   </div>
-                ))}
+                </div>
+                <BookOpenCheck className="hidden h-8 w-8 shrink-0 text-muted-foreground/60 sm:block" aria-hidden="true" />
               </div>
-            </div>
-          </Reveal>
+            </Reveal>
+          </div>
         </div>
       </section>
 
-      {/* Core features */}
-      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-        <Reveal>
-          <h2 className="font-heading text-2xl font-semibold">Core features</h2>
-          <div className="mt-8 grid gap-8 sm:grid-cols-2">
-            {FEATURES.map((f) => (
-              <div key={f.title}>
-                <h3 className="font-medium">{f.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{f.body}</p>
-              </div>
-            ))}
-          </div>
-        </Reveal>
-      </section>
-
-      {/* Privacy / security principles */}
-      <section className="border-t border-border bg-muted/40">
-        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+      {/* Transparency */}
+      <section className="border-t border-border bg-muted/30">
+        <div className="mx-auto max-w-4xl px-4 py-24 sm:px-6 lg:px-8">
           <Reveal>
-            <h2 className="font-heading text-2xl font-semibold">
-              Privacy is a constraint, not a policy page
-            </h2>
-            <div className="mt-8 grid gap-6 sm:grid-cols-2">
-              <div className="flex gap-3">
-                <KeyRound className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                <p className="text-sm text-muted-foreground">
-                  Passwords are hashed, never stored in plain text.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <ShieldCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                <p className="text-sm text-muted-foreground">
-                  We collect only what the planning engine needs — no ad
-                  tracking, no data sold to third parties.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                <p className="text-sm text-muted-foreground">
-                  Every server action verifies you own the data before it lets
-                  you touch it.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <Trash2 className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                <p className="text-sm text-muted-foreground">
-                  Delete your account anytime — it removes your data
-                  permanently, immediately.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/privacy"
-              className="mt-6 inline-block text-sm font-medium text-primary underline underline-offset-4"
-            >
-              Read the full privacy policy
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">It shows its work.</h2>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
+              Every block comes with the arithmetic behind it. No black box, no AI guessing at your priorities.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <ol className="mt-12 space-y-6">
+              {topFour.map((s, i) => (
+                <li key={s.item.id} className="grid grid-cols-[1.5rem_1fr_auto] items-center gap-x-4 gap-y-2">
+                  <span className="font-mono text-sm tabular-nums text-muted-foreground">{i + 1}</span>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{s.item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {s.item.className} · {REASON_LABELS[s.reasonCode]}
+                    </p>
+                  </div>
+                  <span className="font-mono text-sm tabular-nums">{s.score.toFixed(0)}</span>
+                  <div
+                    className="col-start-2 col-end-4 flex h-2 overflow-hidden rounded-full"
+                    style={{ width: `${(s.score / maxScore) * 100}%` }}
+                    role="img"
+                    aria-label={SEGMENTS.map((seg) => {
+                      const raw = s.breakdown[seg.key];
+                      const v = seg.key === "effortTiebreak" ? raw * 0.3 : raw;
+                      return `${seg.label} ${v.toFixed(0)}`;
+                    }).join(", ")}
+                  >
+                    {SEGMENTS.map((seg) => {
+                      const raw = s.breakdown[seg.key];
+                      const v = seg.key === "effortTiebreak" ? raw * 0.3 : raw;
+                      return v > 0 ? (
+                        <span key={seg.key} className={seg.className} style={{ width: `${(v / s.score) * 100}%` }} />
+                      ) : null;
+                    })}
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+              {SEGMENTS.map((seg) => (
+                <li key={seg.key} className="flex items-center gap-1.5">
+                  <span aria-hidden="true" className={`h-2 w-2 rounded-full ${seg.className}`} />
+                  {seg.label}
+                </li>
+              ))}
+            </ul>
+            <Link href="/signup" className="mt-6 inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline">
+              Start with your own week <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
           </Reveal>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="border-t border-border">
-        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+      {/* How it works */}
+      <section id="how" className="scroll-mt-16 border-t border-border">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
           <Reveal>
-            <h2 className="font-heading text-2xl font-semibold">Questions</h2>
-            <dl className="mt-8 space-y-6">
-              {[
-                {
-                  q: "Is Rushd actually free?",
-                  a: "Yes. No trial, no credit card, no upsell.",
-                },
-                {
-                  q: "Will Rushd do my homework for me?",
-                  a: "No. It helps you plan when to work on things — it doesn't write essays or answer problem sets for you.",
-                },
-                {
-                  q: "What if the screenshot import gets something wrong?",
-                  a: "You review and can edit every field before anything is saved — nothing is added to your plan automatically.",
-                },
-                {
-                  q: "What if I don't set my study availability?",
-                  a: "Rushd still tracks your deadlines and shows what's most important — it just can't suggest specific times to work.",
-                },
-                {
-                  q: "Does Rushd sell my data?",
-                  a: "No, and it never will. See the privacy policy for exactly what's collected and why.",
-                },
-                {
-                  q: "Can I delete my account?",
-                  a: "Anytime, from Settings. It's immediate and permanent — no waiting period, nothing left behind.",
-                },
-              ].map((item) => (
-                <div key={item.q}>
-                  <dt className="font-medium">{item.q}</dt>
-                  <dd className="mt-1 text-sm text-muted-foreground">{item.a}</dd>
-                </div>
-              ))}
-            </dl>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Three steps, then it runs itself.</h2>
           </Reveal>
+          <div className="mt-14">
+            <HowItWorks />
+          </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 lg:px-8">
-        <Reveal>
-          <h2 className="font-heading text-2xl font-semibold">
-            Stop guessing what to work on next
-          </h2>
-          <p className="mt-3 text-muted-foreground">
-            Free for students. No credit card, ever.
-          </p>
-          <Link
-            href="/signup"
-            className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_8px_24px_-6px_var(--color-primary)] active:translate-y-0"
-          >
-            Get started
-          </Link>
-        </Reveal>
+      {/* Final CTA */}
+      <section className="border-t border-border">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
+          <Reveal>
+            <div className="relative overflow-hidden rounded-3xl bg-primary px-6 py-16 text-primary-foreground sm:px-12 sm:py-20">
+              <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(circle,color-mix(in_oklch,var(--brand)_45%,transparent),transparent_70%)] dark:bg-[radial-gradient(circle,oklch(1_0_0/0.35),transparent_70%)]" />
+              <h2 className="relative max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">
+                Tonight&apos;s plan is two minutes away.
+              </h2>
+              <p className="relative mt-4 max-w-md text-base opacity-80">Free for students. No credit card.</p>
+              <Link
+                href="/signup"
+                className="relative mt-8 inline-flex h-11 items-center gap-2 rounded-lg bg-primary-foreground px-5 text-sm font-medium text-primary transition-transform hover:opacity-95 active:scale-[0.98]"
+              >
+                Get started <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
+          </Reveal>
+        </div>
       </section>
     </>
   );

@@ -203,3 +203,35 @@
     background-size: 22px 22px;
   }
 }
+
+/* --- Entrance animations ----------------------------------------------------
+   CSS (not JS) so above-the-fold content animates from first paint and never
+   waits on hydration. The global prefers-reduced-motion rule above collapses
+   them to instant. Delay via inline animation-delay. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes slide-in-x {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+.anim-rise {
+  animation: rise-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-slide-x {
+  animation: slide-in-x 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-grow-y {
+  animation: grow-y 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: bottom;
+}
