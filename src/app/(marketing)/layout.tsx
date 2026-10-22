@@ -10,6 +10,7 @@ const LINKS = [
   ["/download", "Desktop apps"],
   ["/founder", "Founder"],
   ["/schools", "Schools"],
+  ["/changelog", "What's new"],
   ["/privacy", "Privacy"],
   ["/terms", "Terms"],
   ["/contact", "Contact"],
