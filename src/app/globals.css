@@ -366,6 +366,17 @@
   animation: rise-line 640ms var(--ease-settle) both;
   animation-delay: calc(120ms + var(--i, 0) * 90ms);
 }
+/* The headline and lede rise without fading: text that starts invisible
+   doesn't count as painted, which would push Largest Contentful Paint past
+   the intro. Visible from the first frame, still moving into place. */
+@keyframes rise-text {
+  from {
+    transform: translateY(0.4em);
+  }
+}
+.rushd-intro .intro-line.intro-text {
+  animation-name: rise-text;
+}
 .rushd-intro .intro-late {
   animation: rise-line 700ms var(--ease-settle) both;
   animation-delay: calc(820ms + var(--i, 0) * 80ms);

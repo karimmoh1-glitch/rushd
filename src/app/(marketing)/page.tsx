@@ -76,12 +76,12 @@ export default function LandingPage() {
               Your personal AI study agent
             </p>
             <h1 className="mt-5 text-[3.1rem] leading-[1] tracking-[-0.03em] sm:text-7xl lg:text-[5.25rem]">
-              <span className="intro-line block" style={{ ["--i" as string]: 0.5 }}>Master</span>
-              <span className="intro-line block" style={{ ["--i" as string]: 1.5 }}>
+              <span className="intro-line intro-text block" style={{ ["--i" as string]: 0.5 }}>Master</span>
+              <span className="intro-line intro-text block" style={{ ["--i" as string]: 1.5 }}>
                 <SubjectCycle />
               </span>
             </h1>
-            <p className="intro-line mt-6 max-w-lg text-lg leading-relaxed text-muted-foreground" style={{ ["--i" as string]: 2.5 }}>
+            <p className="intro-line intro-text mt-6 max-w-lg text-lg leading-relaxed text-muted-foreground" style={{ ["--i" as string]: 2.5 }}>
               Rushd learns your classes, quizzes you, finds exactly what you don&apos;t get yet, and hands you the right video
               or practice to fix it. Then it tells you what&apos;s next.
             </p>
