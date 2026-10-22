@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { decodeStreakCard, formatStudyTime } from "@/lib/share/streak-card";
+import { aiEnabled } from "@/lib/env";
 
 // A student's shared study card. No name or school: just the streak and this
 // week's study time, signed so they can't be edited. The button is their
@@ -37,8 +38,8 @@ export default async function SharedStreak({ params }: { params: Promise<{ token
       </div>
       <h1 className="mt-10 font-display text-3xl font-medium tracking-tight">Start your own streak.</h1>
       <p className="mt-2 text-muted-foreground">
-        Rushd ranks everything you have due, plans your week around your free time, and tells you what to do next. Join with
-        this link and you both get extra tutor messages every month.
+        Rushd ranks everything you have due, plans your week around your free time, and tells you what to do next.
+        {aiEnabled ? " Join with this link and you both get extra tutor messages every month." : ""}
       </p>
       <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
         <Link href={`/r/${card.code}`} className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90">

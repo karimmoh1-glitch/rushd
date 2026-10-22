@@ -18,6 +18,7 @@ import { pulseOf } from "@/lib/planning/pulse";
 import { formatDateInZone, formatTimeInZone } from "@/lib/time/zone";
 import { organizationJsonLd } from "@/lib/seo";
 import { teamsConfigured } from "@/lib/teams/oauth";
+import { aiEnabled } from "@/lib/env";
 
 
 export const metadata: Metadata = {
@@ -64,9 +65,11 @@ export default function LandingPage() {
       <script dangerouslySetInnerHTML={{ __html: INTRO }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }} />
       <PageViewBeacon path="/" />
-      <Suspense fallback={null}>
-        <InvitedNote bonus={BONUS_MESSAGES} />
-      </Suspense>
+      {aiEnabled && (
+        <Suspense fallback={null}>
+          <InvitedNote bonus={BONUS_MESSAGES} />
+        </Suspense>
+      )}
 
       {/* 1. Hero: what it is in three seconds, why it's better in five. */}
       <section className="overflow-x-clip">

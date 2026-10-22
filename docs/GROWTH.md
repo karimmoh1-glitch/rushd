@@ -18,7 +18,7 @@ that keeps them.
 | Saved week carried into the new account | onboarding finish screen + Today | "Added the week they ranked" |
 | Free SEO tools | `/tools/rank-my-week`, `/tools/exam-study-planner` | page counts |
 | Shareable rankings (the list lives in the link hash) | "Share this ranking" | `#try-share` count |
-| Two-sided invites: +10 tutor messages a month each | Settings → Invite friends, `/r/<code>` | Referral rows |
+| Two-sided invites: +10 tutor messages a month each (shown once AI is on; referrals are recorded already) | Settings → Invite friends, `/r/<code>` | Referral rows |
 | Streak share cards that double as invites | Today → Share, `/s/<token>` | Referral rows |
 | Study streak with rest days | Today header | "Came back" |
 | Sunday "your week" email + evening streak nudge | cron + Resend | "Came back" |

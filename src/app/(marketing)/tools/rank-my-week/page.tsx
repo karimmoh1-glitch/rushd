@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { RankMyWeek } from "@/components/marketing/rank-my-week";
 import { PageViewBeacon } from "@/components/marketing/page-view-beacon";
+import { teamsConfigured } from "@/lib/teams/oauth";
+
+// Teams is named only once it can actually be connected.
+const SOURCES = teamsConfigured() ? "Canvas or Microsoft Teams" : "Canvas";
 
 export const metadata: Metadata = {
   title: { absolute: "Rank my homework: a free assignment prioritizer · Rushd" },
@@ -22,7 +26,7 @@ const FAQ = [
   ["How do I write my list?", "One thing per line. Start with the class and a colon if you like (\"Chem: lab report Thursday 2h\"). Days, dates like 10/28, \"tomorrow\", and times like 2h or 40m are understood. Words like quiz, test, or exam mark a test."],
   ["Is what I type private?", "Yes. The ranking runs in your browser; your list isn't sent to Rushd or anyone else. If you share a ranking, the list is inside the link itself."],
   ["What is the Pulse score?", "A number from 1 to 99 for how strongly something needs you right now. 70 and up means start today."],
-  ["What does an account add?", "Rushd keeps the list in sync with Canvas or Teams, plans study time around your schedule, re-ranks every day, quizzes you on what you're learning, and picks videos and practice for the parts you don't have yet. Free to start."],
+  ["What does an account add?", `Rushd keeps the list in sync with ${SOURCES}, plans study time around your schedule, and re-ranks everything every day. Free to start.`],
 ];
 
 export default function RankMyWeekPage() {
@@ -67,7 +71,7 @@ export default function RankMyWeekPage() {
 
       <section className="mt-20 rounded-2xl border border-border p-6 sm:p-8">
         <h2 className="font-display text-2xl font-medium tracking-tight">Never type the list again.</h2>
-        <p className="mt-2 text-muted-foreground">Connect Canvas or Microsoft Teams and Rushd keeps it ranked for you, every day.</p>
+        <p className="mt-2 text-muted-foreground">Connect {SOURCES} and Rushd keeps it ranked for you, every day.</p>
         <Link href="/signup" className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
           <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-signal" />
           Start free

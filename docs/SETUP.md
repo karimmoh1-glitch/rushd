@@ -8,7 +8,7 @@ itself in the app and falls back gracefully until its keys are set.
 
 ## Checklist, in order of impact
 
-- [ ] `ANTHROPIC_API_KEY`: turns on the tutor, quizzes, photo checks, and draft review (section 1)
+- [ ] `ANTHROPIC_API_KEY`: turns on the tutor, quizzes, photo checks, draft review, and the invite bonus (section 1)
 - [ ] `RESEND_API_KEY` + `EMAIL_FROM`: password resets, Sunday plan, streak reminders (section 4b)
 - [ ] Google Search Console + sitemap (section 5)
 - [ ] `YOUTUBE_API_KEY`: video picks (section 2)
@@ -147,7 +147,7 @@ switchable in Settings, with one-click unsubscribe in every email.
 
 **Scheduled jobs.** `vercel.json` runs `/api/cron/daily` at 09:00 UTC (re-sync
 Canvas, Teams, and calendar feeds; Sunday emails) and `/api/cron/evening` at
-17:00, 23:00 and 03:00 UTC (streak nudges, sent only in each student's 3–9 pm). They need `CRON_SECRET` in Vercel, which is already
+05:00, 11:00, 17:00 and 23:00 UTC (streak nudges, sent only between 3 and 10 pm in each student's time zone). They need `CRON_SECRET` in Vercel, which is already
 set for production. Runs show under the project's Cron Jobs tab and Logs.
 
 ## 5. Search (Google Search Console)

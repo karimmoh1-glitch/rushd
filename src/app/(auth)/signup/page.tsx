@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { BONUS_MESSAGES, REF_COOKIE } from "@/lib/referral/referral";
+import { aiEnabled } from "@/lib/env";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { SignupForm } from "./signup-form";
@@ -26,7 +27,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
         <CardDescription>
           {fromTry ? "Your ranked week will be waiting. " : ""}Start on the free plan. No credit card needed.
         </CardDescription>
-        {invited && (
+        {invited && aiEnabled && (
           <p className="mt-2 rounded-lg border border-signal/50 bg-signal-soft/40 px-3 py-2 text-sm">
             A friend invited you. Study once after setup and you both get {BONUS_MESSAGES} more tutor messages every month.
           </p>

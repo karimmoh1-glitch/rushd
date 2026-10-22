@@ -1,6 +1,5 @@
 "use client";
 
-import { clearTry } from "@/lib/try/storage";
 import { useActionState } from "react";
 import Link from "next/link";
 import { login, type AuthFormState } from "@/server/actions/auth";
@@ -15,7 +14,7 @@ export function LoginForm() {
   );
 
   return (
-    <form action={action} onSubmit={clearTry} className="space-y-4" noValidate>
+    <form action={action} className="space-y-4" noValidate>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

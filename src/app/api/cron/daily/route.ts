@@ -15,8 +15,8 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
   // Emails first: a slow sync must never cost students their Sunday email.
-  const digests = await sendWeeklyDigests(35_000);
-  const sync = await runDailySync(70_000);
+  const digests = await sendWeeklyDigests(35_000).catch((e: Error) => ({ error: e?.name ?? "failed" }));
+  const sync = await runDailySync(70_000).catch((e: Error) => ({ error: e?.name ?? "failed" }));
   console.info("[cron] daily", JSON.stringify({ sync, digests }));
   await recordCronRun("daily", { sync, digests });
   return Response.json({ sync, digests });

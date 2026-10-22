@@ -104,6 +104,8 @@ test("a visitor ranks their week, signs up, and keeps it", async ({ page }) => {
 });
 
 test("an invite link credits the inviter when a friend joins", async ({ browser }) => {
+  // The invite bonus is paid in tutor messages, so its UI only shows with AI on.
+  test.skip(!process.env.ANTHROPIC_API_KEY, "invite UI is hidden until ANTHROPIC_API_KEY is set");
   test.setTimeout(90_000);
   async function signUp(page: import("@playwright/test").Page, email: string) {
     await page.goto("/signup");

@@ -1,8 +1,10 @@
 import { TRY_STORAGE_KEY } from "./parse-week";
 
 // The week a visitor saved from "Rank my week", kept only in this browser.
-// Read in one place so its expiry is the same everywhere; cleared on login
-// and logout so it never follows someone else's session on a shared computer.
+// Read in one place so its expiry is the same everywhere. Cleared on logout,
+// so it doesn't wait for the next person on a shared computer; kept through
+// login, because "Save my week" then "Log in" is how a returning student
+// brings it into their account.
 
 const MAX_AGE = 14 * 86_400_000;
 

@@ -10,7 +10,8 @@ export const metadata: Metadata = {
 // Student-facing changes only, newest first. Each entry is something students
 // can use on therushd.com today; nothing here is planned work. Features that are
 // built but waiting on a key (email, Microsoft Teams, the AI tutor and draft
-// feedback) get an entry on the day they're switched on.
+// feedback, and the invite bonus, which is paid in tutor messages) get an
+// entry on the day they're switched on.
 const ENTRIES: { date: string; items: [string, string][] }[] = [
   {
     date: "October 22, 2026",
@@ -19,7 +20,6 @@ const ENTRIES: { date: string; items: [string, string][] }[] = [
       ["Plan my finals", "List your tests and how much prep each needs; get every study session, day by day."],
       ["Connect Canvas without a token", "If your school turned off Canvas access tokens, connect with your Canvas calendar feed instead."],
       ["Study streaks", "Today shows your streak as the Rushd path. Every 7 days in a row saves a rest day. Share a streak card with friends."],
-      ["Invite friends", "When a friend joins with your link and studies once, you both get 10 more tutor messages every month."],
       ["Always up to date", "Canvas and calendar feeds re-sync every day on their own."],
       ["Start here", "New accounts can type their week right on Today; Rushd makes the classes and ranks everything."],
     ],

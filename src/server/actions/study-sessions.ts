@@ -238,7 +238,7 @@ export async function completeSession(
 
   const session = await db.studySession.findFirst({
     where: { id: sessionId, userId: user.id },
-    select: { id: true, status: true, title: true, plannedMinutes: true, assignmentId: true },
+    select: { id: true, status: true, title: true, plannedMinutes: true, assignmentId: true, startedAt: true },
   });
   if (!session) return { error: "Study session not found." };
   if (session.status !== "IN_PROGRESS") {
@@ -260,6 +260,8 @@ export async function completeSession(
     sessionId: session.id,
     plannedMinutes: session.plannedMinutes,
     actualMinutes,
+    // Wall-clock time the session was open, measured by the server.
+    elapsedMinutes: Math.floor((now.getTime() - session.startedAt.getTime()) / 60_000),
     perceivedDifficulty: perceivedDifficulty ?? null,
   });
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { InviteCard } from "@/components/referral/invite-card";
 import { EmailToggle } from "./email-toggle";
 import { emailConfigured } from "@/lib/email/send";
+import { aiEnabled } from "@/lib/env";
 import { BONUS_MESSAGES, MAX_FRIENDS, referralStats } from "@/lib/referral/referral";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
@@ -89,17 +90,19 @@ export default async function SettingsPage() {
         />
       </section>
 
-      <section id="invite" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
-        <h2 className="text-base font-semibold">Invite friends</h2>
-        <InviteCard
-          url={`${appUrl}/r/${invites.code}`}
-          joined={invites.joined}
-          qualified={invites.qualified}
-          bonus={invites.bonus}
-          perFriend={BONUS_MESSAGES}
-          maxFriends={MAX_FRIENDS}
-        />
-      </section>
+      {aiEnabled && (
+        <section id="invite" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
+          <h2 className="text-base font-semibold">Invite friends</h2>
+          <InviteCard
+            url={`${appUrl}/r/${invites.code}`}
+            joined={invites.joined}
+            qualified={invites.qualified}
+            bonus={invites.bonus}
+            perFriend={BONUS_MESSAGES}
+            maxFriends={MAX_FRIENDS}
+          />
+        </section>
+      )}
 
       <section id="tutor" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
         <div>

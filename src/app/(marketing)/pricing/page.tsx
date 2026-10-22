@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BONUS_MESSAGES, MAX_FRIENDS } from "@/lib/referral/constants";
+import { aiEnabled } from "@/lib/env";
 import { PricingTable } from "@/components/marketing/pricing-table";
 import { PageViewBeacon } from "@/components/marketing/page-view-beacon";
 import { PLANS } from "@/lib/billing/plans";
@@ -47,13 +48,15 @@ export default function PricingPage() {
               <tr><td className="py-2">Study planning and Canvas sync</td><td className="py-2 text-right" colSpan={3}>Included in every plan</td></tr>
             </tbody>
           </table>
-          <p className="mt-4 rounded-lg border border-border px-3 py-2.5 text-sm">
-            <span className="font-medium">Invite friends for more tutor time.</span>{" "}
-            <span className="text-muted-foreground">
-              When a friend joins with your link and studies once, you both get {BONUS_MESSAGES} more tutor messages every month, on
-              any plan (up to {MAX_FRIENDS} friends).
-            </span>
-          </p>
+          {aiEnabled && (
+            <p className="mt-4 rounded-lg border border-border px-3 py-2.5 text-sm">
+              <span className="font-medium">Invite friends for more tutor time.</span>{" "}
+              <span className="text-muted-foreground">
+                When a friend joins with your link and studies once, you both get {BONUS_MESSAGES} more tutor messages every month, on
+                any plan (up to {MAX_FRIENDS} friends).
+              </span>
+            </p>
+          )}
         </div>
         <div className="space-y-4 text-sm">
           <h2 className="text-xl font-semibold tracking-tight">Billing terms, plainly</h2>

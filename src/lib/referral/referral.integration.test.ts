@@ -28,7 +28,10 @@ describe("referrals (real DB)", { timeout: 60_000 }, () => {
     await logEvent(friend, "dashboard_viewed");
     expect(await referralBonus(inviter)).toBe(0);
 
-    await logEvent(friend, "study_session_completed");
+    // A session closed after a minute doesn't count; one open 25 minutes does.
+    await logEvent(friend, "study_session_completed", { actualMinutes: 30, elapsedMinutes: 1 });
+    expect(await referralBonus(inviter)).toBe(0);
+    await logEvent(friend, "study_session_completed", { actualMinutes: 30, elapsedMinutes: 25 });
     expect(await referralBonus(inviter)).toBe(BONUS_MESSAGES);
     expect(await referralBonus(friend)).toBe(BONUS_MESSAGES);
 
