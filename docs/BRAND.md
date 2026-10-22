@@ -80,6 +80,12 @@ panels). Prefer dividers and spacing over nested cards.
   on an example week. Server-rendered and no-JS views show the ranked result.
 - **Living detail**: on the hero's agent path a light travels the path and each
   point glows as it passes.
+- **Hero demo** (`RankMyWeek`): on the first visit of a session the example
+  week types itself out and ranks by Pulse; tapping any item shows what went
+  into its score. Any touch stops the demo. The headline and lede rise
+  without fading (`intro-text`), so they count as painted immediately (LCP).
+- **Pulse heartbeat** (`.pulse-live`): the top item's saffron node gives off
+  one soft ring every 2.4s. Only on the single top item per view.
 - Scroll-driven reveals (`reveal-rise`, `reveal-stagger`, `reveal-draw-x`) are
   progressive enhancements via CSS `animation-timeline`.
 - `prefers-reduced-motion`: every animation collapses; loops stop; the
