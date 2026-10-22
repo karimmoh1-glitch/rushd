@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { ExternalLink, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,14 +80,15 @@ export function AssignmentRow({
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p
+              <Link
+                href={`/assignments/${data.id}`}
                 className={cn(
-                  "truncate font-medium",
+                  "truncate font-medium underline-offset-4 hover:underline",
                   completed && "text-muted-foreground line-through",
                 )}
               >
                 {data.title}
-              </p>
+              </Link>
               {data.priority === "HIGH" && !completed && (
                 <Badge variant="outline" className="shrink-0 border-warning text-warning">
                   High

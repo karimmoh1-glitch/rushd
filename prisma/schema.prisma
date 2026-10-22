@@ -48,6 +48,10 @@ model User {
   canvasConnection CanvasConnection?
   scheduleBlocks   ScheduleBlock[]
   passwordResets   PasswordResetToken[]
+  courseModules    CourseModule[]
+  courseMaterials  CourseMaterial[]
+  tutorChats       TutorConversation[]
+  draftReviews     DraftReview[]
 
   @@index([createdAt])
 }
@@ -127,6 +131,9 @@ model Class {
   assignments   Assignment[]
   exams         Exam[]
   canvasCourses CanvasCourse[]
+  modules       CourseModule[]
+  materials     CourseMaterial[]
+  tutorChats    TutorConversation[]
 
   @@index([userId, archived])
 }
@@ -456,6 +463,10 @@ model CanvasCourse {
   selected       Boolean   @default(false)
   classId        String? // the Rushd Class this course syncs into
   lastSyncedAt   DateTime?
+  // Course content (modules, pages, announcements, rubrics) syncs separately
+  // from assignments; these record its last run.
+  contentSyncedAt DateTime?
+  contentSyncNote String? // user-facing, e.g. "Pages aren't visible to students in this course."
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -514,4 +525,119 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Course content mirrored read-only from Canvas, for browsing and the tutor.
+// A cache of Canvas, not student data: rows are replaced on every content sync.
+// ---------------------------------------------------------------------------
+
+model CourseModule {
+  id             String   @id @default(cuid())
+  userId         String
+  classId        String
+  canvasCourseId String
+  canvasModuleId String
+  name           String
+  position       Int
+  syncedAt       DateTime
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class     Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  materials CourseMaterial[]
+
+  @@unique([userId, canvasCourseId, canvasModuleId])
+  @@index([userId, classId])
+}
+
+enum CourseMaterialKind {
+  MODULE_ITEM
+  PAGE
+  ASSIGNMENT
+  ANNOUNCEMENT
+}
+
+model CourseMaterial {
+  id             String             @id @default(cuid())
+  userId         String
+  classId        String
+  canvasCourseId String
+  kind           CourseMaterialKind
+  canvasId       String // Canvas's id for the object (a page's url slug for pages)
+  moduleId       String?
+  position       Int?
+  indent         Int?
+  itemType       String? // module items: Page, Assignment, File, Quiz, SubHeader, ExternalUrl, ...
+  targetId       String? // module items: the Canvas id of what it points to (page url slug, assignment id, ...)
+  title          String
+  url            String? // https link on the connected Canvas origin only
+  body           String? // plain text extracted from Canvas HTML
+  postedAt       DateTime?
+  pointsPossible Float?
+  rubric         Json? // validated RubricCriterion[] (see src/lib/canvas/content.ts)
+  assignmentId   String? // the Rushd Assignment this mirrors, for kind ASSIGNMENT
+  syncedAt       DateTime
+  // Full-text index over title + body; a generated column maintained by
+  // Postgres (see the migration), never written by the app.
+  searchVector   Unsupported("tsvector")?
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class  Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  module CourseModule? @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, canvasCourseId, kind, canvasId])
+  @@index([userId, classId, kind])
+  @@index([assignmentId])
+}
+
+// ---------------------------------------------------------------------------
+// Tutor
+// ---------------------------------------------------------------------------
+
+model TutorConversation {
+  id           String   @id @default(cuid())
+  userId       String
+  classId      String?
+  assignmentId String?
+  mode         String   @default("explain") // explain | quiz | plan
+  title        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class    Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+  messages TutorMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model TutorMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String // user | assistant
+  content        String
+  // [{ id, title, kind, url }] resolved server-side from CourseMaterial rows
+  // the tutor actually read this turn. Never model-generated.
+  sources        Json?
+  createdAt      DateTime @default(now())
+
+  conversation TutorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+// A rubric-based AI estimate of a draft. Drafts are stored so revisions can be
+// compared; the student can delete any review.
+model DraftReview {
+  id           String   @id @default(cuid())
+  userId       String
+  assignmentId String
+  label        String
+  draftText    String
+  result       Json // validated DraftReviewResult
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, assignmentId, createdAt])
 }

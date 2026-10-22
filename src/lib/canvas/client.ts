@@ -1,6 +1,7 @@
 import "server-only";
 import { Agent, fetch as undiciFetch, type Dispatcher } from "undici";
 import { resolvePublicAddresses, CanvasUrlError } from "./base-url";
+import type { CanvasAnnouncement, CanvasModule, CanvasModuleItem, CanvasPage } from "./content";
 
 // Minimal Canvas LMS REST client, scoped to what the sync needs. Endpoints
 // and parameters follow the official docs:
@@ -91,6 +92,9 @@ export interface CanvasAssignment {
   has_submitted_submissions?: boolean;
   submission?: CanvasSubmission;
   only_visible_to_overrides?: boolean;
+  // Present when the assignment has an associated rubric; validated by
+  // parseRubric in content.ts before anything stores it.
+  rubric?: unknown;
 }
 
 const CONNECT_TIMEOUT_MS = 8_000;
@@ -256,6 +260,10 @@ export class CanvasClient {
     return { data, next: parseNextLink(res.headers.get("link")) };
   }
 
+  protected paginateList<T>(path: string, params: Record<string, string | string[]>): Promise<T[]> {
+    return this.paginate<T>(path, params);
+  }
+
   private async paginate<T>(path: string, params: Record<string, string | string[]>): Promise<T[]> {
     const out: T[] = [];
     let { data, next } = await this.request<T[]>(path, { ...params, per_page: String(PER_PAGE) });
@@ -300,6 +308,46 @@ export class CanvasClient {
       order_by: "due_at",
     });
     return assignments.filter((a) => a && typeof a.id === "number" && typeof a.name === "string");
+  }
+}
+
+/** Read-only course content endpoints. All GETs through the same guarded
+ * request path; Rushd never writes to Canvas. */
+export class CanvasContentClient extends CanvasClient {
+  /** GET /courses/:id/modules?include[]=items, filling in items Canvas
+   * leaves out for large modules from /modules/:id/items. */
+  async listModules(courseId: string | number): Promise<CanvasModule[]> {
+    const course = encodeURIComponent(String(courseId));
+    const modules = (await this.paginateList<CanvasModule>(`/courses/${course}/modules`, { "include[]": ["items"] })).filter(
+      (m) => m && typeof m.id === "number" && typeof m.name === "string",
+    );
+    for (const m of modules) {
+      if (!Array.isArray(m.items) && (m.items_count ?? 0) > 0) {
+        m.items = await this.paginateList<CanvasModuleItem>(`/courses/${course}/modules/${m.id}/items`, {});
+      }
+      m.items = (m.items ?? []).filter((i) => i && typeof i.id === "number" && typeof i.title === "string");
+    }
+    return modules;
+  }
+
+  /** GET /courses/:id/pages?include[]=body — published pages the student can see. */
+  async listPages(courseId: string | number): Promise<CanvasPage[]> {
+    const pages = await this.paginateList<CanvasPage>(`/courses/${encodeURIComponent(String(courseId))}/pages`, {
+      "include[]": ["body"],
+      sort: "title",
+    });
+    return pages.filter((p) => p && typeof p.url === "string" && typeof p.title === "string" && p.published !== false);
+  }
+
+  /** GET /announcements for one course, posted since `since`. */
+  async listAnnouncements(courseId: string | number, since: Date, until: Date): Promise<CanvasAnnouncement[]> {
+    const items = await this.paginateList<CanvasAnnouncement>("/announcements", {
+      "context_codes[]": [`course_${String(courseId)}`],
+      start_date: since.toISOString().slice(0, 10),
+      end_date: until.toISOString().slice(0, 10),
+      active_only: "true",
+    });
+    return items.filter((a) => a && typeof a.id === "number" && typeof a.title === "string");
   }
 }
 

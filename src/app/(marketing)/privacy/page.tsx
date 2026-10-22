@@ -56,8 +56,14 @@ export default function PrivacyPage() {
               Rushd stores only what planning needs: your name on Canvas, your active courses, and for the
               courses you choose, each assignment&apos;s title, due date, points, link, and whether and when
               you submitted it. Canvas sends your submission record along with each assignment; Rushd uses only
-              the submitted status and never stores grades or scores. It doesn&apos;t access messages, files, or
-              other students&apos; information.
+              the submitted status and never stores grades or scores. It doesn&apos;t access messages, file
+              contents, or other students&apos; information.
+            </li>
+            <li>
+              If you sync a course&apos;s content, Rushd also stores what your teacher published for students in
+              that course: module names and item titles, page text, assignment descriptions and rubrics, and
+              announcements from the last four months. It&apos;s replaced on each sync and deleted with your
+              account or class.
             </li>
             <li>
               Rushd never writes anything to Canvas. Syncing happens when you ask for it.
@@ -80,6 +86,31 @@ export default function PrivacyPage() {
         </section>
 
         <section>
+          <h2 className="font-heading text-lg font-semibold">Tutor and draft feedback</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>
+              These features use Anthropic&apos;s Claude models. When you use them, your message, the course content
+              Rushd retrieves to answer it, and any draft you paste are sent to Anthropic to generate the reply.
+              Anthropic processes this data to provide the service; see Anthropic&apos;s own privacy terms for how it
+              handles API data.
+            </li>
+            <li>
+              Rushd saves your tutor conversations and the drafts you submit for feedback so you can return to them
+              and compare revisions. You can delete any conversation or review, or all conversations at once, from
+              the Tutor and assignment pages.
+            </li>
+            <li>
+              Usage records for these features contain counts only (for example, tokens used), never the content of
+              your messages or drafts.
+            </li>
+            <li>
+              Feedback scores are an AI estimate against your teacher&apos;s published rubric, shown as ranges. Your
+              teacher grades your work.
+            </li>
+          </ul>
+        </section>
+
+        <section>
           <h2 className="font-heading text-lg font-semibold">What we don&apos;t collect</h2>
           <p className="mt-2">
             We don&apos;t run ad trackers. We don&apos;t buy or sell student
@@ -95,7 +126,9 @@ export default function PrivacyPage() {
             Your academic data feeds the planning engine that builds your
             plan. Usage events help us understand which parts of Rushd are
             actually useful. Neither is used for advertising, and neither is
-            shared with third parties for their own purposes.
+            shared with third parties for their own purposes. Data is
+            processed only by the services that run Rushd: hosting (Vercel),
+            the database (Neon), and, for the AI features above, Anthropic.
           </p>
         </section>
 

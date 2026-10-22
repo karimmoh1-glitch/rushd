@@ -12,6 +12,7 @@ import {
   LogOut,
   ShieldCheck,
   BarChart3,
+  MessageSquareText,
 } from "lucide-react";
 import { logout } from "@/server/actions/auth";
 import { FeedbackDialog } from "@/components/feedback-dialog";
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/assignments", label: "Assignments", icon: ListChecks },
   { href: "/exams", label: "Exams", icon: GraduationCap },
   { href: "/classes", label: "Classes", icon: BookOpen },
+  { href: "/tutor", label: "Tutor", icon: MessageSquareText },
   { href: "/insights", label: "Progress", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -47,9 +49,11 @@ function isActive(pathname: string, href: string): boolean {
   return Object.entries(SECTION_ALIASES).some(([prefix, section]) => section === href && pathname.startsWith(prefix));
 }
 
-// The phone tab bar keeps the daily destinations; the rest are one tap away
-// from Settings or the page that links to them.
-const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== "/classes" && item.href !== "/insights");
+// The phone tab bar keeps the daily destinations. Settings sits in the top
+// bar; Exams and Progress are reached from Today and the pages that link them.
+const MOBILE_NAV_ITEMS = NAV_ITEMS.filter(
+  (item) => item.href !== "/insights" && item.href !== "/exams" && item.href !== "/settings",
+);
 
 export function AppShell({
   displayName,
@@ -142,6 +146,14 @@ export function AppShell({
           Rushd
         </Link>
         <div className="flex items-center gap-1">
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            aria-current={isActive(pathname, "/settings") ? "page" : undefined}
+            className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Settings className="h-5 w-5" aria-hidden="true" />
+          </Link>
           <ThemeToggle />
           <form action={logout}>
             <button

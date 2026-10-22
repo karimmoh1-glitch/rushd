@@ -134,7 +134,7 @@ export async function getCanvasConnectionView(userId: string): Promise<CanvasCon
 }
 
 /** The only place the ciphertext is read. */
-async function loadSecret(userId: string) {
+export async function loadSecret(userId: string) {
   const conn = await db.canvasConnection.findUnique({
     where: { userId },
     select: { id: true, baseUrl: true, encryptedToken: true },
@@ -379,7 +379,7 @@ async function fetchCourses(
   return { fetched, errors, authFailed };
 }
 
-async function markNeedsReauth(userId: string) {
+export async function markNeedsReauth(userId: string) {
   await db.canvasConnection.updateMany({
     where: { userId },
     data: {

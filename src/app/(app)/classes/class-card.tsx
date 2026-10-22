@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,7 +61,9 @@ export function ClassCard({ data }: { data: ClassCardData }) {
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="truncate font-medium">{data.name}</p>
+              <Link href={`/classes/${data.id}`} className="truncate font-medium underline-offset-4 hover:underline">
+                {data.name}
+              </Link>
               {data.priority === "HIGH" && (
                 <Badge variant="outline" className="text-warning border-warning">
                   {PRIORITY_LABEL[data.priority]}
