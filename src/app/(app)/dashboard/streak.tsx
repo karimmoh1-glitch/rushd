@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/format";
 import type { Streak } from "@/lib/streak/streak";
 import { ShareStreak } from "./share-streak";
 
 // The study streak drawn as the Rushd path: the last seven days as points on
 // a line, today's point lit once something real gets done.
-export function StreakPath({ streak, shareUrl }: { streak: Streak; shareUrl?: string | null }) {
+export function StreakPath({ streak, shareUrl, studiedMinutes = 0 }: { streak: Streak; shareUrl?: string | null; studiedMinutes?: number }) {
   const label =
     streak.current === 0
       ? "Start a streak today"
@@ -39,6 +40,7 @@ export function StreakPath({ streak, shareUrl }: { streak: Streak; shareUrl?: st
         <p className="text-xs text-muted-foreground">
           {sub}
           {streak.restDays > 0 ? ` ${streak.restDays} rest day${streak.restDays === 1 ? "" : "s"} saved.` : ""}
+          {studiedMinutes > 0 ? ` ${formatDuration(studiedMinutes)} studied in the last 7 days.` : ""}
         </p>
       </div>
     </div>
