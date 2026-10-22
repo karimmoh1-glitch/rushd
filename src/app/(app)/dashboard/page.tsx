@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
 import { dateKey, explainScore } from "@/lib/planning";
+import { formatDateKey, formatMinuteOfDay } from "@/lib/time/zone";
 import { formatDueDate, formatDuration, formatDaysUntil } from "@/lib/format";
 import { buildHealthScore } from "@/lib/health/build-health-score";
 import type { SessionRecord } from "@/lib/insights/build-insights";
@@ -45,7 +46,6 @@ function greeting(period: DayPeriod): string {
 export default async function DashboardPage() {
   const user = await requireUser();
   const now = new Date();
-  const today = dateKey(now);
 
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -62,6 +62,7 @@ export default async function DashboardPage() {
     openCount,
     healthSessions,
     recentAssignments,
+    canvasConnection,
   ] = await Promise.all([
       db.class.findMany({
         where: { userId: user.id, archived: false },
@@ -138,9 +139,15 @@ export default async function DashboardPage() {
         },
         select: { status: true },
       }),
+      db.canvasConnection.findUnique({
+        where: { userId: user.id },
+        select: { status: true, lastSyncAt: true },
+      }),
       logEvent(user.id, "dashboard_viewed"),
     ]);
 
+  const tz = plan.timeZone;
+  const today = dateKey(now, tz);
   const todaySessions = plan.sessions.filter((s) => s.scheduledDate === today);
 
   // Fallback: if nothing landed on today's schedule (no availability set,
@@ -155,17 +162,16 @@ export default async function DashboardPage() {
   const scoredById = new Map(plan.scored.map((s) => [s.item.id, s]));
   const reasonsFor = (itemId: string) => {
     const scored = scoredById.get(itemId);
-    return scored ? explainScore(scored, now, plan.scored) : [];
+    return scored ? explainScore(scored, now, plan.scored, tz) : [];
   };
 
-  const workloadDays = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    const key = dateKey(date);
-    const minutes = plan.sessions
-      .filter((s) => s.scheduledDate === key)
-      .reduce((sum, s) => sum + s.scheduledMinutes, 0);
-    return { date, minutes };
-  });
+  const workloadDays = (plan.days ?? []).slice(0, 7).map((d) => ({
+    key: d.date,
+    label: formatDateKey(d.date, { weekday: "short", month: "short", day: "numeric" }),
+    letter: formatDateKey(d.date, { weekday: "narrow" }),
+    minutes: d.plannedMinutes,
+  }));
+  const shortfallMinutes = Object.values(plan.unscheduledMinutesByItem).reduce((a, b) => a + b, 0);
 
   const statusLine =
     overdueCount > 0
@@ -231,6 +237,44 @@ export default async function DashboardPage() {
         )}
       </div>
 
+      {shortfallMinutes > 0 && (
+        <Link
+          href="/plan"
+          className="flex items-center justify-between gap-3 rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-sm transition-colors hover:bg-warning/10"
+        >
+          <span>
+            <span className="font-medium">{formatDuration(shortfallMinutes)} won&apos;t fit before its deadline.</span>{" "}
+            <span className="text-muted-foreground">Rushd ranked what to do first.</span>
+          </span>
+          <span className="shrink-0 font-medium">Review plan</span>
+        </Link>
+      )}
+
+      {!canvasConnection ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">Bring in your real workload from Canvas</p>
+            <p className="text-sm text-muted-foreground">
+              Import every assignment and due date, then Rushd plans around them. Optional; you can keep adding work by hand.
+            </p>
+          </div>
+          <Link
+            href="/integrations/canvas"
+            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Connect Canvas
+          </Link>
+        </div>
+      ) : canvasConnection.status === "NEEDS_REAUTH" ? (
+        <Link
+          href="/integrations/canvas"
+          className="block rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-sm hover:bg-warning/10"
+        >
+          <span className="font-medium">Canvas needs reconnecting.</span>{" "}
+          <span className="text-muted-foreground">It stopped accepting your token, so new assignments aren&apos;t syncing.</span>
+        </Link>
+      ) : null}
+
       {oneThing && oneThingEstimate && (
         <OneThing
           itemId={oneThing.item.id}
@@ -240,7 +284,7 @@ export default async function DashboardPage() {
           className={oneThing.item.className}
           classColor={oneThing.item.classColor}
           minutes={oneThing.item.remainingMinutes}
-          reasons={buildOneThingReasons(oneThing, now, plan.scored, oneThingEstimate, patterns)}
+          reasons={buildOneThingReasons(oneThing, now, plan.scored, oneThingEstimate, patterns, tz)}
         />
       )}
 
@@ -268,6 +312,7 @@ export default async function DashboardPage() {
                 scheduledMinutes={s.scheduledMinutes}
                 reasonCode={s.reasonCode}
                 reasons={reasonsFor(s.item.id)}
+                timeLabel={s.startMinute !== undefined ? formatMinuteOfDay(s.startMinute) : undefined}
               />
             ))}
           </div>
@@ -292,7 +337,7 @@ export default async function DashboardPage() {
                   classColor={s.item.classColor}
                   scheduledMinutes={s.item.remainingMinutes}
                   reasonCode={s.reasonCode}
-                  reasons={explainScore(s, now, plan.scored)}
+                  reasons={explainScore(s, now, plan.scored, tz)}
                 />
               ))}
             </div>
@@ -362,7 +407,7 @@ export default async function DashboardPage() {
                 >
                   <span className="truncate">{a.title}</span>
                   <Badge variant="destructive" className="shrink-0">
-                    {formatDueDate(a.dueAt)}
+                    {formatDueDate(a.dueAt, tz, now)}
                   </Badge>
                 </Link>
               ))}
@@ -384,7 +429,7 @@ export default async function DashboardPage() {
                 >
                   <span className="truncate">{e.title}</span>
                   <Badge variant="outline" className="shrink-0 border-warning text-warning">
-                    {formatDaysUntil(e.examAt)}
+                    {formatDaysUntil(e.examAt, tz, now)}
                   </Badge>
                 </Link>
               ))}
@@ -414,7 +459,7 @@ export default async function DashboardPage() {
                   {a.title}
                 </span>
                 <span className="shrink-0 text-muted-foreground">
-                  {formatDueDate(a.dueAt)}
+                  {formatDueDate(a.dueAt, tz, now)}
                 </span>
               </Link>
             ))}
@@ -427,12 +472,12 @@ export default async function DashboardPage() {
         <Card>
           <CardContent className="py-4">
             <WorkloadBars days={workloadDays} />
-            {Object.keys(plan.unscheduledMinutesByItem).length > 0 && (
+            {shortfallMinutes > 0 && (
               <p className="mt-3 text-xs text-muted-foreground">
-                {formatDuration(
-                  Object.values(plan.unscheduledMinutesByItem).reduce((a, b) => a + b, 0),
-                )}{" "}
-                of work doesn&apos;t fit in your available study time this week.
+                {formatDuration(shortfallMinutes)} of work can&apos;t fit before its deadline in your study time.{" "}
+                <Link href="/plan" className="font-medium text-foreground underline underline-offset-4">
+                  See what to do first
+                </Link>
               </p>
             )}
           </CardContent>

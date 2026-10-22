@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
+import { resolveTimeZone } from "@/lib/time/zone";
 import { ExamRow } from "./exam-row";
 import { AddExamButton } from "./add-exam-button";
 
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 
 export default async function ExamsPage() {
   const user = await requireUser();
+  const timeZone = resolveTimeZone(user.profile?.timezone);
 
   const [classes, exams] = await Promise.all([
     db.class.findMany({
@@ -82,7 +84,7 @@ export default async function ExamsPage() {
       ) : (
         <div className="space-y-3">
           {upcoming.map((e) => (
-            <ExamRow key={e.id} classes={classes} data={toRowData(e)} />
+            <ExamRow key={e.id} classes={classes} data={toRowData(e)} timeZone={timeZone} />
           ))}
         </div>
       )}
@@ -92,7 +94,7 @@ export default async function ExamsPage() {
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">Past</h2>
           <div className="space-y-3">
             {past.map((e) => (
-              <ExamRow key={e.id} classes={classes} data={toRowData(e)} />
+              <ExamRow key={e.id} classes={classes} data={toRowData(e)} timeZone={timeZone} />
             ))}
           </div>
         </div>

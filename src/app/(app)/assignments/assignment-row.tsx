@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MoreVertical } from "lucide-react";
+import { ExternalLink, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,14 +27,20 @@ export interface AssignmentRowData extends AssignmentInput {
   id: string;
   className: string;
   classColor: string;
+  source?: "MANUAL" | "CANVAS";
+  canvasUrl?: string | null;
+  estimatedByRushd?: boolean;
+  canvasRemoved?: boolean;
 }
 
 export function AssignmentRow({
   data,
   classes,
+  timeZone,
 }: {
   data: AssignmentRowData;
   classes: ClassOption[];
+  timeZone: string;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -86,9 +92,14 @@ export function AssignmentRow({
                   High
                 </Badge>
               )}
-              {overdue && (
+              {overdue && !data.canvasRemoved && (
                 <Badge variant="destructive" className="shrink-0">
                   Overdue
+                </Badge>
+              )}
+              {data.source === "CANVAS" && (
+                <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
+                  {data.canvasRemoved ? "Removed from Canvas" : "Canvas"}
                 </Badge>
               )}
             </div>
@@ -98,12 +109,30 @@ export function AssignmentRow({
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: data.classColor }}
               />
-              {data.className} · {formatDueDate(due)} ·{" "}
-              {formatDuration(data.estimatedMinutes)}
+              <span className="truncate">
+                {data.className} · {formatDueDate(due, timeZone)} ·{" "}
+                <span className="tabular-nums">
+                  {data.estimatedByRushd ? "~" : ""}
+                  {formatDuration(data.estimatedMinutes)}
+                </span>
+              </span>
             </p>
           </div>
 
-          {!completed && (
+          {data.canvasUrl && (
+            <a
+              href={data.canvasUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
+              aria-label={`Open ${data.title} in Canvas (opens in a new tab)`}
+            >
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              Canvas
+            </a>
+          )}
+
+          {!completed && !data.canvasRemoved && (
             <StartSessionButton target={{ assignmentId: data.id }} source="MANUAL" />
           )}
 
@@ -146,6 +175,8 @@ export function AssignmentRow({
           status: data.status,
           notes: data.notes,
         }}
+        managedByCanvas={data.source === "CANVAS"}
+        estimatedByRushd={data.estimatedByRushd}
       />
     </>
   );

@@ -34,3 +34,15 @@ export const ChangePasswordSchema = z.object({
     .regex(/[0-9]/, "Include at least one number."),
 });
 export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
+
+export const PlanningPreferencesSchema = z.object({
+  preferredSessionMinutes: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90)], {
+    error: "Choose 30, 45, 60, or 90 minutes.",
+  }),
+  maxDailyMinutes: z
+    .number()
+    .int()
+    .min(30, "Allow at least 30 minutes a day.")
+    .max(720, "12 hours a day is the most Rushd will plan."),
+});
+export type PlanningPreferencesInput = z.infer<typeof PlanningPreferencesSchema>;

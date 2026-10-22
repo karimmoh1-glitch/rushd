@@ -18,8 +18,11 @@ import {
 import { completeOnboarding } from "@/server/actions/onboarding";
 import {
   AVAILABILITY_PRESETS,
+  formatMinutes,
   presetToWindows,
 } from "@/lib/planning/availability-presets";
+import { SESSION_LENGTH_OPTIONS } from "@/lib/planning/constants";
+import { formatDuration } from "@/lib/format";
 import { CLASS_COLORS, DEFAULT_CLASS_COLOR } from "@/lib/class-colors";
 import { CHALLENGE_OPTIONS, type AcademicChallengeValue } from "@/lib/validation/onboarding";
 import { cn } from "@/lib/utils";
@@ -64,6 +67,7 @@ export function OnboardingWizard() {
   const [selectedPresets, setSelectedPresets] = useState<Set<string>>(
     new Set(),
   );
+  const [sessionMinutes, setSessionMinutes] = useState<number>(60);
 
   const [classes, setClasses] = useState<ClassDraft[]>([
     { name: "", color: DEFAULT_CLASS_COLOR, teacher: "" },
@@ -137,6 +141,7 @@ export function OnboardingWizard() {
         primaryChallenge: challenge || null,
         availability,
         classes: validClasses,
+        preferredSessionMinutes: sessionMinutes as 30 | 45 | 60 | 90,
       });
       if (result && "error" in result) {
         toast.error(result.error);
@@ -164,15 +169,28 @@ export function OnboardingWizard() {
           <p className="mt-2 text-sm text-muted-foreground">
             {done.classCount > 0
               ? `${done.classCount} class${done.classCount === 1 ? "" : "es"} added`
-              : "No classes yet — add them anytime"}
+              : "No classes yet, add them anytime"}
             {done.availabilityWindowCount > 0
-              ? ", study availability set, and your first plan is ready."
+              ? " and your study time is set."
               : ". Set your study availability in Settings to get a real plan."}
           </p>
+          <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
+            Does your school use Canvas? Connect it and Rushd imports every assignment and due date, then builds your
+            plan from your real workload. You can also skip this and add work yourself.
+          </p>
         </div>
-        <Button onClick={() => router.push("/dashboard")} size="lg" className="w-full sm:w-auto">
-          Go to my plan
-        </Button>
+        <div className="flex flex-col justify-center gap-2 sm:flex-row">
+          <Button
+            onClick={() => router.push("/integrations/canvas?from=onboarding")}
+            size="lg"
+            className="w-full sm:w-auto"
+          >
+            Connect Canvas
+          </Button>
+          <Button onClick={() => router.push("/dashboard")} size="lg" variant="outline" className="w-full sm:w-auto">
+            Go to my plan
+          </Button>
+        </div>
       </div>
     );
   }
@@ -306,7 +324,8 @@ export function OnboardingWizard() {
                 >
                   <div className="font-medium">{preset.label}</div>
                   <div className="text-muted-foreground">
-                    {preset.days.length === 5 ? "Mon–Fri" : "Sat–Sun"}
+                    {preset.days.length === 5 ? "Mon-Fri" : "Sat-Sun"}, {formatMinutes(preset.startMinute)} to{" "}
+                    {formatMinutes(preset.endMinute)}
                   </div>
                 </button>
               );
@@ -314,10 +333,34 @@ export function OnboardingWizard() {
           </div>
           {selectedPresets.size === 0 && (
             <p className="text-sm text-muted-foreground">
-              No windows selected yet — Rushd will still track deadlines, but
-              can&apos;t suggest when to work on them.
+              No windows selected yet. Rushd will still track deadlines, but
+              can&apos;t place study time without them.
             </p>
           )}
+          <fieldset className="space-y-2 pt-4">
+            <legend className="text-sm font-medium">How long do you like to focus at a time?</legend>
+            <p className="text-sm text-muted-foreground">
+              Rushd sizes study blocks to this, with a short break in between.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {SESSION_LENGTH_OPTIONS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={sessionMinutes === m}
+                  onClick={() => setSessionMinutes(m)}
+                  className={cn(
+                    "rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors",
+                    sessionMinutes === m
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:bg-muted",
+                  )}
+                >
+                  {formatDuration(m)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
         </div>
       )}
 

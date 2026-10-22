@@ -6,6 +6,7 @@ import { ProfileForm } from "./profile-form";
 import { AvailabilityForm } from "./availability-form";
 import { PasswordForm } from "./password-form";
 import { DeleteAccount } from "./delete-account";
+import { PlanningForm } from "./planning-form";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const user = await requireUser();
 
-  const [profile, availability] = await Promise.all([
+  const [profile, availability, canvas] = await Promise.all([
     db.profile.findUnique({
       where: { userId: user.id },
       select: {
@@ -24,11 +25,17 @@ export default async function SettingsPage() {
         timezone: true,
         goals: true,
         primaryChallenge: true,
+        preferredSessionMinutes: true,
+        maxDailyMinutes: true,
       },
     }),
     db.studyAvailability.findMany({
       where: { userId: user.id },
       select: { dayOfWeek: true, startMinute: true, endMinute: true },
+    }),
+    db.canvasConnection.findUnique({
+      where: { userId: user.id },
+      select: { status: true, baseUrl: true, lastSyncAt: true },
     }),
   ]);
 
@@ -52,7 +59,7 @@ export default async function SettingsPage() {
         />
       </section>
 
-      <section className="space-y-4 border-t border-border pt-8">
+      <section id="availability" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
         <div>
           <h2 className="font-heading text-lg font-semibold">Study availability</h2>
           <p className="text-sm text-muted-foreground">
@@ -60,6 +67,43 @@ export default async function SettingsPage() {
           </p>
         </div>
         <AvailabilityForm current={availability} />
+      </section>
+
+      <section id="planning" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
+        <div>
+          <h2 className="font-heading text-lg font-semibold">Planning</h2>
+          <p className="text-sm text-muted-foreground">
+            How Rushd shapes your study blocks. These are yours to set; Rushd never assumes more capacity than this.
+          </p>
+        </div>
+        <PlanningForm
+          initial={{
+            preferredSessionMinutes: profile?.preferredSessionMinutes ?? 60,
+            maxDailyMinutes: profile?.maxDailyMinutes ?? 240,
+          }}
+        />
+      </section>
+
+      <section id="integrations" className="scroll-mt-24 space-y-3 border-t border-border pt-8">
+        <h2 className="font-heading text-lg font-semibold">Integrations</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
+          <div>
+            <p className="font-medium">Canvas LMS</p>
+            <p className="text-sm text-muted-foreground">
+              {canvas
+                ? canvas.status === "NEEDS_REAUTH"
+                  ? "Needs reconnecting: Canvas stopped accepting the saved token."
+                  : `Connected to ${new URL(canvas.baseUrl).hostname}${canvas.lastSyncAt ? "" : ", not synced yet"}.`
+                : "Import assignments and due dates from your school's Canvas."}
+            </p>
+          </div>
+          <Link
+            href="/integrations/canvas"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          >
+            {canvas ? "Manage" : "Connect"}
+          </Link>
+        </div>
       </section>
 
       <section className="space-y-4 border-t border-border pt-8">

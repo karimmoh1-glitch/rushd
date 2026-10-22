@@ -27,15 +27,17 @@ export interface ExamRowData extends ExamInput {
 export function ExamRow({
   data,
   classes,
+  timeZone,
 }: {
   data: ExamRowData;
   classes: ClassOption[];
+  timeZone: string;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const examDate = new Date(data.examAt);
-  const days = daysUntil(examDate);
+  const days = daysUntil(examDate, timeZone);
   const soon = days >= 0 && days <= 3;
 
   function handleDelete() {
@@ -55,7 +57,7 @@ export function ExamRow({
               <p className="truncate font-medium">{data.title}</p>
               {soon && (
                 <Badge variant="outline" className="shrink-0 border-warning text-warning">
-                  {formatDaysUntil(examDate)}
+                  {formatDaysUntil(examDate, timeZone)}
                 </Badge>
               )}
               {days < 0 && (
@@ -70,7 +72,7 @@ export function ExamRow({
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: data.classColor }}
               />
-              {data.className} · {formatDueDate(examDate)} · Prep:{" "}
+              {data.className} · {formatDueDate(examDate, timeZone)} · Prep:{" "}
               {formatDuration(data.prepMinutes)}
             </p>
           </div>

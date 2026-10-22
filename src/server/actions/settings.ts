@@ -10,6 +10,8 @@ import {
   ProfileSettingsSchema,
   AvailabilitySettingsSchema,
   ChangePasswordSchema,
+  PlanningPreferencesSchema,
+  type PlanningPreferencesInput,
   type ProfileSettingsInput,
   type AvailabilitySettingsInput,
   type ChangePasswordInput,
@@ -72,6 +74,25 @@ export async function updateAvailability(
   await regeneratePlanSnapshot(user.id);
   revalidatePath("/settings");
   revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function updatePlanningPreferences(
+  input: PlanningPreferencesInput,
+): Promise<ActionResult> {
+  const user = await requireUserOrThrow();
+  const parsed = PlanningPreferencesSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  await db.profile.update({
+    where: { userId: user.id },
+    data: parsed.data,
+  });
+  await regeneratePlanSnapshot(user.id);
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  revalidatePath("/plan");
   return { success: true };
 }
 

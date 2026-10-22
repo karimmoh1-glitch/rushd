@@ -3,14 +3,22 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
-import { dateKey, explainScore, buildForecast } from "@/lib/planning";
-import { DEFAULT_HORIZON_DAYS } from "@/lib/planning/constants";
-import { formatDuration } from "@/lib/format";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { DayColumn } from "./day-column";
+import { explainScore, buildForecast } from "@/lib/planning";
+import {
+  DEFAULT_BREAK_MINUTES,
+  DEFAULT_HORIZON_DAYS,
+  LEAD_WINDOW_DAYS,
+  PLANNING_HORIZON_DAYS,
+} from "@/lib/planning/constants";
+import { formatDuration, formatDueDate } from "@/lib/format";
+import { addDaysToKey, formatDateKey, localDateKey } from "@/lib/time/zone";
+import { buttonVariants } from "@/components/ui/button";
 import { ForecastSection } from "./forecast-section";
 import { WhatIfSimulator } from "./what-if-simulator";
+import { ScheduleAgenda } from "./schedule-agenda";
+import { PlanWarnings } from "./plan-warnings";
+import { ClearPinnedButton } from "./clear-pinned-button";
+import type { AgendaBlock, AgendaDay, DayOption } from "./types";
 
 export const metadata: Metadata = {
   title: "Your plan",
@@ -20,171 +28,149 @@ export default async function PlanPage() {
   const user = await requireUser();
   const now = new Date();
 
-  const [plan, availability] = await Promise.all([
+  const [plan, profile, availability, canvas] = await Promise.all([
     generatePlanForUser(user.id, now),
+    db.profile.findUnique({
+      where: { userId: user.id },
+      select: { preferredSessionMinutes: true, maxDailyMinutes: true },
+    }),
     db.studyAvailability.findMany({
       where: { userId: user.id },
       select: { dayOfWeek: true, startMinute: true, endMinute: true },
     }),
+    db.canvasConnection.findUnique({ where: { userId: user.id }, select: { lastSyncAt: true } }),
   ]);
 
+  const tz = plan.timeZone;
+  const todayKey = localDateKey(now, tz);
   const scoredById = new Map(plan.scored.map((s) => [s.item.id, s]));
 
-  const days = Array.from({ length: DEFAULT_HORIZON_DAYS }, (_, i) => {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    const key = dateKey(date);
-    const dow = date.getDay();
-
-    const sessions = plan.sessions
-      .filter((s) => s.scheduledDate === key)
-      .map((s) => {
-        const scored = scoredById.get(s.item.id);
-        return {
-          title: s.item.title,
-          className: s.item.className,
-          classColor: s.item.classColor,
-          minutes: s.scheduledMinutes,
-          reasonCode: s.reasonCode,
-          reasons: scored ? explainScore(scored, now, plan.scored) : [],
-        };
-      });
-
-    const availableMinutes = availability
-      .filter((w) => w.dayOfWeek === dow)
-      .reduce((sum, w) => sum + Math.max(0, w.endMinute - w.startMinute), 0);
-
+  const toBlock = (s: (typeof plan.sessions)[number], i: number): AgendaBlock => {
+    const scored = scoredById.get(s.item.id);
     return {
-      date,
-      label: i === 0 ? "Today" : date.toLocaleDateString(undefined, { weekday: "short" }),
-      dateLabel: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-      isToday: i === 0,
-      hasAvailability: availableMinutes > 0,
-      sessions,
+      key: s.blockId ?? `${s.item.id}-${s.scheduledDate}-${s.startMinute}-${i}`,
+      kind: s.item.kind,
+      itemId: s.item.id,
+      title: s.item.title,
+      className: s.item.className,
+      classColor: s.item.classColor,
+      date: s.scheduledDate,
+      startMinute: s.startMinute ?? 0,
+      endMinute: s.endMinute ?? (s.startMinute ?? 0) + s.scheduledMinutes,
+      minutes: s.scheduledMinutes,
+      pinned: Boolean(s.pinned),
+      blockId: s.blockId,
+      reasonCode: s.reasonCode,
+      reasons: scored ? explainScore(scored, now, plan.scored, tz) : [],
+      fromCanvas: s.item.source === "CANVAS",
+      dueLabel:
+        s.item.dueAt.getTime() < now.getTime()
+          ? `overdue since ${formatDateKey(localDateKey(s.item.dueAt, tz), { month: "short", day: "numeric" })}`
+          : `due ${formatDueDate(s.item.dueAt, tz, now)}`,
+    };
+  };
+
+  const days: AgendaDay[] = (plan.days ?? []).slice(0, DEFAULT_HORIZON_DAYS).map((d, i) => ({
+    date: d.date,
+    label: i === 0 ? "Today" : i === 1 ? "Tomorrow" : formatDateKey(d.date, { weekday: "long" }),
+    dateLabel: formatDateKey(d.date, { month: "short", day: "numeric" }),
+    isToday: d.date === todayKey,
+    availableMinutes: d.availableMinutes,
+    plannedMinutes: d.plannedMinutes,
+    status: d.status,
+    blocks: plan.sessions.filter((s) => s.scheduledDate === d.date).map(toBlock),
+  }));
+
+  const dayOptions: DayOption[] = Array.from({ length: PLANNING_HORIZON_DAYS }, (_, i) => {
+    const key = addDaysToKey(todayKey, i);
+    return {
+      date: key,
+      label: `${i === 0 ? "Today" : i === 1 ? "Tomorrow" : formatDateKey(key, { weekday: "long" })}, ${formatDateKey(key, { month: "short", day: "numeric" })}`,
     };
   });
 
-  const totalEstimatedMinutes = plan.scored.reduce((sum, s) => sum + s.item.remainingMinutes, 0);
-  const totalAvailableMinutes = days.reduce((sum, d) => {
-    const dow = d.date.getDay();
-    return (
-      sum +
-      availability
-        .filter((w) => w.dayOfWeek === dow)
-        .reduce((s, w) => s + Math.max(0, w.endMinute - w.startMinute), 0)
-    );
-  }, 0);
+  const weekPlanned = days.reduce((n, d) => n + d.plannedMinutes, 0);
+  const weekAvailable = days.reduce((n, d) => n + d.availableMinutes, 0);
+  const openWork = plan.scored.reduce((n, s) => n + s.item.remainingMinutes, 0);
+  const pinnedCount = plan.sessions.filter((s) => s.pinned).length;
+  const deferredCount = Object.keys(plan.deferredMinutesByItem ?? {}).length;
 
-  const overloaded = totalEstimatedMinutes > totalAvailableMinutes && totalAvailableMinutes > 0;
-  const noAvailabilitySet = totalAvailableMinutes === 0;
-
-  // totalAvailableMinutes already sums one full recurring week (the
-  // horizon is exactly 7 days), so it doubles as "typical weekly available
-  // time" for the forecast — no separate computation needed.
-  const forecastWeeks = buildForecast(plan.scored, totalAvailableMinutes, now);
-  const todayPlannedMinutes = days[0]?.sessions.reduce((sum, s) => sum + s.minutes, 0) ?? 0;
-
-  // Items that didn't fit anywhere in the horizon — still real work the
-  // student owes, so it needs to be visible somewhere on this page, not
-  // just as an aggregate minute count. The dashboard already has a
-  // fallback for "nothing scheduled today"; the weekly view needs its own,
-  // since a day with no sessions here otherwise reads as "nothing to do."
-  const unscheduledItems = Object.entries(plan.unscheduledMinutesByItem).map(
-    ([itemId, minutes]) => {
-      const scored = plan.scored.find((s) => s.item.id === itemId);
-      return scored ? { ...scored.item, unscheduledMinutes: minutes } : null;
-    },
-  ).filter((x): x is NonNullable<typeof x> => x !== null);
+  const weeklyAvailable = availability.reduce((sum, w) => sum + Math.max(0, w.endMinute - w.startMinute), 0);
+  const forecastWeeks = buildForecast(plan.scored, weeklyAvailable, now, tz);
+  const todayPlannedMinutes = days[0]?.plannedMinutes ?? 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold">Your plan</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Rushd balanced your workload around your deadlines and available time.
-        </p>
-      </div>
-
-      <Card>
-        <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-8">
-            <div>
-              <p className="text-2xl font-semibold">{formatDuration(totalEstimatedMinutes)}</p>
-              <p className="text-sm text-muted-foreground">Estimated academic work</p>
-            </div>
-            <div>
-              <p className="text-2xl font-semibold">{formatDuration(totalAvailableMinutes)}</p>
-              <p className="text-sm text-muted-foreground">Available time (7 days)</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {noAvailabilitySet ? (
-              <p className="text-sm text-muted-foreground">
-                Set your study availability to see a status.
-              </p>
-            ) : (
-              <p className={`text-sm font-medium ${overloaded ? "text-warning" : "text-success"}`}>
-                {overloaded ? "Heavier than usual" : "On track"}
-              </p>
-            )}
-            <Link href="/settings">
-              <Button variant="outline" size="sm">
-                Adjust availability
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-        {days.map((d) => (
-          <DayColumn
-            key={d.dateLabel + d.label}
-            label={d.label}
-            dateLabel={d.dateLabel}
-            isToday={d.isToday}
-            hasAvailability={d.hasAvailability}
-            sessions={d.sessions}
-          />
-        ))}
-      </div>
-
-      {unscheduledItems.length > 0 && (
-        <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold">Not yet scheduled</h2>
-          <p className="mb-3 text-sm text-muted-foreground">
-            {formatDuration(
-              unscheduledItems.reduce((sum, i) => sum + i.unscheduledMinutes, 0),
-            )}{" "}
-            of work doesn&apos;t fit in your available time over the next{" "}
-            {DEFAULT_HORIZON_DAYS} days. Still owed — just needs more study time. Add
-            availability in{" "}
-            <Link href="/settings" className="underline underline-offset-4">
-              Settings
-            </Link>
-            .
+    <div className="space-y-10">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Your plan</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Every block is placed inside your study time and before its deadline.
+            {canvas?.lastSyncAt && <> Canvas last synced {formatDueDate(canvas.lastSyncAt, tz, now)}.</>}
           </p>
-          <div className="space-y-2">
-            {unscheduledItems.map((item) => (
-              <Link
-                key={item.id}
-                href={item.kind === "exam" ? "/exams" : "/assignments"}
-                className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <span
-                    aria-hidden="true"
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: item.classColor }}
-                  />
-                  {item.title}
-                </span>
-                <span className="shrink-0 text-muted-foreground">
-                  {formatDuration(item.unscheduledMinutes)}
-                </span>
-              </Link>
-            ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {pinnedCount > 0 && <ClearPinnedButton count={pinnedCount} />}
+          <Link
+            href="/settings#planning"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Planning settings
+          </Link>
+        </div>
+      </header>
+
+      <PlanWarnings
+        warnings={plan.warnings ?? []}
+        scored={plan.scored}
+        timeZone={tz}
+        maxDailyMinutes={profile?.maxDailyMinutes ?? 240}
+      />
+
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-y border-border py-5 sm:grid-cols-4">
+        <div>
+          <dt className="text-xs text-muted-foreground">Planned this week</dt>
+          <dd className="mt-1 font-mono text-2xl font-semibold tabular-nums">{formatDuration(weekPlanned)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Study time available</dt>
+          <dd className="mt-1 font-mono text-2xl font-semibold tabular-nums">{formatDuration(weekAvailable)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Open work, all deadlines</dt>
+          <dd className="mt-1 font-mono text-2xl font-semibold tabular-nums">{formatDuration(openWork)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Blocks you locked</dt>
+          <dd className="mt-1 font-mono text-2xl font-semibold tabular-nums">{pinnedCount}</dd>
+        </div>
+      </dl>
+
+      {plan.scored.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+          <p className="font-medium">Nothing to plan yet.</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+            Connect Canvas or add an assignment and Rushd will place it in your week.
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Link href="/integrations/canvas" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              Connect Canvas
+            </Link>
+            <Link href="/assignments" className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted">
+              Add manually
+            </Link>
           </div>
-        </section>
+        </div>
+      ) : (
+        <ScheduleAgenda days={days} dayOptions={dayOptions} />
+      )}
+
+      {deferredCount > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {deferredCount} assignment{deferredCount === 1 ? " is" : "s are"} due more than {LEAD_WINDOW_DAYS} days out.
+          Rushd will start placing {deferredCount === 1 ? "it" : "them"} as the deadline gets closer, so this week stays
+          focused.
+        </p>
       )}
 
       <WhatIfSimulator
@@ -194,6 +180,26 @@ export default async function PlanPage() {
       />
 
       <ForecastSection weeks={forecastWeeks} />
+
+      <details className="group rounded-xl border border-border p-5 text-sm">
+        <summary className="cursor-pointer list-none font-medium marker:hidden">
+          How Rushd built this plan
+          <span className="ml-2 text-muted-foreground group-open:hidden">Show</span>
+        </summary>
+        <ul className="mt-4 space-y-2 text-muted-foreground">
+          <li>Work is ranked by how soon it&apos;s due, priority, overdue status, and exam proximity. The top item gets the earliest open time.</li>
+          <li>
+            Blocks are about {formatDuration(profile?.preferredSessionMinutes ?? 60)} with a {DEFAULT_BREAK_MINUTES}-minute
+            break between them, and no day gets more than {formatDuration(profile?.maxDailyMinutes ?? 240)}.
+          </li>
+          <li>Big tasks are spread one block per day; extra blocks are added only when a deadline needs them.</li>
+          <li>Nothing is placed after its due time. Work due more than {LEAD_WINDOW_DAYS} days out waits until it&apos;s closer.</li>
+          <li>Blocks you lock or move stay exactly where you put them. Everything else is recalculated whenever your work changes.</li>
+        </ul>
+        <Link href="/how-rushd-thinks" className="mt-3 inline-block font-medium underline underline-offset-4">
+          The full scoring rules
+        </Link>
+      </details>
     </div>
   );
 }

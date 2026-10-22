@@ -71,7 +71,8 @@ export const OnboardingSchema = z.object({
         teacher: z.string().trim().max(80, "Teacher name is too long (max 80 characters).").optional(),
       }),
     )
-    .max(20, "Too many classes at once — add the rest after onboarding."),
+    .max(20, "Too many classes at once. Add the rest after onboarding."),
+  preferredSessionMinutes: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90)]).optional(),
 });
 
 export type OnboardingInput = z.infer<typeof OnboardingSchema>;

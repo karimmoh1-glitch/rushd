@@ -61,12 +61,17 @@ export function AssignmentDialog({
   classes,
   prefill,
   initialData,
+  managedByCanvas = false,
+  estimatedByRushd = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   classes: ClassOption[];
   prefill?: AssignmentPrefill;
   initialData?: AssignmentDialogInitialData;
+  /** Canvas owns title, class and due date for imported work. */
+  managedByCanvas?: boolean;
+  estimatedByRushd?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,6 +81,8 @@ export function AssignmentDialog({
           classes={classes}
           prefill={prefill}
           initialData={initialData}
+          managedByCanvas={managedByCanvas}
+          estimatedByRushd={estimatedByRushd}
           onDone={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -87,11 +94,15 @@ function AssignmentDialogForm({
   classes,
   prefill,
   initialData,
+  managedByCanvas,
+  estimatedByRushd,
   onDone,
 }: {
   classes: ClassOption[];
   prefill?: AssignmentPrefill;
   initialData?: AssignmentDialogInitialData;
+  managedByCanvas: boolean;
+  estimatedByRushd: boolean;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -152,7 +163,9 @@ function AssignmentDialogForm({
           {initialData ? "Edit assignment" : "Add an assignment"}
         </DialogTitle>
         <DialogDescription>
-          Rushd uses the due date, effort, and priority to build your plan.
+          {managedByCanvas
+            ? "Imported from Canvas. Title, class, and due date stay in sync with Canvas; your estimate, priority, status, and notes are yours."
+            : "Rushd uses the due date, effort, and priority to build your plan."}
         </DialogDescription>
       </DialogHeader>
 
@@ -166,13 +179,16 @@ function AssignmentDialogForm({
             placeholder="e.g. Lab report: acid-base titration"
             maxLength={160}
             required
-            autoFocus
+            autoFocus={!managedByCanvas}
+            readOnly={managedByCanvas}
+            aria-readonly={managedByCanvas || undefined}
+            className={managedByCanvas ? "bg-muted text-muted-foreground" : undefined}
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="assignment-class">Class</Label>
-          <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
+          <Select value={classId} onValueChange={(v) => v && setClassId(v)} disabled={managedByCanvas}>
             <SelectTrigger id="assignment-class" className="w-full">
               <SelectValue>
                 {(v: string) => classes.find((c) => c.id === v)?.name ?? "Choose a class"}
@@ -197,6 +213,9 @@ function AssignmentDialogForm({
               value={dueAt}
               onChange={(e) => setDueAt(e.target.value)}
               required
+              readOnly={managedByCanvas}
+              aria-readonly={managedByCanvas || undefined}
+              className={managedByCanvas ? "bg-muted text-muted-foreground" : undefined}
             />
           </div>
           <div className="space-y-2">
@@ -210,7 +229,13 @@ function AssignmentDialogForm({
               value={estimatedMinutes}
               onChange={(e) => setEstimatedMinutes(Number(e.target.value))}
               required
+              aria-describedby={estimatedByRushd ? "assignment-effort-hint" : undefined}
             />
+            {estimatedByRushd && (
+              <p id="assignment-effort-hint" className="text-xs text-muted-foreground">
+                Rushd&apos;s estimate from the assignment type and points. Change it if it&apos;s off.
+              </p>
+            )}
           </div>
         </div>
 

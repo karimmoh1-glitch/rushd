@@ -28,6 +28,7 @@ export function TodayPlanItem({
   scheduledMinutes,
   reasonCode,
   reasons,
+  timeLabel,
 }: {
   itemId: string;
   itemKind: "assignment" | "exam";
@@ -38,6 +39,8 @@ export function TodayPlanItem({
   scheduledMinutes: number;
   reasonCode: ReasonCode;
   reasons: string[];
+  /** e.g. "4:00 PM", when the block has a planned start time. */
+  timeLabel?: string;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -56,7 +59,7 @@ export function TodayPlanItem({
   function skip() {
     startTransition(async () => {
       await logPlanItemInteraction("skipped", itemId, itemKind);
-      toast.info("Noted — this helps Rushd learn what's actually a priority.");
+      toast.info("Noted. This helps Rushd learn what's actually a priority.");
     });
   }
 
@@ -83,6 +86,8 @@ export function TodayPlanItem({
             className="h-2 w-2 shrink-0 rounded-full"
             style={{ backgroundColor: classColor }}
           />
+          {timeLabel && <span className="font-mono tabular-nums text-foreground/80">{timeLabel}</span>}
+          {timeLabel && " · "}
           {className} · {formatDuration(scheduledMinutes)}
         </p>
       </div>

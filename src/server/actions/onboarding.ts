@@ -32,6 +32,7 @@ export async function completeOnboarding(
         timezone: data.timezone,
         goals: data.goals || null,
         primaryChallenge: data.primaryChallenge,
+        ...(data.preferredSessionMinutes ? { preferredSessionMinutes: data.preferredSessionMinutes } : {}),
       },
       update: {
         displayName: data.displayName,
@@ -40,6 +41,7 @@ export async function completeOnboarding(
         timezone: data.timezone,
         goals: data.goals || null,
         primaryChallenge: data.primaryChallenge,
+        ...(data.preferredSessionMinutes ? { preferredSessionMinutes: data.preferredSessionMinutes } : {}),
       },
     });
 

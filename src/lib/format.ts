@@ -1,3 +1,17 @@
+import {
+  calendarDaysBetween,
+  formatDateInZone,
+  formatTimeInZone,
+  localDateKey,
+  resolveTimeZone,
+} from "@/lib/time/zone";
+
+// Every date/time a student sees is rendered in THEIR timezone (Profile.timezone),
+// passed explicitly. Without it, server-rendered pages would show UTC (the
+// host's clock) and the client would re-render in the device zone — wrong
+// times and hydration mismatches. `timeZone` falls back to the runtime zone
+// only for callers that genuinely don't know it.
+
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
@@ -5,50 +19,33 @@ export function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
-export function formatDueDate(date: Date): string {
-  const now = new Date();
-  const isSameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
-
-  const time = date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  if (isSameDay) return `Today, ${time}`;
-
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  const isTomorrow =
-    date.getFullYear() === tomorrow.getFullYear() &&
-    date.getMonth() === tomorrow.getMonth() &&
-    date.getDate() === tomorrow.getDate();
-  if (isTomorrow) return `Tomorrow, ${time}`;
-
-  return date.toLocaleDateString(undefined, {
+export function formatDueDate(date: Date, timeZone?: string | null, now: Date = new Date()): string {
+  const tz = resolveTimeZone(timeZone);
+  const time = formatTimeInZone(date, tz);
+  const days = calendarDaysBetween(date, now, tz);
+  if (days === 0) return `Today, ${time}`;
+  if (days === 1) return `Tomorrow, ${time}`;
+  if (days === -1) return `Yesterday, ${time}`;
+  const sameYear = localDateKey(date, tz).slice(0, 4) === localDateKey(now, tz).slice(0, 4);
+  const day = formatDateInZone(date, tz, {
+    weekday: days > 1 && days < 7 ? "short" : undefined,
     month: "short",
     day: "numeric",
-    ...(date.getFullYear() !== now.getFullYear() && { year: "numeric" }),
-  }) + `, ${time}`;
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  return `${day}, ${time}`;
 }
 
-export function isOverdue(date: Date): boolean {
-  return date.getTime() < Date.now();
+export function isOverdue(date: Date, now: Date = new Date()): boolean {
+  return date.getTime() < now.getTime();
 }
 
-export function daysUntil(date: Date): number {
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfTarget = new Date(date);
-  startOfTarget.setHours(0, 0, 0, 0);
-  return Math.round((startOfTarget.getTime() - startOfToday.getTime()) / msPerDay);
+export function daysUntil(date: Date, timeZone?: string | null, now: Date = new Date()): number {
+  return calendarDaysBetween(date, now, timeZone);
 }
 
-export function formatDaysUntil(date: Date): string {
-  const days = daysUntil(date);
+export function formatDaysUntil(date: Date, timeZone?: string | null, now: Date = new Date()): string {
+  const days = daysUntil(date, timeZone, now);
   if (days < 0) return `${Math.abs(days)}d ago`;
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";

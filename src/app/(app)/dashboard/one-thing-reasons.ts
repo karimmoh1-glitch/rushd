@@ -21,8 +21,9 @@ export function buildOneThingReasons(
   allScored: ScoredItem[],
   estimateInfo: AdjustedEstimate,
   patterns: Pattern[],
+  timeZone?: string | null,
 ): string[] {
-  const reasons = explainScore(scored, now, allScored);
+  const reasons = explainScore(scored, now, allScored, timeZone);
 
   if (estimateInfo.adjusted) {
     const direction = estimateInfo.percentOff > 0 ? "longer" : "faster";

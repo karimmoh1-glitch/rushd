@@ -66,17 +66,32 @@ export async function updateAssignment(
 
   const existing = await db.assignment.findFirst({
     where: { id, userId: user.id },
-    select: { status: true },
+    select: {
+      status: true,
+      source: true,
+      title: true,
+      dueAt: true,
+      classId: true,
+      estimatedMinutes: true,
+      estimatedByRushd: true,
+    },
   });
   if (!existing) return { error: "Assignment not found." };
 
+  // Canvas owns title, due date, and course for imported work — the next sync
+  // would overwrite edits anyway, so they're kept as-is (the form shows them
+  // read-only). The student's own fields (estimate, priority, status, notes)
+  // are always theirs to change.
+  const fromCanvas = existing.source === "CANVAS";
   const result = await db.assignment.updateMany({
     where: { id, userId: user.id },
     data: {
-      classId: data.classId,
-      title: data.title,
-      dueAt: new Date(data.dueAt),
+      classId: fromCanvas ? existing.classId : data.classId,
+      title: fromCanvas ? existing.title : data.title,
+      dueAt: fromCanvas ? existing.dueAt : new Date(data.dueAt),
       estimatedMinutes: data.estimatedMinutes,
+      // Once the student sets their own estimate, syncs stop touching it.
+      estimatedByRushd: existing.estimatedByRushd && data.estimatedMinutes === existing.estimatedMinutes,
       priority: data.priority,
       status: data.status,
       notes: data.notes || null,
@@ -90,11 +105,13 @@ export async function updateAssignment(
 
   if (data.status === "COMPLETED" && existing.status !== "COMPLETED") {
     await logEvent(user.id, "assignment_completed", { assignmentId: id });
+    await db.scheduleBlock.deleteMany({ where: { userId: user.id, assignmentId: id } });
   }
   await regeneratePlanSnapshot(user.id);
 
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
+  revalidatePath("/plan");
   return { success: true };
 }
 
@@ -110,8 +127,8 @@ export async function setAssignmentStatus(
   });
   if (!existing) return { error: "Assignment not found." };
 
-  await db.assignment.update({
-    where: { id },
+  await db.assignment.updateMany({
+    where: { id, userId: user.id },
     data: {
       status,
       completedAt: status === "COMPLETED" ? new Date() : null,
@@ -120,11 +137,14 @@ export async function setAssignmentStatus(
 
   if (status === "COMPLETED" && existing.status !== "COMPLETED") {
     await logEvent(user.id, "assignment_completed", { assignmentId: id });
+    // Finished work doesn't need the study time the student pinned for it.
+    await db.scheduleBlock.deleteMany({ where: { userId: user.id, assignmentId: id } });
   }
   await regeneratePlanSnapshot(user.id);
 
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
+  revalidatePath("/plan");
   return { success: true };
 }
 
