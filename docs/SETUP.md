@@ -6,6 +6,20 @@ with a Neon Postgres database, at https://therushd.com. It already has
 `NEXT_PUBLIC_APP_URL`. Everything below is optional: each feature explains
 itself in the app and falls back gracefully until its keys are set.
 
+## Checklist, in order of impact
+
+- [ ] `ANTHROPIC_API_KEY`: turns on the tutor, quizzes, photo checks, and draft review (section 1)
+- [ ] `RESEND_API_KEY` + `EMAIL_FROM`: password resets, Sunday plan, streak reminders (section 4b)
+- [ ] Google Search Console + sitemap (section 5)
+- [ ] `YOUTUBE_API_KEY`: video picks (section 2)
+- [ ] Stripe test mode, then live (section 3)
+- [ ] Microsoft Entra app for Teams (section 4)
+- [ ] Make yourself an admin (section 7), then check /admin for the cron runs
+- [ ] Neon `dev` branch for local work (section 8)
+
+Already done: `DATABASE_URL`, `SESSION_SECRET`, `CANVAS_TOKEN_ENCRYPTION_KEY`,
+`NEXT_PUBLIC_APP_URL`, `CRON_SECRET`.
+
 ## How to add a key to production
 
 ```bash
