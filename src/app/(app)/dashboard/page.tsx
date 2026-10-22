@@ -14,6 +14,8 @@ import { buildEstimationProfile, adjustEstimate } from "@/lib/estimation/build-e
 import { buildPatterns } from "@/lib/patterns/build-patterns";
 import { logEvent } from "@/lib/analytics/log-event";
 import { cn } from "@/lib/utils";
+import { getMastery } from "@/lib/practice/load";
+import { nextReview } from "@/lib/practice/mastery";
 import { TodayPlanItem } from "./today-plan-item";
 import { NextUp } from "./next-up";
 import { WorkloadBars } from "./workload-bars";
@@ -59,7 +61,7 @@ export default async function DashboardPage() {
     class: { select: { name: true, color: true } },
   } as const;
 
-  const [classes, plan, overdue, upcoming, exams, overdueCount, dueThisWeek, sessionHistory, canvasConnection] =
+  const [classes, plan, overdue, upcoming, exams, overdueCount, dueThisWeek, sessionHistory, canvasConnection, mastery, lastCheck] =
     await Promise.all([
       db.class.findMany({
         where: { userId: user.id, archived: false },
@@ -103,8 +105,15 @@ export default async function DashboardPage() {
         where: { userId: user.id },
         select: { status: true },
       }),
+      getMastery(user.id, now),
+      db.assessment.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, topic: true, estimateLow: true, estimateHigh: true, createdAt: true },
+      }),
       logEvent(user.id, "dashboard_viewed"),
     ]);
+  const review = nextReview(mastery);
 
   const tz = plan.timeZone;
   const today = dateKey(now, tz);
@@ -316,6 +325,49 @@ export default async function DashboardPage() {
         )}
       </section>
 
+      <section aria-labelledby="learning-heading">
+        <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+          <h2 id="learning-heading" className="text-base font-semibold">
+            Learning
+          </h2>
+          <Link href="/mastery" className="text-sm text-muted-foreground hover:text-foreground">
+            Mastery
+          </Link>
+        </div>
+        {review ? (
+          <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Review next: </span>
+                <span className="font-medium">{review.topicLabel}</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                About {review.estimate}% from {review.evidenceCount} check{review.evidenceCount === 1 ? "" : "s"} ({review.confidence} confidence)
+                {lastCheck ? ` · last check ${formatDateInZone(lastCheck.createdAt, tz, { month: "short", day: "numeric" })}` : ""}
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Link href={`/tutor?ask=${encodeURIComponent(`Help me review ${review.topicLabel}. Start with a quick diagnostic question.`)}`} className={buttonVariants({ variant: "outline" })}>
+                Review with tutor
+              </Link>
+              <Link href="/practice" className={buttonVariants({ variant: "ghost" })}>
+                Check again
+              </Link>
+            </div>
+          </div>
+        ) : lastCheck ? (
+          <p className="py-4 text-sm text-muted-foreground">
+            Your last check ({lastCheck.topic}, {Math.round(lastCheck.estimateLow)}–{Math.round(lastCheck.estimateHigh)}%) didn&apos;t flag anything to review.{" "}
+            <Link href="/practice" className="font-medium text-foreground underline underline-offset-4">Check something new</Link>
+          </p>
+        ) : (
+          <p className="py-4 text-sm text-muted-foreground">
+            Snap a photo of practice problems and Rushd shows what you&apos;ve got down and what to study next.{" "}
+            <Link href="/practice" className="font-medium text-foreground underline underline-offset-4">Check my work</Link>
+          </p>
+        )}
+      </section>
+
       {hasWork && !noAvailability && (
         <section aria-labelledby="week-heading">
           <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
@@ -362,7 +414,7 @@ export default async function DashboardPage() {
         {classes.length === 0 && (
           <p className="text-sm text-muted-foreground">
             Add a class first on{" "}
-            <Link href="/classes" className="underline underline-offset-4">
+            <Link href="/courses" className="underline underline-offset-4">
               Classes
             </Link>
             , or connect Canvas to import them.

@@ -52,6 +52,10 @@ model User {
   courseMaterials  CourseMaterial[]
   tutorChats       TutorConversation[]
   draftReviews     DraftReview[]
+  subscription     Subscription?
+  aiUsage          AiUsage[]
+  assessments      Assessment[]
+  masteryEvidence  MasteryEvidence[]
 
   @@index([createdAt])
 }
@@ -71,6 +75,11 @@ model Profile {
   // student's capacity beyond what they set here.
   preferredSessionMinutes Int                @default(60) // target length of one study block
   maxDailyMinutes         Int                @default(240) // ceiling on planned study per day
+  // Tutor personalization: the student's own words plus a few structured
+  // choices (validated by TutorPreferencesSchema). Fed to the tutor and to
+  // feedback below the system rules, never above them.
+  tutorInstructions       String?
+  tutorPreferences        Json?
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
 
@@ -640,4 +649,155 @@ model DraftReview {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, assignmentId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Plans, billing, and AI cost control
+// ---------------------------------------------------------------------------
+
+enum PlanTier {
+  FREE
+  PLUS
+  PRO
+}
+
+// Mirrors the student's Stripe subscription. Written only by the verified
+// webhook handler; entitlements are derived from it on the server.
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  plan                 PlanTier  @default(FREE)
+  status               String    @default("none") // Stripe status: active, trialing, past_due, canceled, ...
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Processed Stripe webhook events, for idempotency.
+model StripeEvent {
+  id          String   @id // Stripe's event id
+  type        String
+  processedAt DateTime @default(now())
+}
+
+// One row per AI request: reserved before the call (with a bounded cost
+// estimate), settled after it with the provider-reported token usage. Never
+// stores prompts or content.
+model AiUsage {
+  id                  String    @id @default(cuid())
+  userId              String?
+  feature             String // tutor_message | photo_assessment | draft_review | quick_add | screenshot_import
+  model               String
+  status              String // reserved | completed | failed
+  estimatedCostMicros Int // reservation, in millionths of a dollar
+  costMicros          Int? // computed from provider-reported usage after completion
+  inputTokens         Int?
+  outputTokens        Int?
+  cacheReadTokens     Int?
+  cacheWriteTokens    Int?
+  errorType           String?
+  createdAt           DateTime  @default(now())
+  completedAt         DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
+
+// Requests turned away by quotas or the circuit breaker (no provider call made).
+model AiRejection {
+  id        String   @id @default(cuid())
+  userId    String?
+  feature   String
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Operator-adjustable settings (global AI budget, kill switch).
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Practice, assessments, and mastery
+// ---------------------------------------------------------------------------
+
+model Assessment {
+  id           String   @id @default(cuid())
+  userId       String
+  classId      String?
+  source       String // photo | text
+  subject      String
+  topic        String
+  topicKey     String
+  itemsAssessed Int
+  estimateLow  Float // 0-100
+  estimateHigh Float // 0-100
+  confidence   String // low | medium | high
+  result       Json // validated AssessmentResult (summary, skills, gaps, next steps, practice, resources)
+  createdAt    DateTime @default(now())
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  evidence MasteryEvidence[]
+
+  @@index([userId, createdAt])
+}
+
+// Topic-level evidence. Mastery is computed from these rows on read
+// (recency-weighted), so a single result never fixes a topic's level.
+model MasteryEvidence {
+  id           String   @id @default(cuid())
+  userId       String
+  classId      String?
+  topicKey     String
+  topicLabel   String
+  score        Float // 0-1 for this piece of evidence
+  weight       Float // how much evidence it carries (e.g. gradable items)
+  source       String // assessment | practice
+  assessmentId String?
+  createdAt    DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessment Assessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, topicKey, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Growth
+// ---------------------------------------------------------------------------
+
+model SchoolInquiry {
+  id           String   @id @default(cuid())
+  name         String
+  email        String
+  role         String
+  organization String
+  studentCount String?
+  interest     String // pilot | information | partnership
+  message      String
+  status       String   @default("new")
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Anonymous, cookieless page counts for public pages (no identifiers).
+model PageView {
+  day   DateTime @db.Date
+  path  String
+  count Int      @default(0)
+
+  @@id([day, path])
 }

@@ -5,7 +5,7 @@ import { ClassCard } from "./class-card";
 import { AddClassButton } from "./add-class-button";
 
 export const metadata: Metadata = {
-  title: "Classes",
+  title: "Courses",
 };
 
 export default async function ClassesPage() {
@@ -33,9 +33,9 @@ export default async function ClassesPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Classes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Courses</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            The classes your assignments and exams belong to.
+            Your courses, with their assignments, materials, and rubrics.
           </p>
         </div>
         <AddClassButton />
@@ -43,9 +43,9 @@ export default async function ClassesPage() {
 
       {classes.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-muted-foreground">No classes yet.</p>
+          <p className="text-muted-foreground">No courses yet.</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Add your first class to start tracking assignments and exams.
+            Add a course, or connect Canvas to import yours.
           </p>
         </div>
       ) : (

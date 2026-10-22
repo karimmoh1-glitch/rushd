@@ -38,7 +38,7 @@ export function DeleteAccount() {
           <DialogHeader>
             <DialogTitle>Delete your account</DialogTitle>
             <DialogDescription>
-              This permanently deletes your classes, assignments, exams,
+              This permanently deletes your courses, assignments, exams,
               plans, and feedback. This cannot be undone.
             </DialogDescription>
           </DialogHeader>

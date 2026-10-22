@@ -163,7 +163,7 @@ function Connected({ view, timeZone }: { view: CanvasConnectionView; timeZone: s
             Courses to sync
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Each course syncs into a Rushd class with the same name. Unchecking a course stops syncing it; anything
+            Each course syncs into a Rushd course with the same name. Unchecking a course stops syncing it; anything
             already imported stays.
           </p>
         </div>

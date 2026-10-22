@@ -36,6 +36,10 @@ export async function signup(
     return { message: "Too many attempts. Try again in a few minutes." };
   }
 
+  if (formData.get("ageConfirmed") !== "on") {
+    return { message: "Please confirm you're 13 or older and agree to the Terms and Privacy Policy." };
+  }
+
   const parsed = SignupSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),

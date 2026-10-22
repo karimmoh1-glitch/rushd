@@ -92,7 +92,7 @@ function ClassDialogForm({
         toast.error(result.error);
         return;
       }
-      toast.success(initialData ? "Class updated." : "Class added.");
+      toast.success(initialData ? "Course updated." : "Course added.");
       onDone();
     });
   }
@@ -100,7 +100,7 @@ function ClassDialogForm({
   return (
     <form onSubmit={handleSubmit}>
       <DialogHeader>
-        <DialogTitle>{initialData ? "Edit class" : "Add a class"}</DialogTitle>
+        <DialogTitle>{initialData ? "Edit course" : "Add a course"}</DialogTitle>
         <DialogDescription>
           Name, color, and priority are used to build your plan.
         </DialogDescription>
@@ -184,7 +184,7 @@ function ClassDialogForm({
 
       <DialogFooter>
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : initialData ? "Save changes" : "Add class"}
+          {pending ? "Saving…" : initialData ? "Save changes" : "Add course"}
         </Button>
       </DialogFooter>
     </form>

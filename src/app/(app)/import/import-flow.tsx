@@ -1,5 +1,6 @@
 "use client";
 
+import { compressImage, ImagePrepError } from "@/lib/upload/compress";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Upload, X, ImageIcon } from "lucide-react";
@@ -58,10 +59,23 @@ export function ImportFlow({ classes }: { classes: ClassOption[] }) {
     setMessageIndex(0);
     setStage({ name: "processing" });
 
-    const formData = new FormData();
-    files.forEach((f) => formData.append("images", f));
-
     startTransition(async () => {
+      // Phone screenshots are often several MB; shrink them before upload so
+      // the request stays under the server's body limit.
+      const formData = new FormData();
+      try {
+        const prepared = await Promise.all(files.map((f) => compressImage(f, 2200)));
+        if (prepared.reduce((n, f) => n + f.size, 0) > 3_800_000) {
+          setStage({ name: "upload" });
+          toast.error("Those images are too large together. Upload fewer at a time.");
+          return;
+        }
+        prepared.forEach((f) => formData.append("images", f));
+      } catch (error) {
+        setStage({ name: "upload" });
+        toast.error(error instanceof ImagePrepError ? error.message : "Couldn't prepare those images.");
+        return;
+      }
       const result = await extractFromScreenshots(formData);
 
       if (result.status === "error") {
@@ -128,7 +142,7 @@ export function ImportFlow({ classes }: { classes: ClassOption[] }) {
     return (
       <div className="rounded-lg border border-dashed border-border py-16 text-center">
         <p className="text-muted-foreground">Add a class first.</p>
-        <Link href="/classes" className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4">
+        <Link href="/courses" className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4">
           Go to Classes
         </Link>
       </div>

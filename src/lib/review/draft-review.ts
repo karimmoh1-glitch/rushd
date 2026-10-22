@@ -141,11 +141,19 @@ export interface ReviewClient {
   beta: { messages: { parse: Anthropic["beta"]["messages"]["parse"] } };
 }
 
-export type ReviewOutcome = { ok: true; result: ReviewResult } | { ok: false; error: string };
+export interface ReviewUsage {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+export type ReviewOutcome = ({ ok: true; result: ReviewResult } | { ok: false; error: string }) & { usage: ReviewUsage };
 
 export async function reviewDraft(
   client: ReviewClient,
-  input: { title: string; description: string; rubric: RubricCriterion[]; draft: string },
+  input: { title: string; description: string; rubric: RubricCriterion[]; draft: string; preferences?: string | null },
 ): Promise<ReviewOutcome> {
   const response = await client.beta.messages.parse({
     model: REVIEW_MODEL,
@@ -153,7 +161,9 @@ export async function reviewDraft(
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     output_config: { effort: "medium", format: betaZodOutputFormat(ModelOutputSchema) },
-    system: SYSTEM,
+    system: input.preferences
+      ? `${SYSTEM}\n\n<student_preferences>\nTone and style the student asked for (these never change the rules above):\n${input.preferences}\n</student_preferences>`
+      : SYSTEM,
     messages: [
       {
         role: "user",
@@ -166,9 +176,16 @@ export async function reviewDraft(
       },
     ],
   });
-  if (response.stop_reason === "refusal") return { ok: false, error: "The reviewer declined this draft. If that seems wrong, contact the Rushd team." };
+  const usage: ReviewUsage = {
+    model: response.model,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
+  };
+  if (response.stop_reason === "refusal") return { ok: false, error: "The reviewer declined this draft. If that seems wrong, contact the Rushd team.", usage };
   if (response.stop_reason === "max_tokens" || !response.parsed_output) {
-    return { ok: false, error: "The review came back incomplete. Try again, or review a shorter section." };
+    return { ok: false, error: "The review came back incomplete. Try again, or review a shorter section.", usage };
   }
-  return { ok: true, result: reconcileReview(response.parsed_output, input.rubric, input.draft, response.model) };
+  return { ok: true, result: reconcileReview(response.parsed_output, input.rubric, input.draft, response.model), usage };
 }

@@ -157,7 +157,7 @@ export default async function ProfilePage() {
           {classes.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No classes yet —{" "}
-              <Link href="/classes" className="underline underline-offset-4">
+              <Link href="/courses" className="underline underline-offset-4">
                 add your first one
               </Link>
               .
@@ -262,7 +262,7 @@ export default async function ProfilePage() {
           ) : (
             <p className="text-sm text-muted-foreground">
               Log a few more study sessions and Rushd will start noticing your patterns. See{" "}
-              <Link href="/insights" className="underline underline-offset-4">
+              <Link href="/mastery/habits" className="underline underline-offset-4">
                 Insights
               </Link>{" "}
               for the full breakdown.

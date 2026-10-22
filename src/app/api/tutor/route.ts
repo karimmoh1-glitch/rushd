@@ -7,7 +7,9 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { logEvent } from "@/lib/analytics/log-event";
 import { resolveTimeZone, formatDateInZone } from "@/lib/time/zone";
-import { runTutorTurn, tutorClient, type TutorEvent, type TutorMode } from "@/lib/tutor/agent";
+import { newMeter, runTutorTurn, tutorClient, type TutorEvent, type TutorMode } from "@/lib/tutor/agent";
+import { compactPreferences, readPreferences } from "@/lib/tutor/preferences";
+import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
 
 export const maxDuration = 60;
 
@@ -20,8 +22,8 @@ const BodySchema = z.object({
 });
 
 const HISTORY_MESSAGES = 20;
-const HOURLY_LIMIT = 20;
-const DAILY_LIMIT = 80;
+// Burst protection on top of the plan quotas enforced by reserveAi.
+const HOURLY_LIMIT = 30;
 
 function json(status: number, body: unknown) {
   return Response.json(body, { status });
@@ -57,10 +59,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
 
   const hourly = await checkRateLimit(`tutor-hour:${user.id}`, { max: HOURLY_LIMIT, windowMs: 60 * 60 * 1000 });
-  const daily = hourly.allowed ? await checkRateLimit(`tutor-day:${user.id}`, { max: DAILY_LIMIT, windowMs: 24 * 60 * 60 * 1000 }) : hourly;
-  if (!hourly.allowed || !daily.allowed) {
-    return json(429, { error: "You've reached the tutor's limit for now. It resets within the hour (or by tomorrow for the daily limit)." });
-  }
+  if (!hourly.allowed) return json(429, { error: "That's a lot of messages in an hour. Take a short break and try again." });
 
   // Resolve the conversation, re-checking every id against this user.
   let conversation = input.conversationId
@@ -81,7 +80,7 @@ export async function POST(request: Request) {
       classId = a.classId;
     } else if (input.classId) {
       const c = await db.class.findFirst({ where: { id: input.classId, userId: user.id }, select: { id: true } });
-      if (!c) return json(404, { error: "Class not found." });
+      if (!c) return json(404, { error: "Course not found." });
       classId = c.id;
     }
     conversation = await db.tutorConversation.create({
@@ -92,7 +91,10 @@ export async function POST(request: Request) {
     await db.tutorConversation.update({ where: { id: conversation.id }, data: { mode: input.mode } });
   }
 
-  const [history, cls, assignment] = await Promise.all([
+  const reservation = await reserveAi(user.id, "tutor_message");
+  if (!reservation.ok) return json(429, { error: reservation.message, reason: reservation.reason });
+
+  const [history, cls, assignment, profile] = await Promise.all([
     db.tutorMessage.findMany({
       where: { conversationId: conversation.id },
       orderBy: { createdAt: "desc" },
@@ -103,7 +105,9 @@ export async function POST(request: Request) {
     conversation.assignmentId
       ? db.assignment.findFirst({ where: { id: conversation.assignmentId, userId: user.id }, select: { title: true } })
       : null,
+    db.profile.findUnique({ where: { userId: user.id }, select: { tutorInstructions: true, tutorPreferences: true } }),
   ]);
+  const preferences = compactPreferences(readPreferences(profile?.tutorPreferences), profile?.tutorInstructions);
   const timeZone = resolveTimeZone(user.profile?.timezone);
   const now = new Date();
   const conversationId = conversation.id;
@@ -114,6 +118,7 @@ export async function POST(request: Request) {
     async start(controller) {
       const send = (event: TutorEvent | Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       send({ type: "start", conversationId });
+      const meter = newMeter();
       try {
         const result = await runTutorTurn({
           client: tutorClient(),
@@ -122,6 +127,7 @@ export async function POST(request: Request) {
             className: cls?.name ?? null,
             assignmentTitle: assignment?.title ?? null,
             mode: input.mode as TutorMode,
+            preferences,
             todayLabel: formatDateInZone(now, timeZone, { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
           },
           history: history
@@ -131,7 +137,9 @@ export async function POST(request: Request) {
           userText: input.message,
           onEvent: send,
           signal: request.signal,
+          meter,
         });
+        await settleAi(reservation.usageId, meter.model, meter);
         const [, saved] = await db.$transaction([
           db.tutorMessage.create({ data: { conversationId, role: "user", content: input.message } }),
           db.tutorMessage.create({
@@ -140,17 +148,13 @@ export async function POST(request: Request) {
           }),
           db.tutorConversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
         ]);
-        // Usage only, never content.
-        await logEvent(user.id, "tutor_message", {
-          inputTokens: result.usage.inputTokens,
-          outputTokens: result.usage.outputTokens,
-          rounds: result.usage.rounds,
-          sources: result.sources.length,
-          refused: result.refused,
-        });
+        // Counts only, never content.
+        await logEvent(user.id, "tutor_message", { rounds: result.usage.rounds, sources: result.sources.length, refused: result.refused });
         send({ type: "done", conversationId, message: { id: saved.id, content: result.text, sources: result.sources } });
       } catch (error) {
         console.error("[tutor] turn failed", (error as Error)?.name ?? typeof error);
+        const billed = meter.inputTokens + meter.outputTokens > 0;
+        await failAi(reservation.usageId, (error as Error)?.name ?? "error", meter.model, billed ? meter : undefined).catch(() => {});
         send({ type: "error", error: providerError(error) });
       } finally {
         controller.close();

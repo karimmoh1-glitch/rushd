@@ -12,6 +12,8 @@ import { anthropic } from "@/lib/ai/client";
 import { syncCourseContent, type ContentSyncSummary } from "@/lib/canvas/content-sync";
 import { getAssignmentMaterial } from "@/lib/course/retrieval";
 import { MAX_DRAFT_CHARS, MIN_DRAFT_CHARS, reviewDraft } from "@/lib/review/draft-review";
+import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
+import { compactPreferences, readPreferences } from "@/lib/tutor/preferences";
 
 type Result<T = undefined> = ({ success: true } & (T extends undefined ? object : { value: T })) | { error: string };
 
@@ -26,7 +28,7 @@ export async function syncCourseContentAction(classId: string): Promise<Result<C
   const result = await syncCourseContent(user.id, id.data);
   if (!result.ok) return { error: result.error };
   await logEvent(user.id, "course_content_synced", { ...result.value, notes: result.value.notes.length });
-  revalidatePath(`/classes/${id.data}`);
+  revalidatePath(`/courses/${id.data}`);
   return { success: true, value: result.value };
 }
 
@@ -56,8 +58,9 @@ export async function createDraftReview(input: z.input<typeof ReviewInput>): Pro
     return { error: "This assignment has no rubric from Canvas, so Rushd can't score against one. It won't invent criteria." };
   }
 
-  const rate = await checkRateLimit(`review-day:${user.id}`, { max: 15, windowMs: 24 * 60 * 60 * 1000 });
-  if (!rate.allowed) return { error: "You've reached today's review limit. Try again tomorrow." };
+  const reservation = await reserveAi(user.id, "draft_review");
+  if (!reservation.ok) return { error: reservation.message };
+  const profile = await db.profile.findUnique({ where: { userId: user.id }, select: { tutorInstructions: true, tutorPreferences: true } });
 
   try {
     const outcome = await reviewDraft(anthropic(), {
@@ -65,8 +68,13 @@ export async function createDraftReview(input: z.input<typeof ReviewInput>): Pro
       description: material.body,
       rubric: material.rubric,
       draft: parsed.data.draft,
+      preferences: compactPreferences(readPreferences(profile?.tutorPreferences), profile?.tutorInstructions),
     });
-    if (!outcome.ok) return { error: outcome.error };
+    if (!outcome.ok) {
+      await failAi(reservation.usageId, "incomplete", outcome.usage.model, outcome.usage);
+      return { error: outcome.error };
+    }
+    await settleAi(reservation.usageId, outcome.usage.model, outcome.usage);
     const count = await db.draftReview.count({ where: { userId: user.id, assignmentId: assignment.id } });
     const saved = await db.draftReview.create({
       data: {
@@ -83,6 +91,7 @@ export async function createDraftReview(input: z.input<typeof ReviewInput>): Pro
     return { success: true, value: { id: saved.id } };
   } catch (error) {
     console.error("[review] failed", (error as Error)?.name ?? typeof error);
+    await failAi(reservation.usageId, (error as Error)?.name ?? "error").catch(() => {});
     return { error: "The review couldn't be completed right now. Try again shortly." };
   }
 }

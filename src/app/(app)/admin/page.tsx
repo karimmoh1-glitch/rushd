@@ -252,6 +252,10 @@ export default async function AdminPage() {
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
+      <p className="flex gap-4 text-sm">
+        <a href="/admin/ai" className="underline underline-offset-4">AI usage and cost</a>
+        <a href="/admin/growth" className="underline underline-offset-4">Growth and school inquiries</a>
+      </p>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((s) => (

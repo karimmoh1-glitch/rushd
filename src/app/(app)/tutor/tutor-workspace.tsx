@@ -130,7 +130,9 @@ export function TutorWorkspace({
   classes,
   assignments,
   prefill,
+  initialDraft = "",
 }: {
+  initialDraft?: string;
   enabled: boolean;
   conversations: ConversationSummary[];
   active: ConversationSummary | null;
@@ -145,7 +147,7 @@ export function TutorWorkspace({
   const [classId, setClassId] = useState<string | null>(active?.classId ?? prefill.classId);
   const [assignmentId, setAssignmentId] = useState<string | null>(active?.assignmentId ?? prefill.assignmentId);
   const [mode, setMode] = useState<Mode>((active?.mode as Mode) ?? (prefill.assignmentId ? "plan" : "explain"));
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialDraft);
   const [streaming, setStreaming] = useState<{ text: string; status: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, startDelete] = useTransition();
@@ -296,13 +298,13 @@ export function TutorWorkspace({
           {locked ? (
             <p className="text-sm">
               <span className="text-muted-foreground">About: </span>
-              {activeClass?.name ?? "All classes"}
+              {activeClass?.name ?? "All courses"}
               {activeAssignment && ` · ${activeAssignment.title}`}
             </p>
           ) : (
             <div className="flex flex-wrap gap-3">
               <label className="space-y-1 text-xs text-muted-foreground">
-                Class
+                Course
                 <select
                   value={classId ?? ""}
                   onChange={(e) => {
@@ -311,7 +313,7 @@ export function TutorWorkspace({
                   }}
                   className="block h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
                 >
-                  <option value="">All classes</option>
+                  <option value="">All courses</option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -426,7 +428,7 @@ export function TutorWorkspace({
         ) : (
           <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
             The tutor isn&apos;t available on this server yet. Your synced course content is still browsable from each
-            class page.
+            course page.
           </p>
         )}
       </section>

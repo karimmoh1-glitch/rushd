@@ -67,17 +67,22 @@ export default async function AssignmentsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Assignments</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Everything due, ordered by deadline.
+            Everything due, ordered by deadline. Open one for its instructions, rubric, and draft feedback.
           </p>
+          <nav aria-label="Work" className="mt-3 flex gap-4 text-sm">
+            <span aria-current="page" className="font-medium">Assignments</span>
+            <Link href="/exams" className="text-muted-foreground hover:text-foreground">Exams</Link>
+            <Link href="/import" className="text-muted-foreground hover:text-foreground">Import from a screenshot</Link>
+          </nav>
         </div>
         <AddAssignmentButton classes={classes} />
       </div>
 
       {classes.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-muted-foreground">Add a class first.</p>
+          <p className="text-muted-foreground">Add a course first.</p>
           <Link
-            href="/classes"
+            href="/courses"
             className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4"
           >
             Go to Classes

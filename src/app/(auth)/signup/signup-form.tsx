@@ -87,6 +87,15 @@ export function SignupForm() {
         </button>
       )}
 
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="ageConfirmed" required className="mt-0.5 h-4 w-4 accent-[var(--primary)]" />
+        <span className="text-muted-foreground">
+          I&apos;m 13 or older and agree to the{" "}
+          <Link href="/terms" className="text-foreground underline underline-offset-4">Terms</Link> and{" "}
+          <Link href="/privacy" className="text-foreground underline underline-offset-4">Privacy Policy</Link>.
+        </span>
+      </label>
+
       {state?.message && (
         <p role="alert" className="text-sm text-destructive">
           {state.message}

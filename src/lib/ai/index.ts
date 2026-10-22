@@ -6,4 +6,4 @@ import type { AIProvider } from "./provider";
  * (and adding the new implementation file) — see docs/AI_ARCHITECTURE.md. */
 export const aiProvider: AIProvider = anthropicProvider;
 
-export type { AIProvider, ExtractedAssignment, ImageInput, Confidence } from "./provider";
+export type { AIProvider, CallUsage, ExtractedAssignment, ImageInput, Confidence } from "./provider";

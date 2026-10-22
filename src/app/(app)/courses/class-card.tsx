@@ -38,7 +38,7 @@ export function ClassCard({ data }: { data: ClassCardData }) {
     startTransition(async () => {
       const result = await setClassArchived(data.id, !data.archived);
       if ("error" in result) toast.error(result.error);
-      else toast.success(data.archived ? "Class restored." : "Class archived.");
+      else toast.success(data.archived ? "Course restored." : "Course archived.");
     });
   }
 
@@ -46,7 +46,7 @@ export function ClassCard({ data }: { data: ClassCardData }) {
     startTransition(async () => {
       const result = await deleteClass(data.id);
       if ("error" in result) toast.error(result.error);
-      else toast.success("Class deleted.");
+      else toast.success("Course deleted.");
     });
   }
 
@@ -61,7 +61,7 @@ export function ClassCard({ data }: { data: ClassCardData }) {
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <Link href={`/classes/${data.id}`} className="truncate font-medium underline-offset-4 hover:underline">
+              <Link href={`/courses/${data.id}`} className="truncate font-medium underline-offset-4 hover:underline">
                 {data.name}
               </Link>
               {data.priority === "HIGH" && (

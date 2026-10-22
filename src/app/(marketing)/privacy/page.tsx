@@ -28,7 +28,7 @@ export default function PrivacyPage() {
               always optional.
             </li>
             <li>
-              Academic data you enter: classes, assignments, exams, and study
+              Academic data you enter: courses, assignments, exams, and study
               availability. This is what the planning engine runs on.
             </li>
             <li>
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
               If you sync a course&apos;s content, Rushd also stores what your teacher published for students in
               that course: module names and item titles, page text, assignment descriptions and rubrics, and
               announcements from the last four months. It&apos;s replaced on each sync and deleted with your
-              account or class.
+              account or course.
             </li>
             <li>
               Rushd never writes anything to Canvas. Syncing happens when you ask for it.
@@ -85,19 +85,24 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section>
-          <h2 className="font-heading text-lg font-semibold">Tutor and draft feedback</h2>
+        <section id="ai" className="scroll-mt-24">
+          <h2 className="font-heading text-lg font-semibold">Tutor, practice checks, and draft feedback</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
               These features use Anthropic&apos;s Claude models. When you use them, your message, the course content
-              Rushd retrieves to answer it, and any draft you paste are sent to Anthropic to generate the reply.
+              Rushd retrieves to answer it, any draft you paste, practice photos or typed answers, and the tutor
+              preferences you set in Settings are sent to Anthropic to generate the reply.
               Anthropic processes this data to provide the service; see Anthropic&apos;s own privacy terms for how it
               handles API data.
             </li>
             <li>
               Rushd saves your tutor conversations and the drafts you submit for feedback so you can return to them
-              and compare revisions. You can delete any conversation or review, or all conversations at once, from
-              the Tutor and assignment pages.
+              and compare revisions. Practice photos are not saved; only each check&apos;s results and the topic
+              evidence behind your mastery estimates are. You can delete any conversation, review, or check.
+            </li>
+            <li>
+              Practice checks can include YouTube video suggestions. When configured, Rushd asks YouTube&apos;s API
+              for videos on the concept (sending only the concept name, never anything about you).
             </li>
             <li>
               Usage records for these features contain counts only (for example, tokens used), never the content of
@@ -113,10 +118,31 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-heading text-lg font-semibold">What we don&apos;t collect</h2>
           <p className="mt-2">
-            We don&apos;t run ad trackers. We don&apos;t buy or sell student
-            data. We don&apos;t ask for anything beyond what the product
-            needs to function: no phone number, no address, no payment
-            information (Rushd is free).
+            We don&apos;t run ad trackers or third-party analytics. We don&apos;t
+            buy or sell student data. We don&apos;t ask for anything beyond what
+            the product needs: no phone number and no address. Rushd is for
+            people 13 and older.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-heading text-lg font-semibold">Payments</h2>
+          <p className="mt-2">
+            If you buy a plan, Stripe processes the payment. Rushd never sees
+            or stores your card number; it stores your Stripe customer id,
+            your plan, and its status so it can apply your allowances.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-heading text-lg font-semibold">Usage measurement</h2>
+          <p className="mt-2">
+            Public pages are counted without cookies or identifiers (just the
+            page and the day). Inside the app, Rushd records product events
+            (for example, that a practice check was completed) and the amount
+            of AI each account uses, so it can enforce plan limits and see
+            whether Rushd helps. These records never contain your messages,
+            drafts, photos, or Canvas credentials.
           </p>
         </section>
 
@@ -145,7 +171,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-heading text-lg font-semibold">Your control over your data</h2>
           <p className="mt-2">
-            You can edit or delete any class, assignment, or exam at any
+            You can edit or delete any course, assignment, or exam at any
             time. You can delete your entire account from Settings — this
             permanently removes your account and everything tied to it,
             immediately, no waiting period.

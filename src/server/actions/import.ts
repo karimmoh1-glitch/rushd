@@ -6,6 +6,8 @@ import { aiEnabled } from "@/lib/env";
 import { aiProvider } from "@/lib/ai";
 import type { ExtractedAssignment } from "@/lib/ai/provider";
 import { validateImageFiles } from "@/lib/upload/validate-image";
+import type { CallUsage } from "@/lib/ai";
+import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 import { assertOwnsClass } from "@/server/actions/class-ownership";
@@ -38,11 +40,12 @@ export async function extractFromScreenshots(formData: FormData): Promise<Extrac
     select: { id: true, name: true },
   });
 
-  const result = await aiProvider.parseAssignmentImages(
-    validation.images,
-    classes,
-    new Date(),
-  );
+  const reservation = await reserveAi(user.id, "screenshot_import");
+  if (!reservation.ok) return { status: "error", error: reservation.message };
+  let usage: CallUsage | undefined;
+  const result = await aiProvider.parseAssignmentImages(validation.images, classes, new Date(), (u) => (usage = u));
+  if (usage) await settleAi(reservation.usageId, usage.model, usage);
+  else await failAi(reservation.usageId, "no_response");
 
   if (!result) return { status: "unavailable" };
 

@@ -10,7 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SyncContentButton } from "./sync-content-button";
 
-export const metadata: Metadata = { title: "Class" };
+export const metadata: Metadata = { title: "Course" };
 export const maxDuration = 60;
 
 const ITEM_LABEL: Record<string, string> = {
@@ -99,8 +99,8 @@ export default async function ClassPage({
   return (
     <div className="space-y-10">
       <header className="space-y-3">
-        <Link href="/classes" className="text-sm text-muted-foreground hover:text-foreground">
-          Classes
+        <Link href="/courses" className="text-sm text-muted-foreground hover:text-foreground">
+          Courses
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -157,7 +157,7 @@ export default async function ClassPage({
           <ul className="divide-y divide-border">
             {hits.map((h) => (
               <li key={h.id} className="py-3">
-                <Link href={`/classes/${cls.id}/material/${h.id}`} className="font-medium underline-offset-4 hover:underline">
+                <Link href={`/courses/${cls.id}/material/${h.id}`} className="font-medium underline-offset-4 hover:underline">
                   {h.title}
                 </Link>
                 <p className="mt-0.5 text-xs text-muted-foreground">{h.kind.replace("_", " ").toLowerCase()}</p>
@@ -183,7 +183,7 @@ export default async function ClassPage({
           <ul className="divide-y divide-border">
             {announcements.map((a) => (
               <li key={a.id} className="flex items-baseline justify-between gap-3 py-2.5">
-                <Link href={`/classes/${cls.id}/material/${a.id}`} className="truncate text-sm underline-offset-4 hover:underline">
+                <Link href={`/courses/${cls.id}/material/${a.id}`} className="truncate text-sm underline-offset-4 hover:underline">
                   {a.title}
                 </Link>
                 {a.postedAt && <span className="shrink-0 text-xs text-muted-foreground">{fmt(a.postedAt)}</span>}
@@ -218,7 +218,7 @@ export default async function ClassPage({
                       <li key={item.id} className="flex items-baseline gap-3 py-1 text-sm" style={{ paddingLeft: `${(item.indent ?? 0) * 16}px` }}>
                         <span className="w-20 shrink-0 text-xs text-muted-foreground">{ITEM_LABEL[item.itemType ?? ""] ?? item.itemType}</span>
                         {reader ? (
-                          <Link href={`/classes/${cls.id}/material/${reader}`} className="min-w-0 truncate underline-offset-4 hover:underline">
+                          <Link href={`/courses/${cls.id}/material/${reader}`} className="min-w-0 truncate underline-offset-4 hover:underline">
                             {item.title}
                           </Link>
                         ) : item.url ? (
@@ -248,7 +248,7 @@ export default async function ClassPage({
             {assignments.map((a) => (
               <li key={a.id} className="flex items-baseline justify-between gap-3 py-2.5 text-sm">
                 <Link
-                  href={a.assignmentId ? `/assignments/${a.assignmentId}` : `/classes/${cls.id}/material/${a.id}`}
+                  href={a.assignmentId ? `/assignments/${a.assignmentId}` : `/courses/${cls.id}/material/${a.id}`}
                   className="min-w-0 truncate underline-offset-4 hover:underline"
                 >
                   {a.title}
@@ -271,7 +271,7 @@ export default async function ClassPage({
           <ul className="divide-y divide-border">
             {loosePages.map((p) => (
               <li key={p.id} className="py-2.5 text-sm">
-                <Link href={`/classes/${cls.id}/material/${p.id}`} className="underline-offset-4 hover:underline">
+                <Link href={`/courses/${cls.id}/material/${p.id}`} className="underline-offset-4 hover:underline">
                   {p.title}
                 </Link>
               </li>

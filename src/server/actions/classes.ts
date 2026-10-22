@@ -22,7 +22,7 @@ export async function createClass(input: ClassInput): Promise<ActionResult> {
   });
 
   await logEvent(user.id, "class_created", { classId: created.id });
-  revalidatePath("/classes");
+  revalidatePath("/courses");
   return { success: true };
 }
 
@@ -46,7 +46,7 @@ export async function updateClass(
   if (result.count === 0) return { error: "Class not found." };
 
   await regeneratePlanSnapshot(user.id);
-  revalidatePath("/classes");
+  revalidatePath("/courses");
   return { success: true };
 }
 
@@ -63,7 +63,7 @@ export async function setClassArchived(
   if (result.count === 0) return { error: "Class not found." };
 
   await regeneratePlanSnapshot(user.id);
-  revalidatePath("/classes");
+  revalidatePath("/courses");
   return { success: true };
 }
 
@@ -87,6 +87,6 @@ export async function deleteClass(id: string): Promise<ActionResult> {
   }
 
   await db.class.delete({ where: { id: cls.id } });
-  revalidatePath("/classes");
+  revalidatePath("/courses");
   return { success: true };
 }

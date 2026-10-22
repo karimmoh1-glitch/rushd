@@ -114,7 +114,7 @@ export default async function InsightsPage() {
           {!hasAnyPattern && (
             <div>
               <p className="text-sm text-muted-foreground">
-                Keep going — Rushd needs a few more sessions per class and time of day before it
+                Keep going — Rushd needs a few more sessions per course and time of day before it
                 can point out real patterns instead of noise.
               </p>
             </div>
@@ -128,7 +128,7 @@ export default async function InsightsPage() {
                   Estimate accuracy
                 </h2>
                 <p className="mb-3 text-sm text-muted-foreground">
-                  How your actual study time compares to what Rushd estimated, by class.
+                  How your actual study time compares to what Rushd estimated, by course.
                 </p>
                 <div className="space-y-2">
                   {insights.estimateAccuracy.map((row) => (

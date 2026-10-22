@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { SignupForm } from "./signup-form";
+import { PageViewBeacon } from "@/components/marketing/page-view-beacon";
 
 export const metadata: Metadata = {
   title: "Sign up",
@@ -15,9 +16,10 @@ export default async function SignupPage() {
 
   return (
     <Card>
+      <PageViewBeacon path="/signup" />
       <CardHeader>
         <CardTitle className="font-heading text-2xl">Create your account</CardTitle>
-        <CardDescription>Free for students. No credit card, ever.</CardDescription>
+        <CardDescription>Start on the free plan. No credit card needed.</CardDescription>
       </CardHeader>
       <CardContent>
         <SignupForm />

@@ -8,6 +8,18 @@ const nextConfig: NextConfig = {
     serverFunctions: false,
   },
   poweredByHeader: false,
+  experimental: {
+    // Photos are compressed in the browser first (src/lib/upload/compress.ts);
+    // this stays under Vercel's 4.5 MB request-body limit.
+    serverActions: { bodySizeLimit: "4mb" },
+  },
+  async redirects() {
+    return [
+      { source: "/classes", destination: "/courses", permanent: true },
+      { source: "/classes/:path*", destination: "/courses/:path*", permanent: true },
+      { source: "/insights", destination: "/mastery/habits", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

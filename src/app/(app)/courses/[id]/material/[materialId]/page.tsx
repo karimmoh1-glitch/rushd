@@ -21,7 +21,7 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
   return (
     <article className="max-w-3xl space-y-6">
       <header className="space-y-2">
-        <Link href={`/classes/${m.classId}`} className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href={`/courses/${m.classId}`} className="text-sm text-muted-foreground hover:text-foreground">
           {m.className}
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">{m.title}</h1>

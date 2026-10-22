@@ -156,7 +156,7 @@ function ExamDialogForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="exam-class">Class</Label>
+          <Label htmlFor="exam-class">Course</Label>
           <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
             <SelectTrigger id="exam-class" className="w-full">
               <SelectValue>

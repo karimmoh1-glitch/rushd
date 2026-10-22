@@ -29,7 +29,7 @@ export type CanvasActionResult<T = undefined> =
   | (T extends undefined ? { success: true } : { success: true; data: T });
 
 function revalidateAll() {
-  for (const p of ["/integrations/canvas", "/dashboard", "/plan", "/assignments", "/classes", "/settings"]) {
+  for (const p of ["/integrations/canvas", "/dashboard", "/plan", "/assignments", "/courses", "/settings"]) {
     revalidatePath(p);
   }
 }

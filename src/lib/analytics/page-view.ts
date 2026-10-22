@@ -1,0 +1,20 @@
+import "server-only";
+import { db } from "@/lib/db";
+
+// Cookieless page counts for public pages: day + path + count, nothing about
+// the visitor. Best-effort; never blocks a page.
+const TRACKED = new Set(["/", "/pricing", "/download", "/founder", "/schools", "/signup", "/login"]);
+
+export async function countPageView(path: string): Promise<void> {
+  // Dev and production share a database; only production traffic counts.
+  if (!TRACKED.has(path) || process.env.VERCEL_ENV !== "production") return;
+  const now = new Date();
+  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  try {
+    await db.$executeRaw`
+      INSERT INTO "PageView" ("day", "path", "count") VALUES (${day}::date, ${path}, 1)
+      ON CONFLICT ("day", "path") DO UPDATE SET "count" = "PageView"."count" + 1`;
+  } catch (error) {
+    console.error("[analytics] page view failed", (error as Error)?.name ?? typeof error);
+  }
+}

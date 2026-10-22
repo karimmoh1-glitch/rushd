@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { env, aiEnabled } from "@/lib/env";
 import { QuickAddDraftSchema, ExtractedAssignmentListSchema } from "./schemas";
-import type { AIProvider, ExtractedAssignment, ImageInput } from "./provider";
+import type { AIProvider, CallUsage, ExtractedAssignment, ImageInput } from "./provider";
 import type { ClassRef } from "./fallback-parse";
 
 // Small, fast, cheap model for both tasks here — structured extraction,
@@ -73,6 +73,16 @@ const EXTRACT_IMAGE_TOOL: Anthropic.Tool = {
   },
 };
 
+function usageOf(response: Anthropic.Message): CallUsage {
+  return {
+    model: response.model,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
+  };
+}
+
 let client: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!client) client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
@@ -80,7 +90,7 @@ function getClient(): Anthropic {
 }
 
 export const anthropicProvider: AIProvider = {
-  async parseQuickAdd(text, classes, now) {
+  async parseQuickAdd(text, classes, now, onUsage) {
     if (!aiEnabled) return null;
 
     try {
@@ -97,6 +107,7 @@ export const anthropicProvider: AIProvider = {
         tool_choice: { type: "tool", name: "extract_quick_add" },
         messages: [{ role: "user", content: text }],
       });
+      onUsage?.(usageOf(response));
 
       const toolUse = response.content.find((block) => block.type === "tool_use");
       if (!toolUse || toolUse.type !== "tool_use") return null;
@@ -104,7 +115,7 @@ export const anthropicProvider: AIProvider = {
       const parsed = QuickAddDraftSchema.safeParse(toolUse.input);
       return parsed.success ? parsed.data : null;
     } catch (error) {
-      console.error("[ai] quick-add parse failed, falling back", error);
+      console.error("[ai] quick-add parse failed, falling back", (error as Error)?.name ?? typeof error);
       return null;
     }
   },
@@ -113,6 +124,7 @@ export const anthropicProvider: AIProvider = {
     images: ImageInput[],
     classes: ClassRef[],
     now: Date,
+    onUsage?: (usage: CallUsage) => void,
   ): Promise<ExtractedAssignment[] | null> {
     if (!aiEnabled) return null;
     if (images.length === 0) return [];
@@ -148,6 +160,7 @@ export const anthropicProvider: AIProvider = {
           },
         ],
       });
+      onUsage?.(usageOf(response));
 
       const toolUse = response.content.find((block) => block.type === "tool_use");
       if (!toolUse || toolUse.type !== "tool_use") return null;
@@ -155,7 +168,7 @@ export const anthropicProvider: AIProvider = {
       const parsed = ExtractedAssignmentListSchema.safeParse(toolUse.input);
       return parsed.success ? parsed.data.assignments : null;
     } catch (error) {
-      console.error("[ai] image extraction failed, falling back to manual entry", error);
+      console.error("[ai] image extraction failed, falling back to manual entry", (error as Error)?.name ?? typeof error);
       return null;
     }
   },

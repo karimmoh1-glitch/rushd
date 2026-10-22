@@ -31,16 +31,27 @@ export interface ImageInput {
  * returns null on any failure — the caller always has a deterministic
  * fallback path. See docs/AI_ARCHITECTURE.md.
  */
+/** Provider-reported usage for one call, for cost metering (src/lib/ai/usage.ts). */
+export interface CallUsage {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
 export interface AIProvider {
   parseQuickAdd(
     text: string,
     classes: ClassRef[],
     now: Date,
+    onUsage?: (usage: CallUsage) => void,
   ): Promise<QuickAddDraft | null>;
 
   parseAssignmentImages(
     images: ImageInput[],
     classes: ClassRef[],
     now: Date,
+    onUsage?: (usage: CallUsage) => void,
   ): Promise<ExtractedAssignment[] | null>;
 }

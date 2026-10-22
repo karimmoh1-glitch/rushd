@@ -14,7 +14,7 @@ const SourcesSchema = z
 export default async function TutorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; classId?: string; assignmentId?: string }>;
+  searchParams: Promise<{ c?: string; classId?: string; assignmentId?: string; ask?: string }>;
 }) {
   const user = await requireUser();
   const sp = await searchParams;
@@ -66,6 +66,7 @@ export default async function TutorPage({
       initialMessages={messages}
       classes={classes}
       assignments={assignments}
+      initialDraft={active ? "" : (sp.ask ?? "").slice(0, 600)}
       prefill={{
         classId: prefillAssignment?.classId ?? (classes.some((c) => c.id === sp.classId) ? sp.classId! : null),
         assignmentId: prefillAssignment?.id ?? null,

@@ -63,6 +63,11 @@ export default async function ExamsPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Prioritized more heavily as the date gets closer.
           </p>
+          <nav aria-label="Work" className="mt-3 flex gap-4 text-sm">
+            <Link href="/assignments" className="text-muted-foreground hover:text-foreground">Assignments</Link>
+            <span aria-current="page" className="font-medium">Exams</span>
+            <Link href="/import" className="text-muted-foreground hover:text-foreground">Import from a screenshot</Link>
+          </nav>
         </div>
         <AddExamButton classes={classes} />
       </div>
@@ -71,7 +76,7 @@ export default async function ExamsPage() {
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
           <p className="text-muted-foreground">Add a class first.</p>
           <Link
-            href="/classes"
+            href="/courses"
             className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4"
           >
             Go to Classes

@@ -164,7 +164,7 @@ function AssignmentDialogForm({
         </DialogTitle>
         <DialogDescription>
           {managedByCanvas
-            ? "Imported from Canvas. Title, class, and due date stay in sync with Canvas; your estimate, priority, status, and notes are yours."
+            ? "Imported from Canvas. Title, course, and due date stay in sync with Canvas; your estimate, priority, status, and notes are yours."
             : "Rushd uses the due date, effort, and priority to build your plan."}
         </DialogDescription>
       </DialogHeader>
@@ -187,7 +187,7 @@ function AssignmentDialogForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="assignment-class">Class</Label>
+          <Label htmlFor="assignment-class">Course</Label>
           <Select value={classId} onValueChange={(v) => v && setClassId(v)} disabled={managedByCanvas}>
             <SelectTrigger id="assignment-class" className="w-full">
               <SelectValue>

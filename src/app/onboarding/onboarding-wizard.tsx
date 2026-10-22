@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -159,8 +159,8 @@ export function OnboardingWizard() {
   if (done) {
     return (
       <div className="space-y-6 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent">
-          <Sparkles className="h-6 w-6 text-primary" aria-hidden="true" />
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent">
+          <Check className="h-5 w-5 text-accent-foreground" aria-hidden="true" />
         </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -168,15 +168,15 @@ export function OnboardingWizard() {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {done.classCount > 0
-              ? `${done.classCount} class${done.classCount === 1 ? "" : "es"} added`
-              : "No classes yet, add them anytime"}
+              ? `${done.classCount} course${done.classCount === 1 ? "" : "s"} added`
+              : "No courses yet, add them anytime"}
             {done.availabilityWindowCount > 0
               ? " and your study time is set."
               : ". Set your study availability in Settings to get a real plan."}
           </p>
           <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
-            Does your school use Canvas? Connect it and Rushd imports every assignment and due date, then builds your
-            plan from your real workload. You can also skip this and add work yourself.
+            Pick a first step. Connecting Canvas brings in your assignments, due dates, and course materials (read-only).
+            Or check a page of practice work to see what you&apos;ve got down and what to review.
           </p>
         </div>
         <div className="flex flex-col justify-center gap-2 sm:flex-row">
@@ -187,7 +187,10 @@ export function OnboardingWizard() {
           >
             Connect Canvas
           </Button>
-          <Button onClick={() => router.push("/dashboard")} size="lg" variant="outline" className="w-full sm:w-auto">
+          <Button onClick={() => router.push("/practice")} size="lg" variant="outline" className="w-full sm:w-auto">
+            Check my work
+          </Button>
+          <Button onClick={() => router.push("/dashboard")} size="lg" variant="ghost" className="w-full sm:w-auto">
             Go to my plan
           </Button>
         </div>
@@ -366,7 +369,7 @@ export function OnboardingWizard() {
 
       {step === 2 && (
         <div className="space-y-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Add your classes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Add your courses</h1>
           <p className="text-sm text-muted-foreground">
             Optional — you can always add these later from your dashboard.
           </p>
@@ -410,7 +413,7 @@ export function OnboardingWizard() {
                   variant="ghost"
                   size="icon"
                   onClick={() => removeClassRow(i)}
-                  aria-label="Remove class"
+                  aria-label="Remove course"
                   disabled={classes.length === 1}
                 >
                   ×
@@ -419,7 +422,7 @@ export function OnboardingWizard() {
             ))}
           </div>
           <Button type="button" variant="outline" size="sm" onClick={addClassRow}>
-            + Add another class
+            + Add another course
           </Button>
         </div>
       )}

@@ -18,6 +18,9 @@ import {
 } from "@/lib/validation/settings";
 import { presetToWindows } from "@/lib/planning/availability-presets";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
+import * as z from "zod";
+import { Prisma } from "@/generated/prisma/client";
+import { MAX_INSTRUCTIONS, TutorPreferencesSchema, sanitizeInstructions } from "@/lib/tutor/preferences";
 
 export type ActionResult = { error: string } | { success: true };
 
@@ -143,4 +146,31 @@ export async function deleteAccount(confirmText: string): Promise<ActionResult> 
   await db.user.delete({ where: { id: user.id } });
   await deleteSession();
   redirect("/");
+}
+
+const TutorSettingsInput = z.object({
+  instructions: z.string().max(MAX_INSTRUCTIONS, `Keep it under ${MAX_INSTRUCTIONS} characters.`),
+  preferences: TutorPreferencesSchema,
+});
+
+export async function updateTutorPreferences(input: z.input<typeof TutorSettingsInput>): Promise<ActionResult> {
+  const user = await requireUserOrThrow();
+  const parsed = TutorSettingsInput.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  await db.profile.update({
+    where: { userId: user.id },
+    data: {
+      tutorInstructions: sanitizeInstructions(parsed.data.instructions) || null,
+      tutorPreferences: parsed.data.preferences,
+    },
+  });
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+export async function resetTutorPreferences(): Promise<ActionResult> {
+  const user = await requireUserOrThrow();
+  await db.profile.update({ where: { userId: user.id }, data: { tutorInstructions: null, tutorPreferences: Prisma.DbNull } });
+  revalidatePath("/settings");
+  return { success: true };
 }

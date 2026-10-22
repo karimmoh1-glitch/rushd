@@ -11,7 +11,7 @@ export function AddClassButton() {
     <>
       <Button onClick={() => setOpen(true)}>
         <Plus className="h-4 w-4" />
-        Add class
+        Add course
       </Button>
       <ClassDialog open={open} onOpenChange={setOpen} />
     </>

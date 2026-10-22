@@ -66,7 +66,7 @@ export function QuickAdd({ classes }: { classes: ClassOption[] }) {
             onChange={(e) => setText(e.target.value)}
             placeholder={
               classes.length === 0
-                ? "Add a class first to use quick add"
+                ? "Add a course first to use quick add"
                 : "Type it: \"Chem lab report due Friday, about 2 hours\""
             }
             aria-label="Describe an assignment or exam"

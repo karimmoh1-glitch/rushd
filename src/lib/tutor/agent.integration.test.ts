@@ -277,9 +277,9 @@ describe("tutor turn (real DB tools, scripted model)", { timeout: 90_000 }, () =
     expect(String(toolResult.content)).toContain(page.id);
     expect(result.text).toBe("A mole is 6.022e23 particles [1]. Also see the textbook.");
     expect(result.sources).toEqual([expect.objectContaining({ n: 1, id: page.id, title: "Mole concept notes" })]);
-    // Read-only by construction: the only tools offered are the four readers.
+    // Read-only by construction: the only tools offered are the five readers.
     expect((requests[0].tools ?? []).map((t) => (t as { name: string }).name).sort()).toEqual(
-      ["get_assignment", "list_upcoming_work", "read_course_material", "search_course_materials"],
+      ["get_assignment", "get_learning_profile", "list_upcoming_work", "read_course_material", "search_course_materials"],
     );
   });
 

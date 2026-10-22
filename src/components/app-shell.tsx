@@ -7,12 +7,13 @@ import {
   CalendarRange,
   BookOpen,
   ListChecks,
-  GraduationCap,
   Settings,
   LogOut,
   ShieldCheck,
-  BarChart3,
   MessageSquareText,
+  PenLine,
+  Target,
+  Menu,
 } from "lucide-react";
 import { logout } from "@/server/actions/auth";
 import { FeedbackDialog } from "@/components/feedback-dialog";
@@ -22,17 +23,17 @@ import { ActiveSessionBar } from "@/components/active-session-bar";
 import type { ActiveSessionData } from "@/server/actions/study-sessions";
 import { cn } from "@/lib/utils";
 
-// Ordered around the student's day: what to do now (Today), when (Schedule),
-// then the underlying work. Canvas lives under Settings; the academic profile
-// is reached from Progress.
+// The learning loop, in order: what to do today and when, the courses and
+// work it comes from, then learn (Tutor), check (Practice), and see progress
+// (Mastery).
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Today", icon: Home },
-  { href: "/plan", label: "Schedule", icon: CalendarRange },
+  { href: "/plan", label: "Study plan", icon: CalendarRange },
+  { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/assignments", label: "Assignments", icon: ListChecks },
-  { href: "/exams", label: "Exams", icon: GraduationCap },
-  { href: "/classes", label: "Classes", icon: BookOpen },
   { href: "/tutor", label: "Tutor", icon: MessageSquareText },
-  { href: "/insights", label: "Progress", icon: BarChart3 },
+  { href: "/practice", label: "Practice", icon: PenLine },
+  { href: "/mastery", label: "Mastery", icon: Target },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -40,8 +41,9 @@ const NAV_ITEMS = [
 const SECTION_ALIASES: Record<string, string> = {
   "/integrations": "/settings",
   "/import": "/assignments",
-  "/profile": "/insights",
-  "/how-rushd-thinks": "/insights",
+  "/exams": "/assignments",
+  "/profile": "/mastery",
+  "/how-rushd-thinks": "/plan",
 };
 
 function isActive(pathname: string, href: string): boolean {
@@ -49,11 +51,14 @@ function isActive(pathname: string, href: string): boolean {
   return Object.entries(SECTION_ALIASES).some(([prefix, section]) => section === href && pathname.startsWith(prefix));
 }
 
-// The phone tab bar keeps the daily destinations. Settings sits in the top
-// bar; Exams and Progress are reached from Today and the pages that link them.
-const MOBILE_NAV_ITEMS = NAV_ITEMS.filter(
-  (item) => item.href !== "/insights" && item.href !== "/exams" && item.href !== "/settings",
-);
+// Phones get the four daily destinations plus a "More" page with the rest.
+const MOBILE_NAV_ITEMS = [
+  NAV_ITEMS[0],
+  NAV_ITEMS[1],
+  NAV_ITEMS[4],
+  NAV_ITEMS[5],
+  { href: "/more", label: "More", icon: Menu },
+] as const;
 
 export function AppShell({
   displayName,
@@ -179,7 +184,10 @@ export function AppShell({
         aria-label="Main navigation"
       >
         {MOBILE_NAV_ITEMS.map((item) => {
-          const active = isActive(pathname, item.href);
+          const active =
+            item.href === "/more"
+              ? pathname.startsWith("/more") || ["/courses", "/assignments", "/mastery", "/settings", "/exams"].some((p) => pathname.startsWith(p))
+              : isActive(pathname, item.href);
           return (
             <Link
               key={item.href}

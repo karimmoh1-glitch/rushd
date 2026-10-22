@@ -3,7 +3,8 @@
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { aiEnabled } from "@/lib/env";
-import { aiProvider } from "@/lib/ai";
+import { aiProvider, type CallUsage } from "@/lib/ai";
+import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
 import { fallbackParseQuickAdd } from "@/lib/ai/fallback-parse";
 import type { QuickAddDraft } from "@/lib/ai/schemas";
 
@@ -31,8 +32,15 @@ export async function parseQuickAdd(text: string): Promise<QuickAddResult> {
   });
 
   if (aiEnabled) {
-    const aiDraft = await aiProvider.parseQuickAdd(trimmed, classes, now);
-    if (aiDraft) return { draft: aiDraft, usedAI: true };
+    // Over quota or AI paused: the deterministic parser still works.
+    const reservation = await reserveAi(user.id, "quick_add", now);
+    if (reservation.ok) {
+      let usage: CallUsage | undefined;
+      const aiDraft = await aiProvider.parseQuickAdd(trimmed, classes, now, (u) => (usage = u));
+      if (usage) await settleAi(reservation.usageId, usage.model, usage);
+      else await failAi(reservation.usageId, "no_response");
+      if (aiDraft) return { draft: aiDraft, usedAI: true };
+    }
   }
 
   return { draft: fallbackParseQuickAdd(trimmed, classes, now), usedAI: false };

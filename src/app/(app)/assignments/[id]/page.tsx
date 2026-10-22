@@ -53,6 +53,8 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
       : [];
   });
 
+  const canvasLink = material?.url ?? a.canvasUrl;
+
   return (
     <div className="max-w-3xl space-y-10">
       <header className="space-y-2">
@@ -62,7 +64,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
         <h1 className="text-2xl font-semibold tracking-tight">{a.title}</h1>
         <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
           <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: a.class.color }} />
-          <Link href={`/classes/${a.class.id}`} className="hover:text-foreground">{a.class.name}</Link>
+          <Link href={`/courses/${a.class.id}`} className="hover:text-foreground">{a.class.name}</Link>
           <span>· Due {formatDueDate(a.dueAt, tz)}</span>
           <span>· {formatDuration(a.estimatedMinutes)} estimated</span>
           {a.status === "COMPLETED" && <span>· Done</span>}
@@ -73,8 +75,8 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
             <MessageSquareText className="h-4 w-4" aria-hidden="true" />
             Ask the tutor about this
           </Link>
-          {(material?.url ?? a.canvasUrl) && (
-            <a href={(material?.url ?? a.canvasUrl)!} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>
+          {canvasLink && (
+            <a href={canvasLink} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
               Open in Canvas
             </a>
@@ -92,8 +94,8 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
           )
         ) : a.source === "CANVAS" ? (
           <p className="text-sm text-muted-foreground">
-            Sync this class&apos;s course content on its{" "}
-            <Link href={`/classes/${a.class.id}`} className="underline underline-offset-4">class page</Link> to see the description and rubric.
+            Sync this course&apos;s content on its{" "}
+            <Link href={`/courses/${a.class.id}`} className="underline underline-offset-4">course page</Link> to see the description and rubric.
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">You added this assignment by hand{a.notes ? `. Your notes: ${a.notes}` : ", so there's no teacher description on file."}</p>

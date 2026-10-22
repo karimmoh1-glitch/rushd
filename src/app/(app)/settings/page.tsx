@@ -7,6 +7,12 @@ import { AvailabilityForm } from "./availability-form";
 import { PasswordForm } from "./password-form";
 import { DeleteAccount } from "./delete-account";
 import { PlanningForm } from "./planning-form";
+import { PlanUsage } from "./plan-usage";
+import { TutorPreferencesForm } from "./tutor-preferences-form";
+import { getUsageSummary } from "@/lib/ai/usage";
+import { billingMode } from "@/lib/billing/stripe";
+import { readPreferences } from "@/lib/tutor/preferences";
+import { formatDateInZone } from "@/lib/time/zone";
 import { buttonVariants } from "@/components/ui/button";
 import { signOutEverywhere } from "@/server/actions/settings";
 
@@ -17,7 +23,7 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const user = await requireUser();
 
-  const [profile, availability, canvas] = await Promise.all([
+  const [profile, availability, canvas, usage, subscription] = await Promise.all([
     db.profile.findUnique({
       where: { userId: user.id },
       select: {
@@ -29,6 +35,8 @@ export default async function SettingsPage() {
         primaryChallenge: true,
         preferredSessionMinutes: true,
         maxDailyMinutes: true,
+        tutorInstructions: true,
+        tutorPreferences: true,
       },
     }),
     db.studyAvailability.findMany({
@@ -39,6 +47,11 @@ export default async function SettingsPage() {
       where: { userId: user.id },
       select: { status: true, baseUrl: true, lastSyncAt: true },
     }),
+    getUsageSummary(user.id),
+    db.subscription.findUnique({
+      where: { userId: user.id },
+      select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, stripeCustomerId: true },
+    }),
   ]);
 
   return (
@@ -47,7 +60,35 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       </div>
 
-      <section className="space-y-4">
+      <section id="plan" className="scroll-mt-24 space-y-4">
+        <h2 className="text-base font-semibold">Plan and usage</h2>
+        <PlanUsage
+          usage={usage}
+          billing={billingMode()}
+          subscription={
+            subscription
+              ? {
+                  status: subscription.status,
+                  cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+                  hasCustomer: Boolean(subscription.stripeCustomerId),
+                  currentPeriodEnd: subscription.currentPeriodEnd
+                    ? formatDateInZone(subscription.currentPeriodEnd, profile?.timezone, { month: "short", day: "numeric", year: "numeric" })
+                    : null,
+                }
+              : null
+          }
+        />
+      </section>
+
+      <section id="tutor" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
+        <div>
+          <h2 className="text-base font-semibold">How Rushd teaches you</h2>
+          <p className="text-sm text-muted-foreground">Tell the tutor how you learn best. You can change or reset this anytime.</p>
+        </div>
+        <TutorPreferencesForm initial={readPreferences(profile?.tutorPreferences)} instructions={profile?.tutorInstructions ?? ""} />
+      </section>
+
+      <section className="space-y-4 border-t border-border pt-8">
         <h2 className="text-base font-semibold">Profile</h2>
         <ProfileForm
           initial={{

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The desktop wrapper is a separate Tauri project with its own tooling.
+    "desktop/**",
     // Cloudflare build output — generated, not source.
     ".open-next/**",
     ".wrangler/**",

@@ -114,8 +114,8 @@ export default async function HowRushdThinksPage() {
             Your estimation profile
           </h2>
           <p className="mb-3 text-sm text-muted-foreground">
-            When you have enough history in a class (3+ sessions, off by at least 10% on average),
-            Rushd quietly calibrates future time estimates for that class — capped so one outlier
+            When you have enough history in a course (3+ sessions, off by at least 10% on average),
+            Rushd quietly calibrates future time estimates for that course — capped so one outlier
             can never double an estimate.
           </p>
           {estimationProfile.byClass.length === 0 ? (

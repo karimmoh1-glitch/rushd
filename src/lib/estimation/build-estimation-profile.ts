@@ -2,7 +2,7 @@
 // docs/PLANNING_ENGINE.md's "Future estimation architecture" section. Turns
 // real StudySession history into a calibration multiplier the planning
 // engine actually uses — not just a number shown on a dashboard. Same
-// arithmetic as src/lib/insights/build-insights.ts's estimateAccuracy (this
+// arithmetic as src/lib/mastery/habits/build-insights.ts's estimateAccuracy (this
 // intentionally doesn't duplicate that computation's shape by accident;
 // it's the same "avg(actual)/avg(planned)" ratio, applied forward instead
 // of just reported backward), gated behind the same kind of minimum-sample

@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { getAssignmentMaterial, getMaterial, searchMaterials, type MaterialKind } from "@/lib/course/retrieval";
 import { formatDateInZone } from "@/lib/time/zone";
 import type { RubricCriterion } from "@/lib/canvas/content";
+import { getMastery } from "@/lib/practice/load";
+import { AssessmentResultSchema } from "@/lib/practice/assessment";
 
 // The tutor's tools. Each executor receives a TutorScope built on the server
 // from the session and the conversation row; the model only supplies search
@@ -82,6 +84,14 @@ export const TUTOR_TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
+    name: "get_learning_profile",
+    description:
+      "The student's own topic mastery estimates (from their practice checks, with confidence) and the specific gaps found in their most recent checks. Use it to target help at what they've shown they're missing.",
+    strict: true,
+    eager_input_streaming: true,
+    input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
+  },
+  {
     name: "list_upcoming_work",
     description: "The student's open assignments and exams due within the next N days (1-28), soonest first.",
     strict: true,
@@ -100,6 +110,7 @@ const Inputs = {
   read_course_material: z.object({ source_id: z.string().min(1).max(64) }),
   get_assignment: z.object({ assignment_id: z.string().min(1).max(64).nullable() }),
   list_upcoming_work: z.object({ days: z.number().int().min(1).max(28) }),
+  get_learning_profile: z.object({}),
 };
 export type TutorToolName = keyof typeof Inputs;
 
@@ -194,6 +205,28 @@ export async function runTutorTool(
           ? "The Canvas description and rubric haven't been synced for this course yet."
           : "Added by hand in Rushd; there is no teacher description or rubric on file.";
       return { content: `${facts.join("\n")}\n\n${detail}` };
+    }
+    case "get_learning_profile": {
+      const [topics, recent] = await Promise.all([
+        getMastery(scope.userId, scope.now),
+        db.assessment.findMany({
+          where: { userId: scope.userId, ...(scope.classId ? { classId: scope.classId } : {}) },
+          orderBy: { createdAt: "desc" },
+          take: 3,
+          select: { topic: true, createdAt: true, result: true },
+        }),
+      ]);
+      if (topics.length === 0) return { content: "No practice checks yet, so there's no mastery evidence. Don't guess at their level; ask a diagnostic question instead." };
+      const topicLines = topics
+        .slice(0, 12)
+        .map((t) => `- ${t.topicLabel}: ~${t.estimate}% (range ${t.low}-${t.high}, ${t.confidence} confidence, ${t.evidenceCount} check${t.evidenceCount === 1 ? "" : "s"})`);
+      const gapLines = recent.flatMap((a) => {
+        const parsed = AssessmentResultSchema.safeParse(a.result);
+        return parsed.success ? parsed.data.gaps.map((g) => `- ${a.topic}: ${g.concept} (likely prerequisite: ${g.prerequisite}). Evidence: ${g.evidence}`) : [];
+      });
+      return {
+        content: `Topic estimates (from short checks; treat as rough):\n${topicLines.join("\n")}${gapLines.length ? `\n\nGaps from recent checks:\n${gapLines.join("\n")}` : ""}`,
+      };
     }
     case "list_upcoming_work": {
       const { days } = parsed.data as z.infer<(typeof Inputs)["list_upcoming_work"]>;

@@ -62,6 +62,7 @@ test("course content: browse modules, search, read a page, see the real rubric",
   await page.goto("/signup");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("password123");
+  await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByLabel("What should we call you?").fill("Course Tester");
@@ -75,7 +76,7 @@ test("course content: browse modules, search, read a page, see the real rubric",
 
   const { classId, assignmentId } = await seed(email);
 
-  await page.goto(`/classes/${classId}`);
+  await page.goto(`/courses/${classId}`);
   await expect(page.getByRole("heading", { name: "Unit 3: Stoichiometry" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Lab moved to Thursday" })).toBeVisible();
   await page.screenshot({ path: "test-results/course-page.png", fullPage: true });

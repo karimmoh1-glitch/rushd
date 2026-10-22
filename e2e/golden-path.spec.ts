@@ -12,16 +12,17 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   // Landing page.
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Every deadline, turned into a plan." }),
+    page.getByRole("heading", { name: "Your personal AI learning system." }),
   ).toBeVisible();
   // The live planner demo renders real engine output.
   await expect(page.getByText("Everything fits before its deadline.")).toBeVisible();
-  await page.getByRole("link", { name: "Get started" }).first().click();
+  await page.getByRole("link", { name: "Start learning free" }).first().click();
 
   // Sign up.
   await expect(page).toHaveURL(/\/signup/);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
+  await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
 
   // Onboarding — step 1: basics.
@@ -36,8 +37,8 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   await page.getByText("Weekend afternoons").click();
   await page.getByRole("button", { name: "Continue" }).click();
 
-  // Step 3: classes.
-  await expect(page.getByText("Add your classes")).toBeVisible();
+  // Step 3: courses.
+  await expect(page.getByText("Add your courses")).toBeVisible();
   await page.getByPlaceholder("e.g. AP Chemistry").fill("Playwright Chemistry");
   await page.getByRole("button", { name: "Continue" }).click();
 
@@ -75,7 +76,7 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   // ...and on the dedicated weekly Plan screen, under today's column. It
   // may also appear in the Academic Forecast's "top items" list further
   // down the page, so use .first() rather than assuming a unique match.
-  await page.getByRole("link", { name: "Schedule", exact: true }).click();
+  await page.getByRole("link", { name: "Study plan", exact: true }).click();
   await expect(page).toHaveURL(/\/plan/);
   await expect(page.getByText("Playwright reading response").first()).toBeVisible();
 
@@ -108,6 +109,7 @@ test("study session: start, persists across navigation, completes with an edited
   await page.goto("/signup");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
+  await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page).toHaveURL(/\/onboarding/);
@@ -152,7 +154,7 @@ test("study session: start, persists across navigation, completes with an edited
 
   // Persists across navigation — this is the point of the shared context,
   // not a page-local timer.
-  await page.getByRole("link", { name: "Schedule", exact: true }).click();
+  await page.getByRole("link", { name: "Study plan", exact: true }).click();
   await expect(page).toHaveURL(/\/plan/);
   await expect(page.getByRole("button", { name: "Complete", exact: true })).toBeVisible();
 
@@ -186,6 +188,7 @@ test("study session: abandon with an optional reason", async ({ page }) => {
   await page.goto("/signup");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
+  await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page).toHaveURL(/\/onboarding/);
@@ -203,7 +206,8 @@ test("study session: abandon with an optional reason", async ({ page }) => {
   await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
   await page.getByRole("button", { name: "Go to my plan" }).click();
 
-  await page.getByRole("link", { name: "Exams" }).click();
+  await page.getByRole("link", { name: "Assignments", exact: true }).click();
+  await page.getByRole("link", { name: "Exams", exact: true }).click();
   await page.getByRole("button", { name: "Add exam" }).click();
   await page.getByLabel("Title").fill("Chemistry review exam");
   const examDate = new Date();
@@ -236,6 +240,7 @@ test("onboarding offers Canvas, rejects an unsafe address, and can be skipped", 
   await page.goto("/signup");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("password123");
+  await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page).toHaveURL(/\/onboarding/);
