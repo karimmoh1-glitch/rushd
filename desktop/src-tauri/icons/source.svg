@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Rushd app icon: the mark (the three dots of the shin in رُشد settled on
+       a rising path to the lit node) on warm ink, macOS icon-grid margins. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#1C1B19"/>
+  <g transform="translate(192 197) scale(20)">
+    <path d="M5 24.5C9.5 21.5 12 18.5 17 16.5S23.5 11 25.5 8.5" fill="none" stroke="#F8F6F1" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="5" cy="24.5" r="2.3" fill="#F8F6F1"/>
+    <circle cx="11" cy="20" r="2.3" fill="#F8F6F1"/>
+    <circle cx="17" cy="16.5" r="2.3" fill="#F8F6F1"/>
+    <circle cx="25.5" cy="8.5" r="3.8" fill="#E5A63B"/>
+  </g>
+</svg>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { generatePlanForUser } from "@/lib/planning/generate-for-user";
+import { pulseOf } from "@/lib/planning/pulse";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { resolveTimeZone } from "@/lib/time/zone";
@@ -14,7 +16,7 @@ export default async function ExamsPage() {
   const user = await requireUser();
   const timeZone = resolveTimeZone(user.profile?.timezone);
 
-  const [classes, exams] = await Promise.all([
+  const [classes, exams, plan] = await Promise.all([
     db.class.findMany({
       where: { userId: user.id, archived: false },
       orderBy: { createdAt: "asc" },
@@ -34,7 +36,9 @@ export default async function ExamsPage() {
         class: { select: { name: true, color: true } },
       },
     }),
+    generatePlanForUser(user.id),
   ]);
+  const pulseById = new Map(plan.scored.map((s) => [s.item.id, pulseOf(s.score)]));
 
   // Server Component rendered fresh per request — reading the current time
   // here is correct, not a client re-render purity violation.
@@ -48,6 +52,7 @@ export default async function ExamsPage() {
     classId: e.classId,
     title: e.title,
     examAt: e.examAt.toISOString(),
+    pulse: pulseById.get(e.id) ?? null,
     prepMinutes: e.prepMinutes,
     priority: e.priority,
     notes: e.notes ?? undefined,

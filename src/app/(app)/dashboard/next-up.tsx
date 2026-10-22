@@ -8,6 +8,7 @@ import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
 import { StartSessionButton } from "@/components/start-session-button";
 import { formatDuration } from "@/lib/format";
+import { PulseBadge } from "@/components/brand/pulse-badge";
 
 /** The single recommended next action: what to open now, and why. */
 export function NextUp({
@@ -18,9 +19,11 @@ export function NextUp({
   className,
   classColor,
   minutes,
+  pulse,
   when,
   reasons,
 }: {
+  pulse: number;
   itemId: string;
   itemKind: "assignment" | "exam";
   assignmentId: string | null;
@@ -49,10 +52,13 @@ export function NextUp({
 
   return (
     <section aria-labelledby="next-up" className="rounded-xl border border-border bg-card p-5 sm:p-6">
-      <h2 id="next-up" className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">
-        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal" />
-        Next up
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="next-up" className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">
+          <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal" />
+          Next up
+        </h2>
+        <PulseBadge pulse={pulse} showLabel />
+      </div>
       <div className="mt-2 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="flex items-center gap-2.5">

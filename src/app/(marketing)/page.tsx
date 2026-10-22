@@ -7,6 +7,11 @@ import { SignatureLoop } from "@/components/marketing/signature-loop";
 import { GlyphContext, GlyphGap, GlyphNext } from "@/components/marketing/benefit-glyphs";
 import { PageViewBeacon } from "@/components/marketing/page-view-beacon";
 import { PLANS } from "@/lib/billing/plans";
+import type { RankRow } from "@/components/marketing/rank-slider";
+import { SAMPLE_NOW, SAMPLE_TZ, sampleRanking } from "@/components/marketing/sample-week";
+import { explainScore } from "@/lib/planning/explain";
+import { pulseOf } from "@/lib/planning/pulse";
+import { formatDateInZone, formatTimeInZone } from "@/lib/time/zone";
 import { organizationJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -25,6 +30,27 @@ const BENEFITS = [
   { glyph: GlyphGap, title: "It finds what you don't understand", text: "It quizzes you and checks photos of your work, then names the exact gap behind the mistakes." },
   { glyph: GlyphNext, title: "It tells you what to do next", text: "The right video, practice, or lesson for that gap, planned around your deadlines." },
 ];
+
+function shortDue(date: Date): string {
+  return `${formatDateInZone(date, SAMPLE_TZ, { weekday: "short" })} ${formatTimeInZone(date, SAMPLE_TZ)}`;
+}
+
+/** The example week, ranked by the real engine, in both orders. */
+function rankRows(): RankRow[] {
+  const ranked = sampleRanking();
+  const byDue = [...ranked].sort((a, b) => a.item.dueAt.getTime() - b.item.dueAt.getTime());
+  return ranked.map((s, i) => ({
+    id: s.item.id,
+    title: s.item.title,
+    className: s.item.className,
+    color: s.item.classColor,
+    dueLabel: shortDue(s.item.dueAt),
+    canvasIndex: byDue.findIndex((d) => d.item.id === s.item.id),
+    rushdIndex: i,
+    pulse: pulseOf(s.score),
+    reason: explainScore(s, SAMPLE_NOW, ranked, SAMPLE_TZ)[0] ?? s.item.className,
+  }));
+}
 
 export default function LandingPage() {
   return (
@@ -82,16 +108,17 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
           <div className="max-w-xl">
             <h2 className="reveal-rise font-display text-[2.1rem] font-medium leading-[1.08] tracking-[-0.02em] sm:text-5xl">
-              Scattered coursework in.
+              Canvas lists everything.
               <br />
-              <span className="text-muted-foreground">One clear next step out.</span>
+              <span className="text-muted-foreground">Rushd ranks it.</span>
             </h2>
             <p className="reveal-rise mt-5 text-lg text-muted-foreground">
-              One example week: Rushd sorts what your classes posted, quizzes you, finds the gap, and picks what to watch.
+              Every item gets a Pulse score: how strongly it needs you right now. Drag the slider, then walk through how Rushd
+              gets you from that list to the next step.
             </p>
           </div>
           <div className="mt-16">
-            <SignatureLoop />
+            <SignatureLoop rows={rankRows()} />
           </div>
         </div>
       </section>

@@ -46,6 +46,7 @@ model User {
   events           Event[]
   invitedByCode    InviteCode?         @relation(fields: [invitedByCodeId], references: [id])
   canvasConnection CanvasConnection?
+  teamsConnection  TeamsConnection?
   scheduleBlocks   ScheduleBlock[]
   passwordResets   PasswordResetToken[]
   courseModules    CourseModule[]
@@ -140,6 +141,7 @@ model Class {
   assignments   Assignment[]
   exams         Exam[]
   canvasCourses CanvasCourse[]
+  teamsClasses  TeamsClass[]
   modules       CourseModule[]
   materials     CourseMaterial[]
   tutorChats    TutorConversation[]
@@ -159,6 +161,7 @@ enum AssignmentStatus {
 enum AssignmentSource {
   MANUAL
   CANVAS
+  TEAMS
 }
 
 model Assignment {
@@ -183,6 +186,11 @@ model Assignment {
   pointsPossible     Float?
   canvasSubmittedAt  DateTime?
   canvasSyncedAt     DateTime?
+  // Microsoft Teams identity for TEAMS rows. canvasUrl / canvasSyncedAt /
+  // canvasRemovedAt are reused for Teams rows as the external link, last sync,
+  // and "removed upstream" marker.
+  teamsAssignmentId  String?
+  teamsClassId       String?
   // Set when Canvas stops returning the assignment (deleted/unpublished). The
   // row is kept — it's the student's data — but dropped from planning.
   canvasRemovedAt    DateTime?
@@ -203,6 +211,7 @@ model Assignment {
   @@index([userId, status, dueAt])
   @@index([classId])
   @@index([userId, source])
+  @@index([userId, teamsAssignmentId])
 }
 
 model Exam {
@@ -800,4 +809,42 @@ model PageView {
   count Int      @default(0)
 
   @@id([day, path])
+}
+
+// ---------------------------------------------------------------------------
+// Microsoft Teams (Education) — read-only, like Canvas.
+// ---------------------------------------------------------------------------
+
+model TeamsConnection {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  encryptedRefreshToken String // AES-256-GCM, bound to userId (token-vault.ts)
+  accountName           String?
+  tenantId              String?
+  status                String    @default("ACTIVE") // ACTIVE | NEEDS_REAUTH | ERROR
+  lastSyncAt            DateTime?
+  lastSyncError         String?
+  syncStartedAt         DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classes TeamsClass[]
+}
+
+model TeamsClass {
+  id           String   @id @default(cuid())
+  connectionId String
+  teamsClassId String
+  name         String
+  selected     Boolean  @default(false)
+  classId      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  connection TeamsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  class      Class?          @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, teamsClassId])
+  @@index([classId])
 }

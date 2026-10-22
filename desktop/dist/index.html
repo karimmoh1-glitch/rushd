@@ -10,7 +10,13 @@
   </head>
   <body data-state="connecting">
     <main>
-      <div class="mark" aria-hidden="true">r</div>
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M5 24.5C9.5 21.5 12 18.5 17 16.5S23.5 11 25.5 8.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+        <circle cx="5" cy="24.5" r="2.3" fill="currentColor" />
+        <circle cx="11" cy="20" r="2.3" fill="currentColor" />
+        <circle cx="17" cy="16.5" r="2.3" fill="currentColor" />
+        <circle cx="25.5" cy="8.5" r="3.8" fill="var(--signal)" />
+      </svg>
 
       <section class="connecting" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>

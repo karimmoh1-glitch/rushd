@@ -14,21 +14,28 @@ identity comes from that picture.
   settle onto the path.
 - **Lockup** (`RushdLogo`): mark + "Rushd" in Newsreader + hairline + رُشد in
   Amiri Bold. Use the full lockup in headers and footers.
-- Favicon and app icon: the mark on ink (`src/app/icon.svg`, `apple-icon.tsx`).
-  The desktop app icon in `desktop/` is still the old placeholder; regenerate it
-  with the mark before the next desktop release.
+- Favicon and app icon: the mark on graphite (`src/app/icon.svg`,
+  `apple-icon.tsx`, `manifest.ts` + `public/icon-*.png`).
+- Desktop icon: `desktop/src-tauri/icons/source.svg`. Regenerate every size with
+  `node desktop/scripts/make-icon.mjs` then `npx tauri icon` in `desktop/`.
 
 ## Color (tokens in `src/app/globals.css`)
 
 | Role | Token | Use |
 |---|---|---|
 | Paper | `--background`, `--card` | Surfaces |
-| Ink | `--foreground`, `--primary` | Text, structure, primary buttons |
+| Ink | `--foreground`, `--primary` | Text, structure, primary buttons. Warm graphite (hue 60), never blue |
 | Slate | `--muted-foreground` | Secondary text |
 | **Saffron** | `--signal` | The signature. The lit node, the next step, "needs review". Fill only, never body text |
 | Saffron text | `--signal-ink` | Labels in the saffron family (e.g. "NEXT STEP") |
 | Teal | `--teal` | Quiet complement: strong mastery, success |
 | Brick | `--destructive` | Errors only |
+
+Dark is the default theme (graphite surfaces, paper text); light follows the
+system or the toggle.
+
+Pulse (1–99, `src/lib/planning/pulse.ts`): ≥70 saffron "Needs you now",
+≥40 ink "Coming up", below that a hollow ring "On track".
 
 Mastery: `needs_review` = saffron, `developing` = ink at 55%, `strong` = teal.
 Saffron appears once per view where possible; if everything is lit, nothing is.
@@ -66,9 +73,11 @@ panels). Prefer dividers and spacing over nested cards.
 - **Brand intro** (homepage, first visit per session, ~1.5s): the logo's shīn
   dots settle, headline lines rise, the agent path draws, the final node lights.
   Content is fully visible without it; it never replays on navigation.
-- **Signature scroll moment** (`SignatureLoop`): a week of scattered coursework
-  settles onto the path in priority order when the section enters view; the
-  top item lights as the next step. Triggered once, no scroll-jacking.
+- **Signature scroll moment** (`SignatureLoop` + `RankSlider`): "Canvas lists
+  everything. Rushd ranks it." A week of work in Canvas's due-date order slides
+  into Rushd's Pulse order when the section enters view (the student can drag
+  it back); the top item lights. Pulse values come from the real planner run
+  on an example week. Server-rendered and no-JS views show the ranked result.
 - **Living detail**: on the hero's agent path a light travels the path and each
   point glows as it passes.
 - Scroll-driven reveals (`reveal-rise`, `reveal-stagger`, `reveal-draw-x`) are

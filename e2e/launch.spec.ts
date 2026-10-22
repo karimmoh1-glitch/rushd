@@ -21,6 +21,7 @@ test("homepage explains the product without JavaScript", async ({ browser }) => 
   await expect(page.getByRole("link", { name: "Start learning free" }).first()).toBeVisible();
   await expect(page.getByText("Demo with example content")).toBeVisible();
   await expect(page.getByText("Review the chain rule with trig").first()).toBeVisible();
+  await expect(page.getByRole("list", { name: "Example week ranked by Pulse" })).toBeVisible();
   await context.close();
 });
 

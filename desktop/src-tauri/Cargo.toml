@@ -1,6 +1,6 @@
 [package]
 name = "rushd-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "Rushd desktop: a secure native wrapper around https://therushd.com"
 authors = ["Rushd"]
 license = "UNLICENSED"

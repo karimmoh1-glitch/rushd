@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const user = await requireUser();
 
-  const [profile, availability, canvas, usage, subscription] = await Promise.all([
+  const [profile, availability, canvas, usage, subscription, teams] = await Promise.all([
     db.profile.findUnique({
       where: { userId: user.id },
       select: {
@@ -52,6 +52,7 @@ export default async function SettingsPage() {
       where: { userId: user.id },
       select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, stripeCustomerId: true },
     }),
+    db.teamsConnection.findUnique({ where: { userId: user.id }, select: { status: true, accountName: true, lastSyncAt: true } }),
   ]);
 
   return (
@@ -145,6 +146,21 @@ export default async function SettingsPage() {
             className={buttonVariants({ variant: "outline" })}
           >
             {canvas ? "Manage" : "Connect"}
+          </Link>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
+          <div>
+            <p className="font-medium">Microsoft Teams</p>
+            <p className="text-sm text-muted-foreground">
+              {teams
+                ? teams.status === "NEEDS_REAUTH"
+                  ? "Needs reconnecting: Microsoft stopped accepting the connection."
+                  : `Connected${teams.accountName ? ` as ${teams.accountName}` : ""}${teams.lastSyncAt ? "" : ", not synced yet"}.`
+                : "Import assignments and due dates from Teams for Education."}
+            </p>
+          </div>
+          <Link href="/integrations/teams" className={buttonVariants({ variant: "outline" })}>
+            {teams ? "Manage" : "Connect"}
           </Link>
         </div>
       </section>

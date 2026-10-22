@@ -22,14 +22,17 @@ import { StartSessionButton } from "@/components/start-session-button";
 import { AssignmentDialog, type ClassOption } from "./assignment-dialog";
 import { formatDuration, formatDueDate, isOverdue } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { PulseBadge } from "@/components/brand/pulse-badge";
 import type { AssignmentInput } from "@/lib/validation/assignments";
 
 export interface AssignmentRowData extends AssignmentInput {
   id: string;
   className: string;
   classColor: string;
-  source?: "MANUAL" | "CANVAS";
+  source?: "MANUAL" | "CANVAS" | "TEAMS";
   canvasUrl?: string | null;
+  /** 1-99, for open work the planner ranks. */
+  pulse?: number | null;
   estimatedByRushd?: boolean;
   canvasRemoved?: boolean;
 }
@@ -121,16 +124,18 @@ export function AssignmentRow({
             </p>
           </div>
 
+          {!completed && data.pulse != null && <PulseBadge pulse={data.pulse} className="shrink-0" />}
+
           {data.canvasUrl && (
             <a
               href={data.canvasUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
-              aria-label={`Open ${data.title} in Canvas (opens in a new tab)`}
+              aria-label={`Open ${data.title} in ${data.source === "TEAMS" ? "Teams" : "Canvas"} (opens in a new tab)`}
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-              Canvas
+              {data.source === "TEAMS" ? "Teams" : "Canvas"}
             </a>
           )}
 

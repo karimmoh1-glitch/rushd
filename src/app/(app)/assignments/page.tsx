@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { resolveTimeZone } from "@/lib/time/zone";
 import { AssignmentRow } from "./assignment-row";
+import { generatePlanForUser } from "@/lib/planning/generate-for-user";
+import { pulseOf } from "@/lib/planning/pulse";
 import { AddAssignmentButton } from "./add-assignment-button";
 
 export const metadata: Metadata = {
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
 export default async function AssignmentsPage() {
   const user = await requireUser();
 
-  const [classes, assignments] = await Promise.all([
+  const [classes, assignments, plan] = await Promise.all([
     db.class.findMany({
       where: { userId: user.id, archived: false },
       orderBy: { createdAt: "asc" },
@@ -38,7 +40,9 @@ export default async function AssignmentsPage() {
         class: { select: { name: true, color: true } },
       },
     }),
+    generatePlanForUser(user.id),
   ]);
+  const pulseById = new Map(plan.scored.map((s) => [s.item.id, pulseOf(s.score)]));
   const timeZone = resolveTimeZone(user.profile?.timezone);
   const toRow = (a: (typeof assignments)[number]) => ({
     id: a.id,
@@ -55,9 +59,13 @@ export default async function AssignmentsPage() {
     canvasUrl: a.canvasUrl,
     estimatedByRushd: a.estimatedByRushd,
     canvasRemoved: a.canvasRemovedAt !== null,
+    pulse: pulseById.get(a.id) ?? null,
   });
 
-  const active = assignments.filter((a) => a.status !== "COMPLETED" && !a.canvasRemovedAt);
+  // Open work is ranked by Pulse (the planner's order), deadline breaking ties.
+  const active = assignments
+    .filter((a) => a.status !== "COMPLETED" && !a.canvasRemovedAt)
+    .sort((x, y) => (pulseById.get(y.id) ?? 0) - (pulseById.get(x.id) ?? 0) || x.dueAt.getTime() - y.dueAt.getTime());
   const removed = assignments.filter((a) => a.status !== "COMPLETED" && a.canvasRemovedAt);
   const completed = assignments.filter((a) => a.status === "COMPLETED");
 
@@ -67,7 +75,7 @@ export default async function AssignmentsPage() {
         <div>
           <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Assignments</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Everything due, ordered by deadline. Open one for its instructions, rubric, and draft feedback.
+            Ranked by Pulse: how strongly each one needs you right now. Open one for its instructions, rubric, and draft feedback.
           </p>
           <nav aria-label="Work" className="mt-3 flex gap-4 text-sm">
             <span aria-current="page" className="font-medium">Assignments</span>

@@ -77,6 +77,22 @@ export default function PrivacyPage() {
         </section>
 
         <section>
+          <h2 className="font-heading text-lg font-semibold">If you connect Microsoft Teams</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>
+              Connecting is optional and uses Microsoft sign-in; Rushd never sees your Microsoft password. Rushd asks
+              only for read access to your profile name, your classes, and your assignments.
+            </li>
+            <li>
+              Rushd stores an encrypted (AES-256-GCM) Microsoft refresh token, your class names, and for the classes you
+              choose, each assignment&apos;s title, due date, points, link, and whether you turned it in. Not grades, files,
+              chats, or other students&apos; information.
+            </li>
+            <li>Rushd never writes to Teams. Disconnecting deletes the stored token immediately.</li>
+          </ul>
+        </section>
+
+        <section>
           <h2 className="font-heading text-lg font-semibold">Screenshot import</h2>
           <p className="mt-2">
             If you upload a screenshot of your calendar, it&apos;s sent to our AI provider (Anthropic) to read

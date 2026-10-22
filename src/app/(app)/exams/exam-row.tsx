@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { deleteExam } from "@/server/actions/exams";
 import { StartSessionButton } from "@/components/start-session-button";
+import { PulseBadge } from "@/components/brand/pulse-badge";
 import { ExamDialog, type ClassOption } from "./exam-dialog";
 import { formatDuration, formatDueDate, daysUntil, formatDaysUntil } from "@/lib/format";
 import type { ExamInput } from "@/lib/validation/exams";
@@ -22,6 +23,7 @@ export interface ExamRowData extends ExamInput {
   id: string;
   className: string;
   classColor: string;
+  pulse?: number | null;
 }
 
 export function ExamRow({
@@ -77,6 +79,7 @@ export function ExamRow({
             </p>
           </div>
 
+          {data.pulse != null && <PulseBadge pulse={data.pulse} className="shrink-0" />}
           <StartSessionButton target={{ examId: data.id }} source="MANUAL" />
 
           <DropdownMenu>

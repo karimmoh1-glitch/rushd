@@ -14,6 +14,8 @@ import { buildEstimationProfile, adjustEstimate } from "@/lib/estimation/build-e
 import { buildPatterns } from "@/lib/patterns/build-patterns";
 import { logEvent } from "@/lib/analytics/log-event";
 import { cn } from "@/lib/utils";
+import { pulseOf } from "@/lib/planning/pulse";
+import { PulseBadge } from "@/components/brand/pulse-badge";
 import { getMastery } from "@/lib/practice/load";
 import { nextReview } from "@/lib/practice/mastery";
 import { TodayPlanItem } from "./today-plan-item";
@@ -39,6 +41,7 @@ function greeting(hour: number): string {
 
 interface ComingUpRow {
   key: string;
+  id: string;
   href: string;
   title: string;
   className: string;
@@ -124,6 +127,10 @@ export default async function DashboardPage() {
   const laterSession = plan.sessions.find((s) => s.scheduledDate > today);
 
   const scoredById = new Map(plan.scored.map((s) => [s.item.id, s]));
+  const pulseFor = (id: string) => {
+    const s = scoredById.get(id);
+    return s ? pulseOf(s.score) : null;
+  };
   const reasonsFor = (itemId: string) => {
     const scored = scoredById.get(itemId);
     return scored ? explainScore(scored, now, plan.scored, tz) : [];
@@ -155,6 +162,7 @@ export default async function DashboardPage() {
       ...exams.map(
         (e): ComingUpRow => ({
           key: `e-${e.id}`,
+          id: e.id,
           href: "/exams",
           title: e.title,
           className: e.class.name,
@@ -219,6 +227,7 @@ export default async function DashboardPage() {
           className={next.item.className}
           classColor={next.item.classColor}
           minutes={next.item.remainingMinutes}
+          pulse={pulseOf(next.score)}
           when={nextBlock ? `planned ${blockLabel(nextBlock)}` : undefined}
           reasons={nextReasons}
         />
@@ -309,9 +318,10 @@ export default async function DashboardPage() {
                       {row.fromCanvas ? " · Canvas" : ""}
                     </span>
                   </span>
+                  {pulseFor(row.id) !== null && <PulseBadge pulse={pulseFor(row.id)!} className="hidden shrink-0 sm:inline-flex" />}
                   <span
                     className={cn(
-                      "shrink-0 text-right text-xs tabular-nums",
+                      "w-44 shrink-0 text-right text-xs tabular-nums",
                       row.overdue ? "font-medium text-destructive" : "text-muted-foreground",
                     )}
                   >
@@ -434,6 +444,7 @@ function assignmentRow(a: {
 }): Omit<ComingUpRow, "overdue"> {
   return {
     key: `a-${a.id}`,
+    id: a.id,
     href: "/assignments",
     title: a.title,
     className: a.class.name,

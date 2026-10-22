@@ -29,7 +29,7 @@ export interface WorkItem {
   estimateAdjusted: boolean;
   /** Where the work came from. Optional so older callers/tests are unchanged;
    * "CANVAS" items are shown with their origin in the UI. */
-  source?: "MANUAL" | "CANVAS";
+  source?: "MANUAL" | "CANVAS" | "TEAMS";
 }
 
 export interface AvailabilityWindow {

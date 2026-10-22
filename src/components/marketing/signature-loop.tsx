@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
+import { RankSlider, type RankRow } from "./rank-slider";
 
 // The signature moment. A week's coursework arrives scattered; when the
 // section comes into view it settles onto the Rushd path in the order it
@@ -10,26 +11,6 @@ import { cn } from "@/lib/utils";
 // Triggered once on entry (no scroll-jacking); static and ordered under
 // reduced motion. Example content throughout.
 
-interface Item {
-  title: string;
-  meta: string;
-  kind: string;
-  /** Position once ordered (0 = do first). */
-  rank: number;
-  scatter: { x: number; y: number; r: number };
-}
-
-const ITEMS: Item[] = [
-  { title: "Gatsby ch. 6 annotations", meta: "English 11 · Fri", kind: "Reading", rank: 4, scatter: { x: 30, y: -40, r: -6 } },
-  { title: "Review the chain rule with trig", meta: "Calculus · from your quiz", kind: "Gap", rank: 0, scatter: { x: 70, y: 210, r: 5 } },
-  { title: "Unit 3 notes posted", meta: "AP Chemistry · page", kind: "Page", rank: 5, scatter: { x: -10, y: -160, r: 7 } },
-  { title: "Titration lab report", meta: "AP Chemistry · Thu · 40 pts", kind: "Assignment", rank: 1, scatter: { x: 80, y: 110, r: -4 } },
-  { title: "Limiting reagents quiz", meta: "AP Chemistry · Fri", kind: "Quiz", rank: 2, scatter: { x: -20, y: 60, r: -8 } },
-  { title: "Lab moved to Thursday", meta: "Announcement", kind: "News", rank: 6, scatter: { x: 50, y: -250, r: 3 } },
-  { title: "Problem set 5.3", meta: "Calculus · Mon", kind: "Assignment", rank: 3, scatter: { x: 40, y: 90, r: 9 } },
-];
-
-const ROW = 56;
 const STAGES = ["Courses", "Quiz", "Gap", "Watch", "Next"] as const;
 
 function Panel({ stage }: { stage: number }) {
@@ -98,16 +79,18 @@ function subscribeReduce(cb: () => void) {
   mq.addEventListener("change", cb);
   return () => mq.removeEventListener("change", cb);
 }
+const noopSubscribe = () => () => {};
 
-export function SignatureLoop() {
+export function SignatureLoop({ rows }: { rows: RankRow[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useSyncExternalStore(subscribeReduce, () => window.matchMedia(REDUCE).matches, () => false);
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const [seen, setSeen] = useState(false);
   const [picked, setPicked] = useState<number | null>(null);
   const [autoStage, setAutoStage] = useState(0);
-  // Reduced motion: already ordered, showing the outcome, nothing moves.
-  const ordered = seen || reduce;
-  const stage = picked ?? (reduce ? STAGES.length - 1 : autoStage);
+  // Server render, no JS, and reduced motion all show the outcome; nothing
+  // auto-advances until the page is interactive.
+  const stage = picked ?? (reduce || !hydrated ? STAGES.length - 1 : autoStage);
   const auto = picked === null && !reduce;
 
   useEffect(() => {
@@ -140,57 +123,7 @@ export function SignatureLoop() {
 
   return (
     <div ref={ref} className="grid items-start gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
-      {/* --k scales the scatter down on narrow screens so nothing overflows. */}
-      <div className="relative [--k:0.3] sm:[--k:0.7] lg:[--k:1]" style={{ height: ITEMS.length * ROW }} data-ordered={ordered}>
-        <span
-          aria-hidden="true"
-          className="absolute left-[11px] top-3 w-px origin-top bg-foreground/25 transition-transform duration-700 ease-[var(--ease-settle)]"
-          style={{ height: (ITEMS.length - 1) * ROW, transform: ordered ? "scaleY(1)" : "scaleY(0)", transitionDelay: ordered ? "450ms" : "0ms" }}
-        />
-        <ol aria-label="A week of coursework, in the order Rushd suggests">
-          {[...ITEMS].sort((a, b) => a.rank - b.rank).map((item) => {
-            const first = item.rank === 0;
-            const s = item.scatter;
-            return (
-              <li
-                key={item.title}
-                className="absolute inset-x-0 flex items-center gap-3 pl-0 transition-[transform,opacity] duration-[900ms] ease-[var(--ease-settle)] will-change-transform"
-                style={{
-                  top: item.rank * ROW,
-                  transform: ordered ? "none" : `translate(calc(var(--k) * ${s.x}px), calc(var(--k) * ${s.y}px)) rotate(${s.r}deg)`,
-                  opacity: ordered ? 1 : 0.85,
-                  transitionDelay: `${item.rank * 60}ms`,
-                }}
-              >
-                <span aria-hidden="true" className="relative z-10 flex w-[23px] shrink-0 justify-center">
-                  <span
-                    className={cn(
-                      "rounded-full transition-all duration-500",
-                      first && ordered ? "h-[13px] w-[13px] bg-signal" : "h-[9px] w-[9px] bg-foreground",
-                    )}
-                    style={{ transitionDelay: first ? "900ms" : "0ms" }}
-                  />
-                </span>
-                <span
-                  className={cn(
-                    "flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg border bg-card px-3.5 py-2.5 transition-colors duration-500",
-                    first && ordered ? "border-signal/60" : "border-border",
-                  )}
-                  style={{ transitionDelay: first ? "900ms" : "0ms" }}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{item.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{item.meta}</span>
-                  </span>
-                  <span className={cn("shrink-0 text-[11px] font-medium uppercase tracking-[0.12em]", first && ordered ? "text-signal-ink" : "text-muted-foreground")}>
-                    {first && ordered ? "Next step" : item.kind}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
+      <RankSlider rows={rows} />
 
       <div className="relative z-10 rounded-xl border border-border bg-card">
         <div className="relative border-b border-border px-4 pb-3 pt-4">
