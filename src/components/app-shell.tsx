@@ -22,6 +22,7 @@ import { ActiveSessionProvider } from "@/components/active-session-context";
 import { ActiveSessionBar } from "@/components/active-session-bar";
 import type { ActiveSessionData } from "@/server/actions/study-sessions";
 import { cn } from "@/lib/utils";
+import { RushdWordmark } from "@/components/brand/rushd-mark";
 
 // The learning loop, in order: what to do today and when, the courses and
 // work it comes from, then learn (Tutor), check (Practice), and see progress
@@ -82,12 +83,9 @@ export function AppShell({
       >
         Skip to content
       </a>
-      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r border-border bg-background md:flex">
-        <Link
-          href="/dashboard"
-          className="flex h-16 items-center px-6 text-lg font-semibold tracking-tight"
-        >
-          Rushd
+      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+        <Link href="/dashboard" className="flex h-16 items-center px-6" aria-label="Rushd, Today">
+          <RushdWordmark />
         </Link>
         <nav className="flex-1 space-y-1 px-3" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
@@ -98,12 +96,13 @@ export function AppShell({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  "relative flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium transition-colors",
+                  active ? "bg-sidebar-accent text-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
                 )}
               >
                 <item.icon className="h-4 w-4" aria-hidden="true" />
                 {item.label}
+                {active && <span aria-hidden="true" className="ml-auto h-1.5 w-1.5 rounded-full bg-signal" />}
               </Link>
             );
           })}
@@ -112,10 +111,10 @@ export function AppShell({
               href="/admin"
               aria-current={pathname.startsWith("/admin") ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium transition-colors",
                 pathname.startsWith("/admin")
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  ? "bg-sidebar-accent text-foreground"
+                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
               )}
             >
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
@@ -147,8 +146,8 @@ export function AppShell({
       </aside>
 
       <div className="flex h-14 items-center justify-between border-b border-border px-4 md:hidden">
-        <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
-          Rushd
+        <Link href="/dashboard" aria-label="Rushd, Today">
+          <RushdWordmark />
         </Link>
         <div className="flex items-center gap-1">
           <Link
@@ -194,10 +193,11 @@ export function AppShell({
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium",
+                "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium",
                 active ? "text-foreground" : "text-muted-foreground",
               )}
             >
+              {active && <span aria-hidden="true" className="absolute top-1 h-1 w-1 rounded-full bg-signal" />}
               <item.icon className="h-5 w-5" aria-hidden="true" />
               {item.label}
             </Link>

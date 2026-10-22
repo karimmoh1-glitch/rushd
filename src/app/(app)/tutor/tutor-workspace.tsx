@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { deleteAllTutorConversations, deleteTutorConversation } from "@/server/actions/course";
 import { stripMarkers } from "@/lib/tutor/citations";
 import { cn } from "@/lib/utils";
+import { PathLoader } from "@/components/brand/path-loader";
 
 export interface ConversationSummary {
   id: string;
@@ -289,7 +290,7 @@ export function TutorWorkspace({
       <section className="flex min-h-[70vh] flex-col" aria-label="Tutor conversation">
         <header className="space-y-3 border-b border-border pb-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Tutor</h1>
+            <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Tutor</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Grounded in your synced Canvas courses, with sources. It explains and gives feedback; it won&apos;t do graded
               work for you, and it can&apos;t change anything in Canvas.
@@ -392,7 +393,12 @@ export function TutorWorkspace({
           {streaming && (
             <div className="max-w-prose">
               {streaming.text && <RichText text={stripMarkers(streaming.text)} sources={[]} />}
-              {streaming.status && <p className="mt-2 animate-pulse text-sm text-muted-foreground">{streaming.status}</p>}
+              {streaming.status && (
+                <p className="mt-2 flex items-center gap-2.5 text-sm text-muted-foreground">
+                  <PathLoader label={streaming.status} />
+                  {streaming.status}
+                </p>
+              )}
             </div>
           )}
           <div ref={endRef} />

@@ -61,7 +61,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
         <Link href="/assignments" className="text-sm text-muted-foreground hover:text-foreground">
           Assignments
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">{a.title}</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">{a.title}</h1>
         <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
           <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: a.class.color }} />
           <Link href={`/courses/${a.class.id}`} className="hover:text-foreground">{a.class.name}</Link>

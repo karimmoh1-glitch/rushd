@@ -19,7 +19,7 @@ export default async function AdminAiPage() {
     <div className="space-y-10">
       <header>
         <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">Admin</Link>
-        <h1 className="text-2xl font-semibold tracking-tight">AI usage and cost</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">AI usage and cost</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           This calendar month (UTC). Costs are computed from provider-reported tokens at list prices; open reservations count
           at their estimate. Reconcile against the Anthropic console invoice for confirmed spend.

@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth/dal";
 import { getUsageSummary } from "@/lib/ai/usage";
 import { formatDateInZone } from "@/lib/time/zone";
 import { PracticeForm } from "./practice-form";
+import { PathEmpty } from "@/components/brand/path-empty";
 
 export const metadata: Metadata = { title: "Practice" };
 export const maxDuration = 60;
@@ -27,7 +28,7 @@ export default async function PracticePage() {
   return (
     <div className="max-w-3xl space-y-10">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Practice</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Practice</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Snap a photo of worked problems or type your answers. Rushd checks each answer, shows what you&apos;ve got down and
           what&apos;s missing, and tells you what to study next.
@@ -53,11 +54,11 @@ export default async function PracticePage() {
       <section aria-labelledby="history">
         <h2 id="history" className="border-b border-border pb-2 text-base font-semibold">Your checks</h2>
         {recent.length === 0 ? (
-          <p className="py-5 text-sm text-muted-foreground">
-            No checks yet. Each one adds evidence to your{" "}
-            <Link href="/mastery" className="underline underline-offset-4">mastery</Link> picture; one check is a snapshot, a few
+          <PathEmpty title="No checks yet">
+            Each one adds evidence to your{" "}
+            <Link href="/mastery" className="underline underline-offset-4">mastery</Link> picture. One check is a snapshot; a few
             over time show a trend.
-          </p>
+          </PathEmpty>
         ) : (
           <ul className="divide-y divide-border">
             {recent.map((a) => (

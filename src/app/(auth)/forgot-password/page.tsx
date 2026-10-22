@@ -12,7 +12,7 @@ export default function ForgotPasswordPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">Forgot your password?</CardTitle>
+        <CardTitle className="font-display text-[1.75rem] font-medium tracking-tight">Forgot your password?</CardTitle>
         <CardDescription>Rushd can&apos;t send reset emails yet.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">

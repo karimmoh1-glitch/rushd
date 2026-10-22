@@ -163,7 +163,7 @@ export function OnboardingWizard() {
           <Check className="h-5 w-5 text-accent-foreground" aria-hidden="true" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
             Your Rushd profile is ready.
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -207,13 +207,19 @@ export function OnboardingWizard() {
           </span>
           <span>{STEPS[step]}</span>
         </div>
-        <div className="flex gap-1.5" aria-hidden="true">
+        {/* Progress as the Rushd path: done points in ink, the current one lit. */}
+        <div className="relative flex items-center justify-between" aria-hidden="true">
+          <span className="absolute inset-x-1.5 top-1/2 h-px -translate-y-1/2 bg-border" />
+          <span
+            className="absolute left-1.5 top-1/2 h-px -translate-y-1/2 bg-foreground transition-[width] duration-500 ease-[var(--ease-settle)]"
+            style={{ width: `calc(${(step / (STEPS.length - 1)) * 100}% - ${step === STEPS.length - 1 ? 12 : 6}px)` }}
+          />
           {STEPS.map((s, i) => (
-            <div
+            <span
               key={s}
               className={cn(
-                "h-1.5 flex-1 rounded-full",
-                i <= step ? "bg-primary" : "bg-muted",
+                "relative z-10 rounded-full border-2 transition-all duration-300",
+                i < step ? "h-2.5 w-2.5 border-foreground bg-foreground" : i === step ? "h-3.5 w-3.5 border-signal bg-signal" : "h-2.5 w-2.5 border-foreground/25 bg-background",
               )}
             />
           ))}
@@ -222,7 +228,7 @@ export function OnboardingWizard() {
 
       {step === 0 && (
         <div className="space-y-4">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
             Let&apos;s set up your plan
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -303,7 +309,7 @@ export function OnboardingWizard() {
 
       {step === 1 && (
         <div className="space-y-4">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
             When can you usually study?
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -369,7 +375,7 @@ export function OnboardingWizard() {
 
       {step === 2 && (
         <div className="space-y-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Add your courses</h1>
+          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Add your courses</h1>
           <p className="text-sm text-muted-foreground">
             Optional — you can always add these later from your dashboard.
           </p>
@@ -429,7 +435,7 @@ export function OnboardingWizard() {
 
       {step === 3 && (
         <div className="space-y-4">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
             What&apos;s your biggest academic challenge?
           </h1>
           <p className="text-sm text-muted-foreground">

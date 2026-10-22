@@ -24,7 +24,7 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
         <Link href={`/courses/${m.classId}`} className="text-sm text-muted-foreground hover:text-foreground">
           {m.className}
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">{m.title}</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">{m.title}</h1>
         <p className="text-sm text-muted-foreground">
           {KIND_LABEL[m.kind]}
           {m.postedAt && ` · ${m.kind === "ASSIGNMENT" ? "Due" : "Posted"} ${formatDateInZone(m.postedAt, user.profile?.timezone, { month: "short", day: "numeric", year: "numeric" })}`}

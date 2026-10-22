@@ -87,7 +87,7 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
           {profile?.displayName ?? "Your"}&apos;s Academic Profile
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">

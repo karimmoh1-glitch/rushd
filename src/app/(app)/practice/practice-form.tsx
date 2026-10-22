@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { submitPracticeCheck } from "@/server/actions/practice";
 import { compressImage, ImagePrepError } from "@/lib/upload/compress";
+import { PathLoader } from "@/components/brand/path-loader";
 
 const MAX_PHOTOS = 2;
 const STAGES = ["Preparing your photo…", "Reading your work…", "Checking each answer…", "Finding what to study next…"];
@@ -177,7 +178,12 @@ export function PracticeForm({ classes }: { classes: { id: string; name: string 
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={busy}>{pending ? "Checking…" : "Check my work"}</Button>
-        {stage && <span className="text-sm text-muted-foreground" aria-live="polite">{stage}</span>}
+        {stage && (
+          <span className="flex items-center gap-2.5 text-sm text-muted-foreground" aria-live="polite">
+            <PathLoader label={stage} />
+            {stage}
+          </span>
+        )}
       </div>
     </form>
   );

@@ -57,7 +57,7 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Settings</h1>
       </div>
 
       <section id="plan" className="scroll-mt-24 space-y-4">

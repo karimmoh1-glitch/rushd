@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Newsreader, Amiri } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
@@ -8,6 +8,17 @@ const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
+
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
+});
+
+
+// Arabic for the رُشد logotype (bold only).
+const amiri = Amiri({ variable: "--font-amiri", subsets: ["arabic"], weight: ["700"] });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -19,16 +30,16 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   ),
   title: {
-    default: "Rushd: your personal AI learning system",
+    default: "Rushd: your personal AI study agent",
     template: "%s · Rushd",
   },
   applicationName: "Rushd",
   openGraph: {
     type: "website",
     siteName: "Rushd",
-    title: "Rushd: your personal AI learning system",
+    title: "Rushd: your personal AI study agent",
     description:
-      "Connect your coursework, learn with a tutor grounded in your own class materials, check your work against real rubrics, and know what to study next.",
+      "Rushd learns your classes, quizzes you, finds exactly what you don't understand, recommends what to watch and practice, and tells you what to study next.",
     url: "/",
   },
   twitter: { card: "summary_large_image" },
@@ -40,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable} ${amiri.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">

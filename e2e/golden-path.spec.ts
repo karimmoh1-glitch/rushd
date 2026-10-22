@@ -12,10 +12,10 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   // Landing page.
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Your personal AI learning system." }),
+    page.getByRole("heading", { level: 1, name: /Master/ }),
   ).toBeVisible();
   // The live planner demo renders real engine output.
-  await expect(page.getByText("Everything fits before its deadline.")).toBeVisible();
+  await expect(page.getByText("Your personal AI study agent")).toBeVisible();
   await page.getByRole("link", { name: "Start learning free" }).first().click();
 
   // Sign up.

@@ -29,7 +29,7 @@ export default async function AdminGrowthPage() {
     <div className="space-y-10">
       <header>
         <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">Admin</Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Growth</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Growth</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           First-party only: cookieless public page counts and account events. Last {funnel.sinceDays} days; account steps are
           for accounts created in that window.

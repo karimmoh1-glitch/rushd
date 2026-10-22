@@ -7,6 +7,7 @@ import { nextReview, type TopicMastery } from "@/lib/practice/mastery";
 import { formatDateInZone } from "@/lib/time/zone";
 import { buttonVariants } from "@/components/ui/button";
 import { ScheduleReviewButton } from "./schedule-review-button";
+import { PathEmpty } from "@/components/brand/path-empty";
 
 export const metadata: Metadata = { title: "Mastery" };
 
@@ -33,7 +34,7 @@ export default async function MasteryPage() {
   return (
     <div className="max-w-3xl space-y-10">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Mastery</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Mastery</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           What your practice checks show you know, topic by topic. Estimates come with a range and get more reliable with
           every check; recent work counts more.
@@ -45,20 +46,22 @@ export default async function MasteryPage() {
       </header>
 
       {topics.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-6">
-          <p className="font-medium">No evidence yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <PathEmpty title="No evidence yet">
+          <p>
             Check a page of practice work and Rushd starts mapping what you&apos;ve mastered and what to review. Nothing here
             is guessed: every number comes from your own checks.
           </p>
           <Link href="/practice" className={`${buttonVariants()} mt-4`}>Check my work</Link>
-        </div>
+        </PathEmpty>
       ) : (
         <>
           {focus && (
             <section aria-labelledby="focus" className="rounded-xl border border-border bg-card p-5">
-              <h2 id="focus" className="text-sm font-medium text-muted-foreground">Study next</h2>
-              <p className="mt-1 text-xl font-semibold tracking-tight">{focus.topicLabel}</p>
+              <h2 id="focus" className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">
+                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal" />
+                Study next
+              </h2>
+              <p className="mt-1.5 font-display text-2xl font-medium tracking-tight">{focus.topicLabel}</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 About {focus.estimate}% (range {focus.low}–{focus.high}%, {focus.confidence} confidence) from {focus.evidenceCount} check
                 {focus.evidenceCount === 1 ? "" : "s"}.
@@ -93,7 +96,7 @@ export default async function MasteryPage() {
                         <Trend trend={t.trend} />
                       </div>
                       <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`Estimated ${t.low} to ${t.high} percent`}>
-                        <div className="h-full rounded-full bg-primary/70" style={{ marginLeft: `${t.low}%`, width: `${Math.max(2, t.high - t.low)}%` }} />
+                        <div className={`h-full rounded-full ${t.status === "needs_review" ? "bg-signal" : t.status === "strong" ? "bg-teal" : "bg-foreground/55"}`} style={{ marginLeft: `${t.low}%`, width: `${Math.max(2, t.high - t.low)}%` }} />
                       </div>
                     </li>
                   ))}

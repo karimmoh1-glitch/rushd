@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, Clock, Flame, Gauge } from "lucide-react";
+import { Clock, Flame, Gauge } from "lucide-react";
+import { PathEmpty } from "@/components/brand/path-empty";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights";
@@ -56,7 +57,7 @@ export default async function InsightsPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Progress</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           What your study sessions show, computed from what you actually logged.
         </p>
@@ -72,13 +73,10 @@ export default async function InsightsPage() {
 
       {insights.totalSessions === 0 ? (
         <div>
-          <div className="rounded-lg border border-dashed border-border py-14 text-center">
-            <BarChart3 className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
-            <p className="mt-3 text-muted-foreground">
-              Start and finish a few study sessions and Rushd will start noticing patterns —
-              how accurate your estimates are, when you actually get things done.
-            </p>
-          </div>
+          <PathEmpty title="No study sessions yet">
+            Start and finish a few study sessions and Rushd will start noticing patterns: how accurate your estimates are and
+            when you actually get things done.
+          </PathEmpty>
         </div>
       ) : (
         <>

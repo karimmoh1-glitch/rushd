@@ -15,7 +15,7 @@ export default async function UpgradePage({ searchParams }: { searchParams: Prom
   const current = await getPlanId(user.id);
   return (
     <div className="max-w-lg space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Upgrade to {plan.name}</h1>
+      <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Upgrade to {plan.name}</h1>
       {!billingConfigured() ? (
         <p className="text-sm text-muted-foreground">Paid plans aren&apos;t open yet. You&apos;re on the Free plan, which keeps working as usual.</p>
       ) : current !== "FREE" ? (

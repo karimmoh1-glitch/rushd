@@ -11,7 +11,7 @@ export default function ResetPasswordPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">Choose a new password</CardTitle>
+        <CardTitle className="font-display text-[1.75rem] font-medium tracking-tight">Choose a new password</CardTitle>
         <CardDescription>This signs you out everywhere else.</CardDescription>
       </CardHeader>
       <CardContent>

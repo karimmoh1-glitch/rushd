@@ -45,7 +45,7 @@ export default async function PracticeResultPage({ params }: { params: Promise<{
     <article className="max-w-3xl space-y-8">
       <header className="space-y-1">
         <Link href="/practice" className="text-sm text-muted-foreground hover:text-foreground">Practice</Link>
-        <h1 className="text-2xl font-semibold tracking-tight">{r.topic}</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">{r.topic}</h1>
         <p className="text-sm text-muted-foreground">
           {r.subject} · {formatDateInZone(row.createdAt, user.profile?.timezone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {r.gradable} answer{r.gradable === 1 ? "" : "s"} checked
         </p>
@@ -53,12 +53,12 @@ export default async function PracticeResultPage({ params }: { params: Promise<{
 
       <section aria-labelledby="estimate" className="rounded-xl border border-border bg-card p-5">
         <h2 id="estimate" className="text-sm font-medium text-muted-foreground">Estimate from this check</h2>
-        <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
+        <p className="mt-1 font-display text-4xl font-medium tabular-nums tracking-tight">
           {r.low === r.high ? `${r.estimate}%` : `${r.low}–${r.high}%`}
         </p>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
           <div className="relative h-full" style={{ marginLeft: `${r.low}%`, width: `${Math.max(2, r.high - r.low)}%` }}>
-            <div className="h-full rounded-full bg-primary/70" />
+            <div className={`h-full rounded-full ${r.estimate < 60 ? "bg-signal" : r.estimate >= 80 ? "bg-teal" : "bg-foreground/55"}`} />
           </div>
         </div>
         <p className="mt-3 text-sm">{r.summary}</p>

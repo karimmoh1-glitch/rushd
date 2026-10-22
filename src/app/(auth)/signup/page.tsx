@@ -18,7 +18,7 @@ export default async function SignupPage() {
     <Card>
       <PageViewBeacon path="/signup" />
       <CardHeader>
-        <CardTitle className="font-heading text-2xl">Create your account</CardTitle>
+        <CardTitle className="font-display text-[1.75rem] font-medium tracking-tight">Create your account</CardTitle>
         <CardDescription>Start on the free plan. No credit card needed.</CardDescription>
       </CardHeader>
       <CardContent>

@@ -186,7 +186,7 @@ export default async function DashboardPage() {
         <p className="text-sm text-muted-foreground">
           {formatDateInZone(now, tz, { weekday: "long", month: "long", day: "numeric" })}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="mt-1 text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem]">
           {greeting(zonedParts(now, tz).hour)}
           {name ? `, ${name}` : ""}.
         </h1>

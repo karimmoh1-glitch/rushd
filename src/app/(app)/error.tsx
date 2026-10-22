@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { BrokenPath } from "@/components/brand/path-empty";
 
 // Scoped to the authenticated app section — catches a render or data-fetch
 // failure on any dashboard/plan/assignments/etc. page instead of the whole
@@ -24,17 +24,15 @@ export default function AppError({
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
-        <AlertTriangle className="h-6 w-6 text-destructive" aria-hidden="true" />
-      </div>
-      <h1 className="mt-4 font-heading text-xl font-semibold">Something went wrong.</h1>
+      <BrokenPath />
+      <h1 className="mt-6 text-[1.75rem] font-medium leading-tight tracking-tight">Something went wrong.</h1>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        This is on us, not you — nothing you did caused this. Try again, or head back home.
+        This one is on us, not you. Try again, or head back to Today.
       </p>
       <div className="mt-6 flex gap-3">
         <Button onClick={reset}>Try again</Button>
-        <Link href="/dashboard">
-          <Button variant="outline">Go home</Button>
+        <Link href="/dashboard" className={buttonVariants({ variant: "outline" })}>
+          Go to Today
         </Link>
       </div>
     </div>

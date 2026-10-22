@@ -17,9 +17,10 @@ test("homepage explains the product without JavaScript", async ({ browser }) => 
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "Your personal AI learning system." })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Master any subject." })).toBeVisible();
   await expect(page.getByRole("link", { name: "Start learning free" }).first()).toBeVisible();
-  await expect(page.getByText("Interactive preview with example content")).toBeVisible();
+  await expect(page.getByText("Demo with example content")).toBeVisible();
+  await expect(page.getByText("Review the chain rule with trig").first()).toBeVisible();
   await context.close();
 });
 
@@ -66,4 +67,9 @@ test("signed-in student: practice, mastery, tutor preferences, and plan limits",
 
   await page.goto("/upgrade?plan=PLUS");
   await expect(page.getByRole("heading", { name: "Upgrade to Plus" })).toBeVisible();
+});
+
+test("the live planner demo moved to How it works", async ({ page }) => {
+  await page.goto("/how-it-works");
+  await expect(page.getByText("Everything fits before its deadline.")).toBeVisible();
 });

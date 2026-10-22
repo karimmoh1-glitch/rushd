@@ -65,7 +65,7 @@ export default async function AssignmentsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Assignments</h1>
+          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Assignments</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Everything due, ordered by deadline. Open one for its instructions, rubric, and draft feedback.
           </p>

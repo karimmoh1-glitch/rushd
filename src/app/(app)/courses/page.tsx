@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { ClassCard } from "./class-card";
 import { AddClassButton } from "./add-class-button";
+import Link from "next/link";
+import { PathEmpty } from "@/components/brand/path-empty";
 
 export const metadata: Metadata = {
   title: "Courses",
@@ -33,7 +35,7 @@ export default async function ClassesPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Courses</h1>
+          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Courses</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Your courses, with their assignments, materials, and rubrics.
           </p>
@@ -42,12 +44,10 @@ export default async function ClassesPage() {
       </div>
 
       {classes.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-muted-foreground">No courses yet.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add a course, or connect Canvas to import yours.
-          </p>
-        </div>
+        <PathEmpty title="No courses yet">
+          Add a course, or{" "}
+          <Link href="/integrations/canvas" className="underline underline-offset-4">connect Canvas</Link> to import yours.
+        </PathEmpty>
       ) : (
         <div className="space-y-3">
           {active.map((c) => (

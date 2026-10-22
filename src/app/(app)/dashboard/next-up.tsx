@@ -49,14 +49,15 @@ export function NextUp({
 
   return (
     <section aria-labelledby="next-up" className="rounded-xl border border-border bg-card p-5 sm:p-6">
-      <h2 id="next-up" className="text-sm font-medium text-muted-foreground">
+      <h2 id="next-up" className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal" />
         Next up
       </h2>
       <div className="mt-2 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="flex items-center gap-2.5">
             <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: classColor }} />
-            <span className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{title}</span>
+            <span className="truncate font-display text-2xl font-medium tracking-tight sm:text-[1.75rem]">{title}</span>
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {className} · {formatDuration(minutes)} left

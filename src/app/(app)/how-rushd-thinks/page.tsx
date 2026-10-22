@@ -70,7 +70,7 @@ export default async function HowRushdThinksPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">How Rushd thinks</h1>
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">How Rushd thinks</h1>
         <p className="mt-1 max-w-2xl text-base text-muted-foreground">
           Nothing here is a black box. Every recommendation is arithmetic over your real data —
           no model guessing at what you should do.

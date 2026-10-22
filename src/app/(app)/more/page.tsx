@@ -16,7 +16,7 @@ const LINKS = [
 export default function MorePage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">More</h1>
+      <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">More</h1>
       <ul className="divide-y divide-border rounded-xl border border-border bg-card">
         {LINKS.map((l) => (
           <li key={l.href}>

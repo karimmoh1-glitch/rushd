@@ -103,7 +103,7 @@ export default async function PlanPage() {
     <div className="space-y-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
+          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Schedule</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Every block is placed inside your study time and before its deadline.
             {canvas?.lastSyncAt && <> Canvas last synced {formatDueDate(canvas.lastSyncAt, tz, now)}.</>}
