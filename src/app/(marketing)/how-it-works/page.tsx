@@ -72,7 +72,7 @@ export default function HowItWorksPage() {
                 <p className="mt-3 leading-relaxed text-muted-foreground">
                   Connect Canvas and Rushd brings in your courses, deadlines, modules, pages, assignment instructions, rubrics, and
                   announcements, read-only. It shows when each course last synced and says plainly when a school hides something
-                  from students. No Canvas? Add work by hand or from a screenshot.
+                  from students. School turned off Canvas tokens? Connect with your calendar feed instead. On Microsoft Teams? Connect that. Or just type your week.
                 </p>
               </div>
               <div className="surface rounded-xl p-5 lg:order-1">
