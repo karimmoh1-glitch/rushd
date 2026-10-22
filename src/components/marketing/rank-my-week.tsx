@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, RotateCcw } from "lucide-react";
+import { ArrowRight, Link2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseWeek, toWorkItems, TRY_STORAGE_KEY, type TryItem } from "@/lib/try/parse-week";
 import { scoreAndRank } from "@/lib/planning/score";
@@ -21,6 +21,22 @@ Spanish vocab worksheet tomorrow
 History reading notes Wednesday 40m`;
 
 const ROW = 58;
+
+// Shared weeks travel in the URL hash, which browsers never send to a server.
+function encodeWeek(text: string): string {
+  const bytes = new TextEncoder().encode(text.slice(0, 2400));
+  let bin = "";
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decodeWeek(code: string): string | null {
+  try {
+    const bin = atob(code.replace(/-/g, "+").replace(/_/g, "/"));
+    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))).slice(0, 2400);
+  } catch {
+    return null;
+  }
+}
 
 interface Ranked {
   key: string;
@@ -64,13 +80,14 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
   const [rows, setRows] = useState<Ranked[] | null>(null);
   const [settled, setSettled] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [shared, setShared] = useState(false);
   const counted = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  function rank() {
+  function rank(source = text) {
     const now = new Date();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const parsed = parseWeek(text, now);
+    const parsed = parseWeek(source, now);
     if (parsed.length === 0) {
       inputRef.current?.focus();
       return;
@@ -98,6 +115,35 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
     if (!counted.current) {
       counted.current = true;
       count("#try");
+    }
+  }
+
+  // Opened from a shared link: show that week, ranked for today.
+  useEffect(() => {
+    const m = window.location.hash.match(/^#w=([A-Za-z0-9_-]{1,4000})$/);
+    if (!m) return;
+    const shared = decodeWeek(m[1]);
+    if (!shared) return;
+    const id = window.setTimeout(() => {
+      setText(shared);
+      rank(shared);
+    }, 0);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on load
+  }, []);
+
+  async function share() {
+    const url = `${window.location.origin}/tools/rank-my-week#w=${encodeWeek(text)}`;
+    try {
+      if (typeof navigator.share === "function") await navigator.share({ title: "My week, ranked by Rushd", url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setShared(true);
+        window.setTimeout(() => setShared(false), 1800);
+      }
+      count("#try-share");
+    } catch {
+      // Cancelled or blocked; nothing to do.
     }
   }
 
@@ -261,7 +307,10 @@ export function RankMyWeek({ compact = false }: { compact?: boolean }) {
                   Save my week, free
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </button>
-                <span className="text-xs text-muted-foreground">No card. About a minute.</span>
+                <button type="button" onClick={share} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+                  <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  {shared ? "Link copied" : "Share this ranking"}
+                </button>
               </div>
             </div>
           )}

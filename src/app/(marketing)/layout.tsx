@@ -4,6 +4,7 @@ import { RushdWordmark } from "@/components/brand/rushd-mark";
 
 const LINKS = [
   ["/how-it-works", "How it works"],
+  ["/tools/rank-my-week", "Rank my homework"],
   ["/pricing", "Pricing"],
   ["/download", "Desktop apps"],
   ["/founder", "Founder"],

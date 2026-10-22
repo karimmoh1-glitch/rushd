@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 const PAGES: { path: string; priority: number; changeFrequency: "weekly" | "monthly" | "yearly" }[] = [
   { path: "", priority: 1, changeFrequency: "weekly" },
   { path: "/how-it-works", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/tools/rank-my-week", priority: 0.8, changeFrequency: "monthly" },
   { path: "/pricing", priority: 0.8, changeFrequency: "monthly" },
   { path: "/founder", priority: 0.8, changeFrequency: "monthly" },
   { path: "/schools", priority: 0.7, changeFrequency: "monthly" },
