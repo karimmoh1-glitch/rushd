@@ -25,6 +25,7 @@ import { buildOneThingReasons } from "./one-thing-reasons";
 import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
 import { QuickAdd } from "./quick-add";
+import { TryWeekImport } from "./try-week-import";
 
 export const metadata: Metadata = {
   title: "Today",
@@ -204,6 +205,8 @@ export default async function DashboardPage() {
           {dueThisWeek === 0 ? "Nothing else due this week" : `${dueThisWeek} due in the next 7 days`}
         </p>
       </header>
+
+      <TryWeekImport />
 
       {canvasConnection?.status === "NEEDS_REAUTH" && (
         <Link

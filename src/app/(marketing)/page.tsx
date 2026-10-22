@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { AgentPath } from "@/components/marketing/agent-path";
 import { SubjectCycle } from "@/components/marketing/subject-cycle";
 import { SignatureLoop } from "@/components/marketing/signature-loop";
+import { RankMyWeek } from "@/components/marketing/rank-my-week";
 import { GlyphContext, GlyphGap, GlyphNext } from "@/components/marketing/benefit-glyphs";
 import { PageViewBeacon } from "@/components/marketing/page-view-beacon";
 import { PLANS } from "@/lib/billing/plans";
@@ -99,7 +100,9 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          <AgentPath />
+          <div className="intro-line" style={{ ["--i" as string]: 2 }}>
+            <RankMyWeek />
+          </div>
         </div>
       </section>
 
@@ -129,15 +132,20 @@ export default function LandingPage() {
           <h2 className="reveal-rise max-w-3xl font-display text-[2.1rem] font-medium leading-[1.08] tracking-[-0.02em] sm:text-5xl">
             A chatbot answers what you ask. <span className="text-muted-foreground">Rushd knows what you need.</span>
           </h2>
-          <ul className="reveal-stagger mt-14 grid gap-12 md:grid-cols-3 md:gap-10">
-            {BENEFITS.map((b, i) => (
-              <li key={b.title} style={{ ["--i" as string]: i }}>
-                <b.glyph />
-                <h3 className="mt-5 text-lg font-semibold tracking-tight">{b.title}</h3>
-                <p className="mt-2 leading-relaxed text-muted-foreground">{b.text}</p>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-14 grid items-start gap-14 lg:grid-cols-[1fr_1fr] lg:gap-16">
+            <ul className="reveal-stagger grid gap-10">
+              {BENEFITS.map((b, i) => (
+                <li key={b.title} className="grid grid-cols-[auto_1fr] gap-5" style={{ ["--i" as string]: i }}>
+                  <b.glyph />
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight">{b.title}</h3>
+                    <p className="mt-2 leading-relaxed text-muted-foreground">{b.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <AgentPath />
+          </div>
         </div>
       </section>
 

@@ -14,9 +14,12 @@ export default async function AdminGrowthPage() {
   ]);
   const steps = [
     ["Homepage visits", funnel.homeViews],
+    ["Ranked a week (try it)", funnel.tryRanked],
+    ["Saved a ranked week", funnel.trySaved],
     ["Sign-up page visits", funnel.signupViews],
     ["Accounts created", funnel.signups],
     ["Finished onboarding", funnel.onboarded],
+    ["Added the week they ranked", funnel.tryImported],
     ["First meaningful action", funnel.firstMeaningful],
     ["First practice check", funnel.firstAssessment],
     ["First tutor message", funnel.firstTutor],
@@ -44,7 +47,7 @@ export default async function AdminGrowthPage() {
               <tr key={label}>
                 <td className="py-2">{label}</td>
                 <td className="py-2 text-right tabular-nums">{n}</td>
-                <td className="w-20 py-2 text-right tabular-nums text-muted-foreground">{label.startsWith("Home") || label.startsWith("Sign-up") ? "" : pct(n, funnel.signups)}</td>
+                <td className="w-20 py-2 text-right tabular-nums text-muted-foreground">{label.startsWith("Home") || label.startsWith("Sign-up") || label.startsWith("Ranked") || label.startsWith("Saved") ? "" : pct(n, funnel.signups)}</td>
               </tr>
             ))}
           </tbody>

@@ -9,8 +9,11 @@ const MEANINGFUL = ["assessment_completed", "tutor_message", "draft_reviewed", "
 export interface Funnel {
   sinceDays: number;
   homeViews: number;
+  tryRanked: number;
+  trySaved: number;
   signupViews: number;
   signups: number;
+  tryImported: number;
   onboarded: number;
   firstMeaningful: number;
   firstAssessment: number;
@@ -39,8 +42,11 @@ export async function getFunnel(sinceDays = 30): Promise<Funnel> {
   return {
     sinceDays,
     homeViews: viewsOf("/"),
+    tryRanked: viewsOf("#try"),
+    trySaved: viewsOf("#try-save"),
     signupViews: viewsOf("/signup"),
     signups: ids.length,
+    tryImported: await reached(["try_week_imported"]),
     onboarded: await reached(["onboarding_completed"]),
     firstMeaningful: await reached(MEANINGFUL),
     firstAssessment: await reached(["assessment_completed"]),

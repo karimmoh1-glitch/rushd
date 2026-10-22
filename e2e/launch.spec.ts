@@ -74,3 +74,31 @@ test("the live planner demo moved to How it works", async ({ page }) => {
   await page.goto("/how-it-works");
   await expect(page.getByText("Everything fits before its deadline.")).toBeVisible();
 });
+
+test("a visitor ranks their week, signs up, and keeps it", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Your assignments and tests this week, one per line").fill("Bio: lab report tomorrow 2h\nCalc quiz friday");
+  await page.getByRole("button", { name: "Rank it" }).click();
+  await expect(page.getByRole("list", { name: "Your week ranked by Pulse" }).getByText("Lab report")).toBeVisible();
+  await page.getByRole("button", { name: "Save my week, free" }).click();
+  await expect(page).toHaveURL(/\/signup\?from=try/);
+
+  await page.getByLabel("Email").fill(`e2e-try-${Date.now()}@example.com`);
+  await page.getByLabel("Password").fill("password123");
+  await page.getByRole("checkbox", { name: /13 or older/ }).check();
+  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByLabel("What should we call you?").fill("Try Tester");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await page.getByRole("button", { name: "Add the week I ranked" }).click();
+
+  await expect(page.getByText("Add the 2 items you ranked?")).toBeVisible();
+  await page.getByRole("button", { name: "Add them" }).click();
+  await expect(page.getByText("Add the 2 items you ranked?")).toBeHidden();
+  await page.goto("/assignments");
+  await expect(page.getByText("Lab report")).toBeVisible();
+  await page.goto("/exams");
+  await expect(page.getByText("Calc quiz")).toBeVisible();
+});

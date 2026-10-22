@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
@@ -16,6 +16,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { completeOnboarding } from "@/server/actions/onboarding";
+import { TRY_STORAGE_KEY } from "@/lib/try/parse-week";
+
+const noopSubscribe = () => () => {};
+function hasTriedWeek(): boolean {
+  try {
+    return !!localStorage.getItem(TRY_STORAGE_KEY);
+  } catch {
+    return false;
+  }
+}
 import {
   AVAILABILITY_PRESETS,
   formatMinutes,
@@ -49,6 +59,8 @@ interface ClassDraft {
 const STEPS = ["Basics", "Study time", "Classes", "Challenge"] as const;
 
 export function OnboardingWizard() {
+  // Came from "Rank my week" on the homepage: lead with adding that week.
+  const fromTry = useSyncExternalStore(noopSubscribe, hasTriedWeek, () => false);
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
@@ -180,9 +192,15 @@ export function OnboardingWizard() {
           </p>
         </div>
         <div className="flex flex-col justify-center gap-2 sm:flex-row">
+          {fromTry && (
+            <Button onClick={() => router.push("/dashboard")} size="lg" className="w-full sm:w-auto">
+              Add the week I ranked
+            </Button>
+          )}
           <Button
             onClick={() => router.push("/integrations/canvas?from=onboarding")}
             size="lg"
+            variant={fromTry ? "outline" : "default"}
             className="w-full sm:w-auto"
           >
             Connect Canvas
