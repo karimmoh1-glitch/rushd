@@ -31,8 +31,6 @@ export async function completeOnboarding(
         school: data.school || null,
         timezone: data.timezone,
         goals: data.goals || null,
-        // Announced on the finish screen with a link to turn it off.
-        emailReminders: true,
         primaryChallenge: data.primaryChallenge,
         ...(data.preferredSessionMinutes ? { preferredSessionMinutes: data.preferredSessionMinutes } : {}),
       },

@@ -87,7 +87,7 @@ model Profile {
   tutorInstructions       String?
   tutorPreferences        Json?
   // Study emails: the Sunday "your week" email and a nudge before a streak
-  // ends. Off unless the student turns them on (onboarding or Settings).
+  // ends. Off unless the student opts in (onboarding finish screen or Settings).
   emailReminders          Boolean            @default(false)
   lastDigestAt            DateTime?
   lastNudgeAt             DateTime?

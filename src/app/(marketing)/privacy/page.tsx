@@ -117,7 +117,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-heading text-lg font-semibold">Email</h2>
           <p className="mt-2">
-            Rushd emails you for password resets and, unless you turn them off, a Sunday summary of your week and a reminder
+            Rushd emails you for password resets and, only if you turn them on, a Sunday summary of your week and a reminder
             when a study streak is about to end. Emails are delivered by Resend. Every study email has a one-click
             unsubscribe, and Settings has the same switch.
           </p>

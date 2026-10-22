@@ -141,9 +141,10 @@ answer questions about data use; point them to https://therushd.com/privacy.
 5. Test: log out → Forgot password → your email. The reset link arrives within
    a minute.
 
-Students who finish onboarding get study emails (Sunday "your week" and an
-evening nudge before a 3+ day streak breaks), announced on the finish screen,
-switchable in Settings, with one-click unsubscribe in every email.
+Study emails (Sunday "your week" and a nudge before a 3+ day streak breaks)
+are opt-in: an unchecked box on the onboarding finish screen (shown once email
+is configured) and a switch in Settings. Every study email has one-click
+unsubscribe. Nobody gets them unless they turned them on.
 
 **Scheduled jobs.** `vercel.json` runs `/api/cron/daily` at 09:00 UTC (re-sync
 Canvas, Teams, and calendar feeds; Sunday emails) and `/api/cron/evening` at

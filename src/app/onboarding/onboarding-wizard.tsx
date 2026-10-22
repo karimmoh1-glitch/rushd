@@ -19,6 +19,7 @@ import { completeOnboarding } from "@/server/actions/onboarding";
 import { clearTry, readFreshTry } from "@/lib/try/storage";
 import type { TryItem } from "@/lib/try/parse-week";
 import { importTriedWeek } from "@/server/actions/try-week";
+import { setEmailReminders } from "@/server/actions/settings";
 import {
   AVAILABILITY_PRESETS,
   formatMinutes,
@@ -54,10 +55,11 @@ interface ClassDraft {
 
 const STEPS = ["Basics", "Study time", "Classes", "Challenge"] as const;
 
-export function OnboardingWizard({ teams = false, ai = false }: { teams?: boolean; ai?: boolean }) {
+export function OnboardingWizard({ teams = false, ai = false, email = false }: { teams?: boolean; ai?: boolean; email?: boolean }) {
   // Came from "Rank my week" on the homepage: lead with adding that week.
   const fromTry = useSyncExternalStore(noopSubscribe, hasTriedWeek, () => false);
   const [importing, setImporting] = useState(false);
+  const [emailsOn, setEmailsOn] = useState(false);
 
   // One step: bring in the saved week and land on Today with it ranked.
   async function addTriedWeek() {
@@ -205,10 +207,24 @@ export function OnboardingWizard({ teams = false, ai = false }: { teams?: boolea
               ? " and your study time is set."
               : ". Set your study availability in Settings to get a real plan."}
           </p>
-          <p className="mx-auto mt-3 max-w-md text-xs text-muted-foreground">
-            We&apos;ll email your week on Sundays and nudge you if a streak is about to end.{" "}
-            <a href="/settings#emails" className="underline underline-offset-4">Turn that off</a>.
-          </p>
+          {email && (
+            <label className="mx-auto mt-4 flex max-w-md items-start gap-2.5 text-left text-sm">
+              <input
+                type="checkbox"
+                checked={emailsOn}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setEmailsOn(on);
+                  void setEmailReminders(on);
+                }}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--signal)]"
+              />
+              <span>
+                Email me my week every Sunday, and a nudge if a study streak is about to end.{" "}
+                <span className="text-muted-foreground">Change it anytime in Settings.</span>
+              </span>
+            </label>
+          )}
           <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
             Pick a first step. Connecting Canvas brings in your assignments, due dates, and course materials (read-only).
             {ai ? " Or check a page of practice work to see what you've got down and what to review." : " Or go straight to your plan and type in what's due."}
