@@ -16,8 +16,11 @@ describe("generatePlanForUser (integration)", () => {
     });
     classId = cls.id;
 
-    await db.studyAvailability.create({
-      data: { userId, dayOfWeek: new Date().getDay(), startMinute: 0, endMinute: 600 },
+    // Open every day, all day: the engine (correctly) never schedules into
+    // time that has already passed today, so a single morning window would
+    // make this test depend on the time of day it runs.
+    await db.studyAvailability.createMany({
+      data: Array.from({ length: 7 }, (_, dayOfWeek) => ({ userId, dayOfWeek, startMinute: 0, endMinute: 1440 })),
     });
   });
 
@@ -31,7 +34,7 @@ describe("generatePlanForUser (integration)", () => {
         userId,
         classId,
         title: "Lab report",
-        dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        dueAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
         estimatedMinutes: 45,
         status: "NOT_STARTED",
       },

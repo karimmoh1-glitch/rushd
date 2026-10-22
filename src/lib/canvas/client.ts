@@ -71,7 +71,8 @@ export interface CanvasSubmission {
   missing?: boolean;
   late?: boolean;
   excused?: boolean;
-  score?: number | null;
+  // Canvas also returns score/grade on this object; Rushd deliberately
+  // doesn't type, read, or store them.
 }
 
 export interface CanvasAssignment {

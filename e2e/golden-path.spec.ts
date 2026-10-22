@@ -12,9 +12,11 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   // Landing page.
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Turn academic chaos into a clear plan" }),
+    page.getByRole("heading", { name: "Every deadline, turned into a plan." }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Get started — it's free" }).click();
+  // The live planner demo renders real engine output.
+  await expect(page.getByText("Everything fits before its deadline.")).toBeVisible();
+  await page.getByRole("link", { name: "Get started" }).first().click();
 
   // Sign up.
   await expect(page).toHaveURL(/\/signup/);
@@ -50,7 +52,7 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   await expect(page.getByRole("heading", { name: /Playwright Student/ })).toBeVisible();
 
   // Create an assignment due today so it lands on today's plan.
-  await page.getByRole("link", { name: "Assignments" }).click();
+  await page.getByRole("link", { name: "Assignments", exact: true }).click();
   await expect(page).toHaveURL(/\/assignments/);
   await page.getByRole("button", { name: "Add assignment" }).click();
 
@@ -66,24 +68,24 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   await expect(page.getByText("Playwright reading response")).toBeVisible();
 
   // The plan should reflect it on the dashboard's Today section.
-  await page.getByRole("link", { name: "Home" }).click();
+  await page.getByRole("link", { name: "Home", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByText("Playwright reading response").first()).toBeVisible();
 
   // ...and on the dedicated weekly Plan screen, under today's column. It
   // may also appear in the Academic Forecast's "top items" list further
   // down the page, so use .first() rather than assuming a unique match.
-  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByRole("link", { name: "Plan", exact: true }).click();
   await expect(page).toHaveURL(/\/plan/);
   await expect(page.getByText("Playwright reading response").first()).toBeVisible();
 
   // Complete it from the Assignments page and verify the dashboard adapts.
-  await page.getByRole("link", { name: "Assignments" }).click();
+  await page.getByRole("link", { name: "Assignments", exact: true }).click();
   const row = page.locator("div").filter({ hasText: "Playwright reading response" }).first();
   await row.getByRole("checkbox").click();
   await expect(page.getByText("Completed")).toBeVisible();
 
-  await page.getByRole("link", { name: "Home" }).click();
+  await page.getByRole("link", { name: "Home", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   // Completed work should no longer show as an active plan item.
   const activePlanItem = page
@@ -128,7 +130,7 @@ test("study session: start, persists across navigation, completes with an edited
   // list (a MANUAL-source start, independent of what the live plan chose to
   // schedule today — avoids ambiguity if this item also happens to appear
   // in "One Thing" or Today's plan on the dashboard).
-  await page.getByRole("link", { name: "Assignments" }).click();
+  await page.getByRole("link", { name: "Assignments", exact: true }).click();
   await page.getByRole("button", { name: "Add assignment" }).click();
   await page.getByLabel("Title").fill("Session test assignment");
   const dueInput = page.getByLabel("Due");
@@ -150,14 +152,14 @@ test("study session: start, persists across navigation, completes with an edited
 
   // Persists across navigation — this is the point of the shared context,
   // not a page-local timer.
-  await page.getByRole("link", { name: "Plan" }).click();
+  await page.getByRole("link", { name: "Plan", exact: true }).click();
   await expect(page).toHaveURL(/\/plan/);
   await expect(page.getByRole("button", { name: "Complete", exact: true })).toBeVisible();
 
   // A second Start attempt anywhere should be blocked — only one session at
   // a time. (The dashboard may show this exact assignment again via One
   // Thing/Today; either way, no Start button should be clickable right now.)
-  await page.getByRole("link", { name: "Home" }).click();
+  await page.getByRole("link", { name: "Home", exact: true }).click();
   const anyStartButton = page.getByRole("button", { name: "Start" }).first();
   if (await anyStartButton.count()) {
     await expect(anyStartButton).toBeDisabled();
@@ -224,4 +226,41 @@ test("study session: abandon with an optional reason", async ({ page }) => {
 
   // The bar is gone and nothing was forced — no error, no required field.
   await expect(page.getByRole("button", { name: "Abandon" })).toHaveCount(0);
+});
+
+// Onboarding offers Canvas; a student can connect it or skip it and still use
+// Rushd fully. Live Canvas can't be exercised in CI, so this covers the path,
+// the helpful validation error, and the skip.
+test("onboarding offers Canvas, rejects an unsafe address, and can be skipped", async ({ page }) => {
+  const email = `e2e-canvas-${Date.now()}@example.com`;
+  await page.goto("/signup");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("password123");
+  await page.getByRole("button", { name: "Create account" }).click();
+
+  await expect(page).toHaveURL(/\/onboarding/);
+  await page.getByLabel("What should we call you?").fill("Canvas Tester");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByText("Weekday evenings").click();
+  await page.getByRole("button", { name: "45 min" }).click();
+  await expect(page.getByRole("button", { name: "45 min" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Connect Canvas" }).click();
+  await expect(page).toHaveURL(/\/integrations\/canvas\?from=onboarding/);
+  await expect(page.getByRole("heading", { name: "Canvas", exact: true })).toBeVisible();
+
+  await page.getByLabel("Canvas address").fill("http://169.254.169.254");
+  await page.getByLabel("Access token").fill("7~NotARealTokenJustForTheTest000000");
+  await page.getByRole("button", { name: "Connect Canvas" }).click();
+  await expect(page.getByText("Canvas addresses must start with https://.")).toBeVisible();
+  // The token field is cleared after every attempt.
+  await expect(page.getByLabel("Access token")).toHaveValue("");
+
+  await page.getByRole("link", { name: "Skip for now" }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page.getByText("Bring in your real workload from Canvas")).toBeVisible();
 });

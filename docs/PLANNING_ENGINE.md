@@ -52,64 +52,94 @@ comes from here, never from the model.
 
 ## Scheduling
 
-`generatePlan()` (`src/lib/planning/schedule.ts`):
+`generatePlan()` (`src/lib/planning/schedule.ts`) is deterministic: the same
+inputs always produce the same blocks (ranking ties break on due date, then
+id, so database row order never matters).
+
+All day-level reasoning happens in the **student's timezone**
+(`Profile.timezone`, via `src/lib/time/zone.ts`), never the server's clock.
+A Pacific 11:59 PM Friday deadline is Friday, even though the server (UTC)
+sees Saturday 06:59.
 
 1. Score and rank every work item (highest score first).
-2. Expand `StudyAvailability` into a per-date minute budget for every day in
-   the horizon (`buildDailyCapacity`).
-3. Walk items in score order. For each, walk forward day by day from today,
-   allocating up to `MAX_SESSION_MINUTES` (90) from that day's remaining
-   budget, until the item's full effort is scheduled or the horizon/due-date
-   cutoff is reached.
-4. If an item still has unscheduled effort after that, it's recorded in
-   `unscheduledMinutesByItem` rather than silently dropped.
+2. Build each day's **free intervals** from the weekly `StudyAvailability`
+   windows. For today, time that has already passed is removed.
+3. Place **pinned blocks** (`ScheduleBlock` rows the student locked, moved,
+   or resized) first. They are fixed commitments: their time is removed from
+   the free intervals, their minutes count toward the item's remaining work,
+   and regeneration never moves them.
+4. Walk items in score order. Each item may use days from
+   `max(today, due date − LEAD_WINDOW_DAYS)` up to its due date (or the whole
+   horizon if already overdue). On the due day, blocks must end by the due
+   *time*, not just the due date.
+   - **Pass 1, spread:** at most one block per day, sized to the student's
+     preferred block length (`Profile.preferredSessionMinutes`, max 90).
+   - **Pass 2, catch-up:** only if work would otherwise miss its deadline,
+     extra blocks are packed into whatever capacity remains before it.
+5. Blocks land at the earliest open time in a window, with a
+   `DEFAULT_BREAK_MINUTES` gap after each, and never exceed the student's
+   daily cap (`Profile.maxDailyMinutes`). Blocks shorter than
+   `MIN_BLOCK_MINUTES` aren't created unless the whole task is that short.
+6. Anything that still doesn't fit before its deadline becomes a
+   `DEADLINE_SHORTFALL` warning (with the exact minutes) and is grouped into
+   `OVERLOADED_DAY` warnings by deadline day. Nothing is silently dropped and
+   nothing is quietly placed after its due time.
 
-Because items are processed in score order and each consumes capacity as it
-goes, higher-priority work always gets first claim on a day's available time
-— the schedule *is* the priority order, applied to real time.
+`generatePlanForUser()` schedules over `PLANNING_HORIZON_DAYS` (28) so a
+crunch three weeks out is reported early; the plan page displays the first
+`DEFAULT_HORIZON_DAYS` (7).
 
-### Why a 90-minute session cap
+### Why spread first, then catch up
 
-Splitting large workloads (e.g., a 3-hour exam-prep block) across multiple
-sessions/days instead of one sitting is a deliberate product choice, not a
-scheduling limitation: spaced practice beats cramming, and it leaves room in
-a busy day for other work to get a slice of the same day's availability too.
+Spaced practice beats cramming, and spreading leaves room for other work on
+busy days, so a big task gets one block per day by default. But the old rule
+("one block per day, period") could leave work unscheduled on a day with
+hours free while its deadline approached. Pass 2 fixes that: extra same-day
+blocks appear only when a deadline genuinely requires them.
 
-Concretely: each item gets **at most one session per day**, capped at 90
-minutes, even if that day has far more free capacity than that. A 200-minute
-item on a day with 10 free hours still only gets a single 90-minute block
-today; the rest rolls to the next day(s) it has capacity, not into a second
-block later the same day. If the horizon runs out before an item is fully
-scheduled, the remainder shows up in `unscheduledMinutesByItem` — see below.
+### The lead window
+
+Work isn't planned more than `LEAD_WINDOW_DAYS` (14) before it's due. Without
+this, importing a semester of Canvas assignments would fill this week with
+work due in a month. Minutes held back this way are reported as
+`deferredMinutesByItem`: not a problem, just not scheduled yet.
 
 ### Due-date cutoff vs. overdue catch-up
 
-An item that isn't yet overdue is never scheduled *after* its own due date —
-there's no point suggesting study time for something once it's too late for
-that time to matter. An item that's already overdue is treated differently:
-it keeps competing for any open capacity across the whole horizon, because
-catching up is still the useful thing to do. This asymmetry is intentional.
+An item that isn't yet overdue is never scheduled after its due moment.
+An item that's already overdue keeps competing for open capacity across the
+whole horizon, because catching up is still the useful thing to do.
+
+### Student control
+
+The student can lock an auto-placed block (it becomes a `ScheduleBlock`),
+move or resize it, unlock it, or regenerate from scratch (which unlocks all
+future pinned blocks, after a confirmation that shows the count). Moves are
+validated server-side: the item must be theirs and open, the day within the
+planning horizon, not already past, and not overlapping another pinned
+block. A block may be placed outside the student's availability; that's
+their explicit choice.
 
 ## Edge cases and how they degrade
 
 | Situation | Behavior |
 |---|---|
-| No `StudyAvailability` windows at all | `dailyCapacity` is all zeros → `sessions` is empty, but `scored` is still fully populated. The UI can show "what's most important" without "when to do it," and prompt the student to set availability. |
-| More work than available time in the horizon | Lower-scored items receive partial or zero scheduled minutes; the shortfall is visible per item in `unscheduledMinutesByItem` rather than silently discarded. |
-| An assignment/exam is already overdue | Gets the overdue bonus, and is still eligible for scheduling on any day in the horizon (see above), not just "before" its due date. |
-| Everything has the same priority and due date | Falls back to the effort tiebreak (shorter first); still deterministic, no ties broken by insertion order or randomness. |
-| Zero assignments/exams | `scored` and `sessions` are both empty arrays. The dashboard shows an explicit "nothing due" state, not a blank screen. |
-| `estimatedMinutes`/`prepMinutes` unusually large (e.g., a 10-hour project logged as one item) | Gets spread across many sessions/days via the 90-minute cap; if it still doesn't fit the horizon, the remainder shows up in `unscheduledMinutesByItem`. |
+| No `StudyAvailability` windows at all | No blocks; `scored` is still populated; a `NO_AVAILABILITY` warning prompts the student to set study time. |
+| More work than time before a deadline | Higher-ranked work is placed first; each item's shortfall is reported (`DEADLINE_SHORTFALL`) and grouped by deadline day (`OVERLOADED_DAY`). |
+| An assignment/exam is already overdue | Overdue bonus, and eligible for any open capacity in the horizon. |
+| Everything has the same priority and due date | Effort tiebreak, then due date, then id. Deterministic. |
+| Zero assignments/exams | Empty `scored` and `sessions`; explicit "nothing to plan" state. |
+| A huge task (e.g. 10 hours) | Spread one block per day; extra blocks only where the deadline needs them; any remainder is reported as a shortfall. |
+| Work due in five weeks | Not scheduled yet (lead window); reported as deferred, not as a problem. |
+| Canvas removes an assignment | It's kept but marked `canvasRemovedAt` and excluded from planning. |
 
 ## Known limitations (MVP)
 
-- **Timezone**: `dueAt`/`examAt` and `StudyAvailability` windows are compared
-  using the server/browser's notion of "today," not an explicit conversion
-  through `Profile.timezone`. This works correctly as long as the student's
-  device timezone matches their profile timezone (true for the near-total
-  majority of real usage) but is not rigorously timezone-safe for a student
-  traveling across zones. Documented, not silently wrong: see
-  `src/lib/datetime-local.ts`.
+- **Timezone (manual entry only)**: planning and display use
+  `Profile.timezone`. The one remaining assumption is in manual due-date
+  entry: the browser converts the typed date/time using the *device's* zone
+  (`src/lib/datetime-local.ts`). Canvas imports are exact instants and
+  unaffected.
 - **No partial-completion tracking**: an `IN_PROGRESS` assignment is still
   scheduled with its *full* `estimatedMinutes` every time, not "time
   remaining after what's already been done." `StudySession` now *records*
@@ -120,11 +150,12 @@ catching up is still the useful thing to do. This asymmetry is intentional.
   minutes already spent reduce today's suggestion, or just inform tomorrow's
   estimate?). The data to make that decision correctly now exists; the
   decision itself hasn't been made yet.
-- **No cross-day session memory**: the engine has no idea whether a
-  previously *suggested* session actually happened at that specific
-  time — only whether the underlying assignment/exam is now `COMPLETED`
-  (see Adaptive Behavior below). It re-derives the whole schedule from
-  scratch on every generation rather than incrementally patching a prior one.
+- **Auto blocks are recomputed, not remembered**: everything except pinned
+  blocks is re-derived on every generation. A suggested block that the
+  student skipped simply re-plans; only blocks they lock or move persist.
+- **Fixed commitments are expressed as availability**: there's no separate
+  "busy" calendar. Students describe when they're free (and can pin blocks);
+  school hours and activities are whatever falls outside those windows.
 - **Single-user, single-timezone availability**: `StudyAvailability` doesn't
   support one-off exceptions (e.g., "not available this Friday") — only a
   recurring weekly pattern.

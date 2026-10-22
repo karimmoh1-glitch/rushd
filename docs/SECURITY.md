@@ -73,6 +73,48 @@ history, not just current status). `.env.example` contains no real values.
 `ANTHROPIC_API_KEY` (when set) lives only in server-side env, never sent
 to the client, never logged.
 
+## Canvas LMS integration
+
+A Canvas personal access token grants access to a student's Canvas account,
+so it's handled as a secret end to end.
+
+- **Encryption at rest:** AES-256-GCM with a random 96-bit IV per write,
+  versioned payload (`v1.iv.tag.ciphertext`). The owning `userId` is bound as
+  additional authenticated data, so a ciphertext copied into another user's
+  row fails authentication. Key: `CANVAS_TOKEN_ENCRYPTION_KEY` (32 random
+  bytes, base64) in the deployment environment only; it must stay stable
+  across deploys. See `src/lib/canvas/token-vault.ts`.
+- **Never exposed:** the ciphertext is selected in exactly one function
+  (`loadSecret` in `src/lib/canvas/service.ts`); every client-facing query
+  uses an explicit safe `select`. The raw token reaches the server once (the
+  connect action), is verified, encrypted, and dropped; the client clears it
+  from state immediately. It's sent to Canvas only in the `Authorization`
+  header, never in a URL.
+- **Never logged:** errors carry user-safe messages and never the token.
+  Next.js server-function argument logging (on by default, and it printed
+  tokens and passwords in dev) is disabled in `next.config.ts`. Analytics
+  events record counts and error codes only.
+- **SSRF:** the student supplies the Canvas host, so: https only; no IP
+  literals (including decimal/hex forms), ports, credentials, or local
+  suffixes; the hostname is resolved and **every** address must be public
+  (blocks loopback, RFC 1918, link-local and cloud metadata 169.254.169.254,
+  CGNAT, multicast, reserved, IPv6 ULA/link-local, and IPv4 embedded in IPv6
+  via mapped, NAT64, 6to4, or Teredo forms). The connection is then pinned to
+  the vetted addresses (no DNS rebinding window). Redirects are refused, and
+  pagination links may not leave the vetted origin. Timeouts on connect,
+  headers and body; responses capped at 8 MB; pagination capped.
+- **Authorization:** identity always comes from the session; every query is
+  scoped by `userId` (courses through the user's connection). Integration
+  tests cover cross-user attempts, including replaying another user's
+  ciphertext.
+- **CSRF:** Server Actions reject cross-origin POSTs (Origin/Host check) and
+  the session cookie is `SameSite=Lax`.
+- **Revocation:** disconnect deletes the credential and course rows in one
+  transaction; a 401 from Canvas flips the connection to `NEEDS_REAUTH`.
+  Students are told to also delete the token in Canvas.
+- **Abuse limits:** connect, refresh, and sync are rate limited per user, and
+  a sync lock prevents concurrent syncs from interleaving.
+
 ## Known gaps / next
 
 - Per-user AI rate limiting (see `docs/AI_ARCHITECTURE.md`) — not yet
