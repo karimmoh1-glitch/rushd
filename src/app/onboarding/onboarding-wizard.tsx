@@ -216,6 +216,12 @@ export function OnboardingWizard() {
             Go to my plan
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Use Microsoft Teams?{" "}
+          <a href="/integrations/teams" className="underline underline-offset-4">Connect Teams</a>. School turned Canvas
+          tokens off?{" "}
+          <a href="/integrations/canvas-calendar" className="underline underline-offset-4">Use your calendar feed</a>.
+        </p>
       </div>
     );
   }
