@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InviteCodeForm } from "./invite-code-form";
 import { ResetLinkForm } from "./reset-link-form";
+import { lastCronRuns } from "@/lib/jobs/cron-log";
 
 const MIN_SESSIONS_PER_STUDENT = 3;
 
@@ -71,6 +72,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPage() {
+  const crons = await lastCronRuns();
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -256,6 +258,23 @@ export default async function AdminPage() {
         <a href="/admin/ai" className="underline underline-offset-4">AI usage and cost</a>
         <a href="/admin/growth" className="underline underline-offset-4">Growth and school inquiries</a>
       </p>
+
+      <section aria-label="Scheduled jobs" className="rounded-xl border border-border p-4 text-sm">
+        <p className="font-medium">Scheduled jobs</p>
+        <ul className="mt-2 space-y-1 text-muted-foreground">
+          {(
+            [
+              ["Daily sync and Sunday email (09:00 UTC)", crons.daily],
+              ["Evening streak reminders (23:00 UTC)", crons.evening],
+            ] as const
+          ).map(([label, run]) => (
+            <li key={label}>
+              <span className="text-foreground">{label}:</span>{" "}
+              {run ? `last ran ${new Date(run.at).toUTCString()} · ${JSON.stringify(run.report)}` : "hasn't run yet"}
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((s) => (

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/jobs/daily-sync", () => ({ runDailySync: vi.fn(async () => ({ canvas: 0, teams: 0, feeds: 0, failed: 0, plans: 0, outOfTime: false })) }));
 vi.mock("@/lib/jobs/study-emails", () => ({ sendWeeklyDigests: vi.fn(async () => ({ sent: 0, skipped: 0, outOfTime: false })) }));
+vi.mock("@/lib/jobs/cron-log", () => ({ recordCronRun: vi.fn(async () => {}) }));
 import { GET } from "./route";
 import { runDailySync } from "@/lib/jobs/daily-sync";
 

@@ -1,5 +1,6 @@
 import { sendStreakNudges } from "@/lib/jobs/study-emails";
 import { cronAuthorized } from "@/lib/jobs/cron-auth";
+import { recordCronRun } from "@/lib/jobs/cron-log";
 
 // Vercel Cron, once a day in the Americas' evening (vercel.json): streak
 // reminders for students whose local time is evening. Bearer CRON_SECRET only.
@@ -13,5 +14,6 @@ export async function GET(request: Request) {
   }
   const nudges = await sendStreakNudges(50_000);
   console.info("[cron] evening", JSON.stringify(nudges));
+  await recordCronRun("evening", nudges);
   return Response.json(nudges);
 }

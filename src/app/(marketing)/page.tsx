@@ -68,7 +68,7 @@ export default function LandingPage() {
 
       {/* 1. Hero: what it is in three seconds, why it's better in five. */}
       <section className="overflow-x-clip">
-        <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 pb-20 pt-12 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:gap-16 lg:px-8 lg:pb-28 lg:pt-20">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-16 pt-10 sm:gap-14 sm:px-6 sm:pb-20 sm:pt-12 lg:grid-cols-[1.15fr_1fr] lg:gap-16 lg:px-8 lg:pb-28 lg:pt-20">
           <div>
             <p className="intro-line flex items-center gap-2 text-sm font-medium" style={{ ["--i" as string]: 0 }}>
               <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal" />
@@ -97,7 +97,7 @@ export default function LandingPage() {
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />
               </Link>
             </div>
-            <ul className="intro-line mt-10 flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-6 text-sm" style={{ ["--i" as string]: 4.5 }}>
+            <ul className="intro-line mt-10 hidden flex-wrap gap-x-6 gap-y-2 border-t border-border pt-6 text-sm sm:flex" style={{ ["--i" as string]: 4.5 }}>
               {["Built from your real classes", "Checks your actual work", "Picks what to watch next"].map((t) => (
                 <li key={t} className="flex items-center gap-2">
                   <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" />

@@ -1,6 +1,7 @@
 import { runDailySync } from "@/lib/jobs/daily-sync";
 import { sendWeeklyDigests } from "@/lib/jobs/study-emails";
 import { cronAuthorized } from "@/lib/jobs/cron-auth";
+import { recordCronRun } from "@/lib/jobs/cron-log";
 
 // Vercel Cron, once a day (vercel.json): re-sync connected sources, then send
 // the Sunday "your week" emails (only where it's Sunday for the student).
@@ -16,5 +17,6 @@ export async function GET(request: Request) {
   const sync = await runDailySync(70_000);
   const digests = await sendWeeklyDigests(35_000);
   console.info("[cron] daily", JSON.stringify({ sync, digests }));
+  await recordCronRun("daily", { sync, digests });
   return Response.json({ sync, digests });
 }
