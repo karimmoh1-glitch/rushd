@@ -20,6 +20,10 @@ itself in the app and falls back gracefully until its keys are set.
 Already done: `DATABASE_URL`, `SESSION_SECRET`, `CANVAS_TOKEN_ENCRYPTION_KEY`,
 `NEXT_PUBLIC_APP_URL`, `CRON_SECRET`.
 
+When you switch a feature on, add a line for it to the public changelog
+(`src/app/(marketing)/changelog/page.tsx`); it only lists what students can
+use today.
+
 ## How to add a key to production
 
 ```bash
@@ -111,6 +115,10 @@ never writes to Teams.
    you want to lock Rushd to one school's tenant ID. Redeploy.
 8. Test: Settings → Microsoft Teams → Connect, with a school account that has
    Teams assignments.
+
+Until both Microsoft keys are set, the site doesn't mention Teams anywhere
+public (homepage, FAQ, How it works, onboarding). After you add them and
+redeploy, those mentions appear on their own.
 
 **Schools that require admin approval.** If a student sees "your school needs
 to approve Rushd", send the school's IT admin this link (replace the client ID):
