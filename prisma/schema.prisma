@@ -86,6 +86,11 @@ model Profile {
   // feedback below the system rules, never above them.
   tutorInstructions       String?
   tutorPreferences        Json?
+  // Study emails: the Sunday "your week" email and a nudge before a streak
+  // ends. Off unless the student turns them on (onboarding or Settings).
+  emailReminders          Boolean            @default(false)
+  lastDigestAt            DateTime?
+  lastNudgeAt             DateTime?
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
 

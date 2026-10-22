@@ -186,6 +186,10 @@ export function OnboardingWizard() {
               ? " and your study time is set."
               : ". Set your study availability in Settings to get a real plan."}
           </p>
+          <p className="mx-auto mt-3 max-w-md text-xs text-muted-foreground">
+            We&apos;ll email your week on Sundays and nudge you if a streak is about to end.{" "}
+            <a href="/settings#emails" className="underline underline-offset-4">Turn that off</a>.
+          </p>
           <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
             Pick a first step. Connecting Canvas brings in your assignments, due dates, and course materials (read-only).
             Or check a page of practice work to see what you&apos;ve got down and what to review.

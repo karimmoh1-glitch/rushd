@@ -174,3 +174,10 @@ export async function resetTutorPreferences(): Promise<ActionResult> {
   revalidatePath("/settings");
   return { success: true };
 }
+
+export async function setEmailReminders(on: boolean): Promise<ActionResult> {
+  const user = await requireUserOrThrow();
+  await db.profile.updateMany({ where: { userId: user.id }, data: { emailReminders: on === true } });
+  revalidatePath("/settings");
+  return { success: true };
+}

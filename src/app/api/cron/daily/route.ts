@@ -1,26 +1,20 @@
-import { timingSafeEqual } from "node:crypto";
 import { runDailySync } from "@/lib/jobs/daily-sync";
+import { sendWeeklyDigests } from "@/lib/jobs/study-emails";
+import { cronAuthorized } from "@/lib/jobs/cron-auth";
 
-// Vercel Cron calls this once a day (vercel.json) with
-// "Authorization: Bearer $CRON_SECRET". Anything else is refused, and without
-// CRON_SECRET set the endpoint does nothing.
+// Vercel Cron, once a day (vercel.json): re-sync connected sources, then send
+// the Sunday "your week" emails (only where it's Sunday for the student).
+// Anything without "Authorization: Bearer $CRON_SECRET" is refused.
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
-function authorized(header: string | null): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || secret.length < 16 || !header) return false;
-  const a = Buffer.from(header);
-  const b = Buffer.from(`Bearer ${secret}`);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 export async function GET(request: Request) {
-  if (!authorized(request.headers.get("authorization"))) {
+  if (!cronAuthorized(request.headers.get("authorization"))) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const report = await runDailySync(100_000);
-  console.info("[cron] daily sync", JSON.stringify(report));
-  return Response.json(report);
+  const sync = await runDailySync(70_000);
+  const digests = await sendWeeklyDigests(35_000);
+  console.info("[cron] daily", JSON.stringify({ sync, digests }));
+  return Response.json({ sync, digests });
 }

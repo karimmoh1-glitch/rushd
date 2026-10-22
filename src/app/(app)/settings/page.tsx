@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { InviteCard } from "@/components/referral/invite-card";
+import { EmailToggle } from "./email-toggle";
+import { emailConfigured } from "@/lib/email/send";
 import { BONUS_MESSAGES, MAX_FRIENDS, referralStats } from "@/lib/referral/referral";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
@@ -39,6 +41,7 @@ export default async function SettingsPage() {
         maxDailyMinutes: true,
         tutorInstructions: true,
         tutorPreferences: true,
+        emailReminders: true,
       },
     }),
     db.studyAvailability.findMany({
@@ -200,6 +203,9 @@ export default async function SettingsPage() {
       <section className="space-y-4 border-t border-border pt-8">
         <h2 className="text-base font-semibold">Account</h2>
         <p className="text-sm text-muted-foreground">Signed in as {user.email}</p>
+        <div id="emails" className="scroll-mt-24">
+          <EmailToggle on={profile?.emailReminders ?? false} available={emailConfigured()} />
+        </div>
         <PasswordForm />
         <form action={signOutEverywhere} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
           <div>

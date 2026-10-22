@@ -108,6 +108,26 @@ https://login.microsoftonline.com/organizations/adminconsent?client_id=YOUR_CLIE
 Once an admin approves it, every student at that school can connect. Expect to
 answer questions about data use; point them to https://therushd.com/privacy.
 
+## 4b. Email (Resend): password resets, Sunday plan, streak reminders
+
+1. https://resend.com → sign up → Domains → Add domain `therushd.com`.
+2. Add the DNS records it shows (SPF, DKIM, and the optional DMARC) at your DNS
+   provider and wait for "Verified".
+3. API Keys → Create (sending access only).
+4. Add `RESEND_API_KEY` and `EMAIL_FROM` (e.g. `Rushd <hello@therushd.com>`) to
+   Vercel and redeploy.
+5. Test: log out → Forgot password → your email. The reset link arrives within
+   a minute.
+
+Students who finish onboarding get study emails (Sunday "your week" and an
+evening nudge before a 3+ day streak breaks), announced on the finish screen,
+switchable in Settings, with one-click unsubscribe in every email.
+
+**Scheduled jobs.** `vercel.json` runs `/api/cron/daily` at 09:00 UTC (re-sync
+Canvas, Teams, and calendar feeds; Sunday emails) and `/api/cron/evening` at
+23:00 UTC (streak nudges). They need `CRON_SECRET` in Vercel, which is already
+set for production. Runs show under the project's Cron Jobs tab and Logs.
+
 ## 5. Search (Google Search Console)
 
 1. https://search.google.com/search-console → Add property → **Domain** →
