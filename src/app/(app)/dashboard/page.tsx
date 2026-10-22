@@ -26,6 +26,8 @@ import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
 import { QuickAdd } from "./quick-add";
 import { TryWeekImport } from "./try-week-import";
+import { StreakPath } from "./streak";
+import { getStreak } from "@/lib/streak/load";
 
 export const metadata: Metadata = {
   title: "Today",
@@ -121,6 +123,7 @@ export default async function DashboardPage() {
 
   const tz = plan.timeZone;
   const today = dateKey(now, tz);
+  const streak = await getStreak(user.id, tz, now);
   const todaySessions = plan.sessions.filter((s) => s.scheduledDate === today);
   const plannedMinutesToday = todaySessions.reduce((sum, s) => sum + s.scheduledMinutes, 0);
   const todayAvailable = plan.days?.[0]?.availableMinutes ?? 0;
@@ -191,19 +194,22 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-10">
-      <header>
-        <p className="text-sm text-muted-foreground">
-          {formatDateInZone(now, tz, { weekday: "long", month: "long", day: "numeric" })}
-        </p>
-        <h1 className="mt-1 text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem]">
-          {greeting(zonedParts(now, tz).hour)}
-          {name ? `, ${name}` : ""}.
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {overdueCount > 0 && <span className="font-medium text-destructive">{overdueCount} overdue</span>}
-          {overdueCount > 0 && " · "}
-          {dueThisWeek === 0 ? "Nothing else due this week" : `${dueThisWeek} due in the next 7 days`}
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {formatDateInZone(now, tz, { weekday: "long", month: "long", day: "numeric" })}
+          </p>
+          <h1 className="mt-1 text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem]">
+            {greeting(zonedParts(now, tz).hour)}
+            {name ? `, ${name}` : ""}.
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {overdueCount > 0 && <span className="font-medium text-destructive">{overdueCount} overdue</span>}
+            {overdueCount > 0 && " · "}
+            {dueThisWeek === 0 ? "Nothing else due this week" : `${dueThisWeek} due in the next 7 days`}
+          </p>
+        </div>
+        <StreakPath streak={streak} />
       </header>
 
       <TryWeekImport />

@@ -90,3 +90,39 @@ export async function getCohorts(weeks = 8): Promise<CohortRow[]> {
     week4: Number(r.w4),
   }));
 }
+
+export interface Recurring {
+  /** Active (a meaningful action) in at least 2 of the last 4 weeks: the 10k goal's metric. */
+  recurring: number;
+  activeThisWeek: number;
+  activeLastWeek: number;
+  /** Of last week's active students, the share active again this week. */
+  retainedPct: number | null;
+}
+
+export async function getRecurring(now = new Date()): Promise<Recurring> {
+  const WEEK = 7 * 86_400_000;
+  const since = new Date(now.getTime() - 4 * WEEK);
+  const rows = await db.$queryRaw<{ userId: string; week: number }[]>`
+    SELECT DISTINCT e."userId", FLOOR(EXTRACT(EPOCH FROM (${now}::timestamptz - e."createdAt")) / 604800)::int AS week
+    FROM "Event" e
+    WHERE e."createdAt" >= ${since} AND e.name = ANY(${MEANINGFUL})`;
+  const weeks = new Map<string, Set<number>>();
+  for (const r of rows) {
+    if (!weeks.has(r.userId)) weeks.set(r.userId, new Set());
+    weeks.get(r.userId)!.add(Number(r.week));
+  }
+  let recurring = 0;
+  let thisWeek = 0;
+  let lastWeek = 0;
+  let retained = 0;
+  for (const set of weeks.values()) {
+    if (set.size >= 2) recurring++;
+    if (set.has(0)) thisWeek++;
+    if (set.has(1)) {
+      lastWeek++;
+      if (set.has(0)) retained++;
+    }
+  }
+  return { recurring, activeThisWeek: thisWeek, activeLastWeek: lastWeek, retainedPct: lastWeek ? Math.round((retained / lastWeek) * 100) : null };
+}

@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { getCohorts, getFunnel } from "@/lib/analytics/funnel";
+import { getCohorts, getFunnel, getRecurring } from "@/lib/analytics/funnel";
 import { InquiryStatus } from "./inquiry-status";
 
 export const metadata: Metadata = { title: "Growth" };
 
 export default async function AdminGrowthPage() {
-  const [funnel, cohorts, inquiries] = await Promise.all([
+  const [funnel, cohorts, inquiries, recurring] = await Promise.all([
     getFunnel(30),
     getCohorts(8),
     db.schoolInquiry.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+    getRecurring(),
   ]);
   const steps = [
     ["Homepage visits", funnel.homeViews],
@@ -38,6 +39,24 @@ export default async function AdminGrowthPage() {
           for accounts created in that window.
         </p>
       </header>
+
+      <section aria-labelledby="recurring">
+        <h2 id="recurring" className="border-b border-border pb-2 text-base font-semibold">Recurring students</h2>
+        <dl className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-4">
+          {[
+            ["Recurring", recurring.recurring.toLocaleString(), "active in 2+ of the last 4 weeks · goal 10,000"],
+            ["Active this week", recurring.activeThisWeek.toLocaleString(), "did something meaningful"],
+            ["Active last week", recurring.activeLastWeek.toLocaleString(), ""],
+            ["Came back", recurring.retainedPct === null ? "–" : `${recurring.retainedPct}%`, "of last week's, active again"],
+          ].map(([k, v, d]) => (
+            <div key={k}>
+              <dt className="text-xs text-muted-foreground">{k}</dt>
+              <dd className="mt-1 font-display text-3xl font-medium tabular-nums">{v}</dd>
+              {d && <dd className="mt-1 text-xs text-muted-foreground">{d}</dd>}
+            </div>
+          ))}
+        </dl>
+      </section>
 
       <section>
         <h2 className="border-b border-border pb-2 text-base font-semibold">Funnel</h2>
