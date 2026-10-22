@@ -71,10 +71,12 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
           {material?.pointsPossible != null && <span>· {material.pointsPossible} points</span>}
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
-          <Link href={`/tutor?assignmentId=${a.id}`} className={buttonVariants({ variant: "outline" })}>
-            <MessageSquareText className="h-4 w-4" aria-hidden="true" />
-            Ask the tutor about this
-          </Link>
+          {aiEnabled && (
+            <Link href={`/tutor?assignmentId=${a.id}`} className={buttonVariants({ variant: "outline" })}>
+              <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+              Ask the tutor about this
+            </Link>
+          )}
           {canvasLink && (
             <a href={canvasLink} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>
               <ExternalLink className="h-4 w-4" aria-hidden="true" />

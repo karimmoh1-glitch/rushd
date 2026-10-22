@@ -47,9 +47,9 @@ test("signed-in student: practice, mastery, tutor preferences, and plan limits",
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await page.getByRole("button", { name: "Check my work" }).click();
-
-  await expect(page).toHaveURL(/\/practice/);
+  await expect(page.getByRole("heading", { name: "Your Rushd profile is ready." })).toBeVisible();
+  // "Check my work" is offered only when AI is on; the page itself always exists.
+  await page.goto("/practice");
   await expect(page.getByRole("heading", { name: "Practice", exact: true })).toBeVisible();
 
   await page.goto("/mastery");
@@ -94,9 +94,10 @@ test("a visitor ranks their week, signs up, and keeps it", async ({ page }) => {
   await page.getByRole("button", { name: "Finish setup" }).click();
   await page.getByRole("button", { name: "Add the week I ranked" }).click();
 
-  await expect(page.getByText("Add the 2 items you ranked?")).toBeVisible();
-  await page.getByRole("button", { name: "Add them" }).click();
-  await expect(page.getByText("Add the 2 items you ranked?")).toBeHidden();
+  // One step: the week is added and the student lands on Today with it ranked.
+  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page.getByText("Lab report").first()).toBeVisible();
+  await expect(page.getByText("Add the 2 items you ranked?")).toHaveCount(0);
   await page.goto("/assignments");
   await expect(page.getByText("Lab report")).toBeVisible();
   await page.goto("/exams");
@@ -188,4 +189,26 @@ test("a shared streak card shows signed numbers and carries the invite", async (
   await expect(page.getByText("2h 5m studied this week")).toBeVisible();
   await expect(page.getByRole("link", { name: "Start free with this invite" })).toHaveAttribute("href", "/r/abcdefgh");
   expect((await request.get(`/s/abcdefgh-99-125-${sig}`)).status()).toBe(404);
+});
+
+test("with AI off, AI features don't look available", async ({ page }) => {
+  test.skip(!!process.env.ANTHROPIC_API_KEY, "only meaningful while AI is off");
+  await page.goto("/");
+  await expect(page.getByText("aren't switched on yet")).toBeVisible();
+  await page.goto("/signup");
+  await page.getByLabel("Email").fill(`e2e-noai-${Date.now()}@example.com`);
+  await page.getByLabel("Password").fill("password123");
+  await page.getByRole("checkbox", { name: /13 or older/ }).check();
+  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByLabel("What should we call you?").fill("No AI");
+  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await expect(page.getByRole("button", { name: "Check my work" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Go to my plan" }).click();
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await expect(nav.getByRole("link", { name: "Study plan" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Tutor" })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Practice" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Check my work" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "From a screenshot" })).toHaveCount(0);
 });

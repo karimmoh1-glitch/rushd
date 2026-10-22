@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AiStatusNote } from "@/components/marketing/ai-status-note";
 import { BONUS_MESSAGES, MAX_FRIENDS } from "@/lib/referral/constants";
 import { aiEnabled } from "@/lib/env";
 import { PricingTable } from "@/components/marketing/pricing-table";
@@ -25,6 +26,7 @@ export default function PricingPage() {
           every plan, so Rushd can stay affordable and honest about costs.
         </p>
         {!open && <p className="mt-3 text-sm text-muted-foreground">Paid plans aren&apos;t open yet. Everyone can use the Free plan today.</p>}
+        <AiStatusNote className="mt-3" />
         {billingMode() === "test" && <p className="mt-3 text-sm text-warning">Billing is in test mode: no real charges are made.</p>}
       </div>
       <div className="mt-12">

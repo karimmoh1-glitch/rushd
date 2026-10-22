@@ -1,3 +1,4 @@
+import { aiEnabled } from "@/lib/env";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -119,10 +120,12 @@ export default async function ClassPage({
           </div>
           <div className="flex flex-wrap gap-2">
             {canvas && <SyncContentButton classId={cls.id} />}
-            <Link href={`/tutor?classId=${cls.id}`} className={buttonVariants({ variant: "outline" })}>
-              <MessageSquareText className="h-4 w-4" aria-hidden="true" />
-              Ask the tutor
-            </Link>
+            {aiEnabled && (
+              <Link href={`/tutor?classId=${cls.id}`} className={buttonVariants({ variant: "outline" })}>
+                <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+                Ask the tutor
+              </Link>
+            )}
           </div>
         </div>
       </header>

@@ -33,9 +33,9 @@ const NAV_ITEMS = [
   { href: "/plan", label: "Study plan", icon: CalendarRange },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/assignments", label: "Assignments", icon: ListChecks },
-  { href: "/tutor", label: "Tutor", icon: MessageSquareText },
-  { href: "/practice", label: "Practice", icon: PenLine },
-  { href: "/mastery", label: "Mastery", icon: Target },
+  { href: "/tutor", label: "Tutor", icon: MessageSquareText, ai: true },
+  { href: "/practice", label: "Practice", icon: PenLine, ai: true },
+  { href: "/mastery", label: "Mastery", icon: Target, ai: true },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -54,22 +54,23 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 // Phones get the four daily destinations plus a "More" page with the rest.
-const MOBILE_NAV_ITEMS = [
-  NAV_ITEMS[0],
-  NAV_ITEMS[1],
-  NAV_ITEMS[4],
-  NAV_ITEMS[5],
-  { href: "/more", label: "More", icon: Menu },
-] as const;
+// Without AI, Tutor and Practice give their places to Assignments and Courses.
+const MORE = { href: "/more", label: "More", icon: Menu };
+function mobileNavItems(ai: boolean) {
+  return ai ? [NAV_ITEMS[0], NAV_ITEMS[1], NAV_ITEMS[4], NAV_ITEMS[5], MORE] : [NAV_ITEMS[0], NAV_ITEMS[1], NAV_ITEMS[3], NAV_ITEMS[2], MORE];
+}
 
 export function AppShell({
   displayName,
   isAdmin,
+  ai,
   activeSession,
   children,
 }: {
   displayName: string;
   isAdmin: boolean;
+  /** Whether AI features exist on this server; their links hide when not. */
+  ai: boolean;
   activeSession: ActiveSessionData | null;
   children: React.ReactNode;
 }) {
@@ -89,7 +90,7 @@ export function AppShell({
           <RushdWordmark />
         </Link>
         <nav className="flex-1 space-y-1 px-3" aria-label="Main navigation">
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((item) => ai || !("ai" in item)).map((item) => {
             const active = isActive(pathname, item.href);
             return (
               <Link
@@ -183,7 +184,7 @@ export function AppShell({
         className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-background md:hidden"
         aria-label="Main navigation"
       >
-        {MOBILE_NAV_ITEMS.map((item) => {
+        {mobileNavItems(ai).map((item) => {
           const active =
             item.href === "/more"
               ? pathname.startsWith("/more") || ["/courses", "/assignments", "/mastery", "/settings", "/exams"].some((p) => pathname.startsWith(p))

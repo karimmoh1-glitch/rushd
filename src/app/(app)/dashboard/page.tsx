@@ -1,3 +1,4 @@
+import { aiEnabled } from "@/lib/env";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, Upload } from "lucide-react";
@@ -358,48 +359,50 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      <section aria-labelledby="learning-heading">
-        <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
-          <h2 id="learning-heading" className="text-base font-semibold">
-            Learning
-          </h2>
-          <Link href="/mastery" className="text-sm text-muted-foreground hover:text-foreground">
-            Mastery
-          </Link>
-        </div>
-        {review ? (
-          <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm">
-                <span className="text-muted-foreground">Review next: </span>
-                <span className="font-medium">{review.topicLabel}</span>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                About {review.estimate}% from {review.evidenceCount} check{review.evidenceCount === 1 ? "" : "s"} ({review.confidence} confidence)
-                {lastCheck ? ` · last check ${formatDateInZone(lastCheck.createdAt, tz, { month: "short", day: "numeric" })}` : ""}
-              </p>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <Link href={`/tutor?ask=${encodeURIComponent(`Help me review ${review.topicLabel}. Start with a quick diagnostic question.`)}`} className={buttonVariants({ variant: "outline" })}>
-                Review with tutor
-              </Link>
-              <Link href="/practice" className={buttonVariants({ variant: "ghost" })}>
-                Check again
-              </Link>
-            </div>
+      {aiEnabled && (
+        <section aria-labelledby="learning-heading">
+          <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+            <h2 id="learning-heading" className="text-base font-semibold">
+              Learning
+            </h2>
+            <Link href="/mastery" className="text-sm text-muted-foreground hover:text-foreground">
+              Mastery
+            </Link>
           </div>
-        ) : lastCheck ? (
-          <p className="py-4 text-sm text-muted-foreground">
-            Your last check ({lastCheck.topic}, {Math.round(lastCheck.estimateLow)}–{Math.round(lastCheck.estimateHigh)}%) didn&apos;t flag anything to review.{" "}
-            <Link href="/practice" className="font-medium text-foreground underline underline-offset-4">Check something new</Link>
-          </p>
-        ) : (
-          <p className="py-4 text-sm text-muted-foreground">
-            Snap a photo of practice problems and Rushd shows what you&apos;ve got down and what to study next.{" "}
-            <Link href="/practice" className="font-medium text-foreground underline underline-offset-4">Check my work</Link>
-          </p>
-        )}
-      </section>
+          {review ? (
+            <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Review next: </span>
+                  <span className="font-medium">{review.topicLabel}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  About {review.estimate}% from {review.evidenceCount} check{review.evidenceCount === 1 ? "" : "s"} ({review.confidence} confidence)
+                  {lastCheck ? ` · last check ${formatDateInZone(lastCheck.createdAt, tz, { month: "short", day: "numeric" })}` : ""}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Link href={`/tutor?ask=${encodeURIComponent(`Help me review ${review.topicLabel}. Start with a quick diagnostic question.`)}`} className={buttonVariants({ variant: "outline" })}>
+                  Review with tutor
+                </Link>
+                <Link href="/practice" className={buttonVariants({ variant: "ghost" })}>
+                  Check again
+                </Link>
+              </div>
+            </div>
+          ) : lastCheck ? (
+            <p className="py-4 text-sm text-muted-foreground">
+              Your last check ({lastCheck.topic}, {Math.round(lastCheck.estimateLow)}–{Math.round(lastCheck.estimateHigh)}%) didn&apos;t flag anything to review.{" "}
+              <Link href="/practice" className="font-medium text-foreground underline underline-offset-4">Check something new</Link>
+            </p>
+          ) : (
+            <p className="py-4 text-sm text-muted-foreground">
+              Snap a photo of practice problems and Rushd shows what you&apos;ve got down and what to study next.{" "}
+              <Link href="/practice" className="font-medium text-foreground underline underline-offset-4">Check my work</Link>
+            </p>
+          )}
+        </section>
+      )}
 
       {hasWork && !noAvailability && (
         <section aria-labelledby="week-heading">
@@ -434,10 +437,12 @@ export default async function DashboardPage() {
         <div className="flex flex-wrap gap-2">
           <AddAssignmentButton classes={classes} variant="outline" />
           <AddExamButton classes={classes} variant="outline" />
-          <Link href="/import" className={buttonVariants({ variant: "outline" })}>
-            <Upload className="h-4 w-4" aria-hidden="true" />
-            From a screenshot
-          </Link>
+          {aiEnabled && (
+            <Link href="/import" className={buttonVariants({ variant: "outline" })}>
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              From a screenshot
+            </Link>
+          )}
           {!canvasConnection && (
             <Link href="/integrations/canvas" className={buttonVariants({ variant: "outline" })}>
               Connect Canvas

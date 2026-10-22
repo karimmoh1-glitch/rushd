@@ -1,3 +1,4 @@
+import { aiEnabled } from "@/lib/env";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -38,10 +39,12 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
               Open in Canvas
             </a>
           )}
-          <Link href={`/tutor?classId=${m.classId}`} className={buttonVariants({ variant: "outline" })}>
-            <MessageSquareText className="h-4 w-4" aria-hidden="true" />
-            Ask the tutor
-          </Link>
+          {aiEnabled && (
+            <Link href={`/tutor?classId=${m.classId}`} className={buttonVariants({ variant: "outline" })}>
+              <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+              Ask the tutor
+            </Link>
+          )}
         </div>
       </header>
       {m.body ? (

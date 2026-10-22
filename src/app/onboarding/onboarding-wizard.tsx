@@ -16,7 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { completeOnboarding } from "@/server/actions/onboarding";
-import { readFreshTry } from "@/lib/try/storage";
+import { clearTry, readFreshTry } from "@/lib/try/storage";
+import type { TryItem } from "@/lib/try/parse-week";
+import { importTriedWeek } from "@/server/actions/try-week";
 import {
   AVAILABILITY_PRESETS,
   formatMinutes,
@@ -52,9 +54,32 @@ interface ClassDraft {
 
 const STEPS = ["Basics", "Study time", "Classes", "Challenge"] as const;
 
-export function OnboardingWizard({ teams = false }: { teams?: boolean }) {
+export function OnboardingWizard({ teams = false, ai = false }: { teams?: boolean; ai?: boolean }) {
   // Came from "Rank my week" on the homepage: lead with adding that week.
   const fromTry = useSyncExternalStore(noopSubscribe, hasTriedWeek, () => false);
+  const [importing, setImporting] = useState(false);
+
+  // One step: bring in the saved week and land on Today with it ranked.
+  async function addTriedWeek() {
+    setImporting(true);
+    try {
+      const raw = readFreshTry();
+      const items = raw ? ((JSON.parse(raw) as { items?: TryItem[] }).items ?? []) : [];
+      if (items.length > 0) {
+        const r = await importTriedWeek(items.map(({ kind, title, className, dueAt, minutes }) => ({ kind, title, className, dueAt, minutes })));
+        if ("error" in r) {
+          toast.error(r.error);
+          setImporting(false);
+          return;
+        }
+      }
+      clearTry();
+      router.push("/dashboard");
+    } catch {
+      setImporting(false);
+      router.push("/dashboard");
+    }
+  }
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
@@ -186,13 +211,13 @@ export function OnboardingWizard({ teams = false }: { teams?: boolean }) {
           </p>
           <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
             Pick a first step. Connecting Canvas brings in your assignments, due dates, and course materials (read-only).
-            Or check a page of practice work to see what you&apos;ve got down and what to review.
+            {ai ? " Or check a page of practice work to see what you've got down and what to review." : " Or go straight to your plan and type in what's due."}
           </p>
         </div>
         <div className="flex flex-col justify-center gap-2 sm:flex-row">
           {fromTry && (
-            <Button onClick={() => router.push("/dashboard")} size="lg" className="w-full sm:w-auto">
-              Add the week I ranked
+            <Button onClick={addTriedWeek} disabled={importing} size="lg" className="w-full sm:w-auto">
+              {importing ? "Adding your week…" : "Add the week I ranked"}
             </Button>
           )}
           <Button
@@ -203,9 +228,11 @@ export function OnboardingWizard({ teams = false }: { teams?: boolean }) {
           >
             Connect Canvas
           </Button>
-          <Button onClick={() => router.push("/practice")} size="lg" variant="outline" className="w-full sm:w-auto">
-            Check my work
-          </Button>
+          {ai && (
+            <Button onClick={() => router.push("/practice")} size="lg" variant="outline" className="w-full sm:w-auto">
+              Check my work
+            </Button>
+          )}
           <Button onClick={() => router.push("/dashboard")} size="lg" variant="ghost" className="w-full sm:w-auto">
             Go to my plan
           </Button>

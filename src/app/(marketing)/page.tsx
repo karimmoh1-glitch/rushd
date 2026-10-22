@@ -5,6 +5,7 @@ import { AgentPath } from "@/components/marketing/agent-path";
 import { SubjectCycle } from "@/components/marketing/subject-cycle";
 import { SignatureLoop } from "@/components/marketing/signature-loop";
 import { RankMyWeek } from "@/components/marketing/rank-my-week";
+import { AiStatusNote } from "@/components/marketing/ai-status-note";
 import { InvitedNote } from "@/components/marketing/invited-note";
 import { Suspense } from "react";
 import { BONUS_MESSAGES } from "@/lib/referral/constants";
@@ -102,6 +103,7 @@ export default function LandingPage() {
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />
               </Link>
             </div>
+            <AiStatusNote className="intro-line mt-5 max-w-lg" />
             <ul className="intro-line mt-10 hidden flex-wrap gap-x-6 gap-y-2 border-t border-border pt-6 text-sm sm:flex" style={{ ["--i" as string]: 4.5 }}>
               {["Built from your real classes", "Checks your actual work", "Picks what to watch next"].map((t) => (
                 <li key={t} className="flex items-center gap-2">

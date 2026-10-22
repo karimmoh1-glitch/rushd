@@ -1,3 +1,4 @@
+import { aiEnabled } from "@/lib/env";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -80,7 +81,7 @@ export default async function AssignmentsPage() {
           <nav aria-label="Work" className="mt-3 flex gap-4 text-sm">
             <span aria-current="page" className="font-medium">Assignments</span>
             <Link href="/exams" className="text-muted-foreground hover:text-foreground">Exams</Link>
-            <Link href="/import" className="text-muted-foreground hover:text-foreground">Import from a screenshot</Link>
+            {aiEnabled && <Link href="/import" className="text-muted-foreground hover:text-foreground">Import from a screenshot</Link>}
           </nav>
         </div>
         <AddAssignmentButton classes={classes} />
@@ -100,8 +101,7 @@ export default async function AssignmentsPage() {
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
           <p className="font-medium">Your workload starts here.</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Connect Canvas to import every assignment and due date automatically, or upload a
-            screenshot of your calendar.
+            Connect Canvas to import every assignment and due date automatically{aiEnabled ? ", or upload a screenshot of your calendar" : ", or add one by hand"}.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <Link
@@ -110,12 +110,14 @@ export default async function AssignmentsPage() {
             >
               Connect Canvas
             </Link>
-            <Link
-              href="/import"
-              className="inline-block rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
-            >
-              Upload screenshot
-            </Link>
+            {aiEnabled && (
+              <Link
+                href="/import"
+                className="inline-block rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+              >
+                Upload screenshot
+              </Link>
+            )}
           </div>
         </div>
       ) : (

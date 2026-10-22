@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/dal";
 import { AppShell } from "@/components/app-shell";
+import { aiEnabled } from "@/lib/env";
 import { getActiveSession } from "@/server/actions/study-sessions";
 
 export default async function AppLayout({
@@ -17,6 +18,7 @@ export default async function AppLayout({
     <AppShell
       displayName={user.profile?.displayName ?? "Student"}
       isAdmin={user.isAdmin}
+      ai={aiEnabled}
       activeSession={activeSession}
     >
       {children}

@@ -1,3 +1,4 @@
+import { aiEnabled } from "@/lib/env";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
@@ -71,7 +72,7 @@ export default async function ExamsPage() {
           <nav aria-label="Work" className="mt-3 flex gap-4 text-sm">
             <Link href="/assignments" className="text-muted-foreground hover:text-foreground">Assignments</Link>
             <span aria-current="page" className="font-medium">Exams</span>
-            <Link href="/import" className="text-muted-foreground hover:text-foreground">Import from a screenshot</Link>
+            {aiEnabled && <Link href="/import" className="text-muted-foreground hover:text-foreground">Import from a screenshot</Link>}
           </nav>
         </div>
         <AddExamButton classes={classes} />
