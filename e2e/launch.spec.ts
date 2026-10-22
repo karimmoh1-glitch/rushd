@@ -151,3 +151,20 @@ test("reduced motion: nothing plays by itself", async ({ browser }) => {
   await expect(page.getByRole("list", { name: "Your week ranked by Pulse" })).toHaveCount(0);
   await context.close();
 });
+
+test("a new student types their week on Today and gets it ranked", async ({ page }) => {
+  await page.goto("/signup");
+  await page.getByLabel("Email").fill(`e2e-start-${Date.now()}@example.com`);
+  await page.getByLabel("Password").fill("password123");
+  await page.getByRole("checkbox", { name: /13 or older/ }).check();
+  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByLabel("What should we call you?").fill("Start Tester");
+  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await page.getByRole("button", { name: "Go to my plan" }).click();
+  await page.getByLabel("Your assignments and tests this week, one per line").fill("Chem: titration lab tomorrow 1h\nSpanish quiz friday");
+  await expect(page.getByText("2 items in Chem, Spanish.")).toBeVisible();
+  await page.getByRole("button", { name: "Add and rank" }).click();
+  await expect(page.getByRole("heading", { name: "What's due this week?" })).toBeHidden();
+  await expect(page.getByText("Titration lab").first()).toBeVisible();
+});

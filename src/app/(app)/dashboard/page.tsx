@@ -26,6 +26,7 @@ import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
 import { QuickAdd } from "./quick-add";
 import { TryWeekImport } from "./try-week-import";
+import { StartWeek } from "./start-week";
 import { StreakPath } from "./streak";
 import { getStreak } from "@/lib/streak/load";
 
@@ -213,6 +214,7 @@ export default async function DashboardPage() {
       </header>
 
       <TryWeekImport />
+      {overdueCount === 0 && upcoming.length === 0 && exams.length === 0 && <StartWeek />}
 
       {canvasConnection?.status === "NEEDS_REAUTH" && (
         <Link
