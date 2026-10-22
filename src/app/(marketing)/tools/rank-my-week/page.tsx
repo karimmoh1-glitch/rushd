@@ -84,6 +84,22 @@ export default function RankMyWeekPage() {
           }),
         }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            name: "Rank my homework",
+            description: "Ranks your assignments and tests by what needs you first.",
+            url: "https://therushd.com/tools/rank-my-week",
+            applicationCategory: "EducationalApplication",
+            operatingSystem: "Any (web browser)",
+            offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+            publisher: { "@type": "Organization", name: "Rushd", url: "https://therushd.com" },
+          }),
+        }}
+      />
     </div>
   );
 }

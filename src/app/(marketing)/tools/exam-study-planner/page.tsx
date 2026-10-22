@@ -47,6 +47,22 @@ export default function ExamPlannerPage() {
           &ldquo;90m&rdquo;. Also see <Link href="/tools/rank-my-week" className="underline underline-offset-4">Rank my homework</Link>.
         </p>
       </section>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            name: "Plan my finals",
+            description: "Builds a day-by-day study schedule for your exams.",
+            url: "https://therushd.com/tools/exam-study-planner",
+            applicationCategory: "EducationalApplication",
+            operatingSystem: "Any (web browser)",
+            offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+            publisher: { "@type": "Organization", name: "Rushd", url: "https://therushd.com" },
+          }),
+        }}
+      />
     </div>
   );
 }
