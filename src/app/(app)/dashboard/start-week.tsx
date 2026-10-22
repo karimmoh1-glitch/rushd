@@ -19,12 +19,12 @@ export function StartWeek() {
   const preview = text.trim() ? parseWeek(text, new Date()) : [];
 
   return (
-    <section aria-labelledby="start-week" className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border bg-card p-5">
       <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">
         <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-signal" />
         Start here
       </p>
-      <h2 id="start-week" className="mt-2 font-display text-2xl font-medium tracking-tight">What&apos;s due this week?</h2>
+      <h2 className="mt-2 font-display text-2xl font-medium tracking-tight">What&apos;s due this week?</h2>
       <p className="mt-1 text-sm text-muted-foreground">One thing per line. Rushd makes your classes, ranks it all, and plans your time.</p>
       <form
         className="mt-4"
