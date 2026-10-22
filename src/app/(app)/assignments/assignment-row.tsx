@@ -29,7 +29,7 @@ export interface AssignmentRowData extends AssignmentInput {
   id: string;
   className: string;
   classColor: string;
-  source?: "MANUAL" | "CANVAS" | "TEAMS";
+  source?: "MANUAL" | "CANVAS" | "TEAMS" | "CALENDAR";
   canvasUrl?: string | null;
   /** 1-99, for open work the planner ranks. */
   pulse?: number | null;
@@ -102,9 +102,11 @@ export function AssignmentRow({
                   Overdue
                 </Badge>
               )}
-              {data.source === "CANVAS" && (
+              {data.source && data.source !== "MANUAL" && (
                 <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
-                  {data.canvasRemoved ? "Removed from Canvas" : "Canvas"}
+                  {data.source === "TEAMS"
+                    ? data.canvasRemoved ? "Removed from Teams" : "Teams"
+                    : data.canvasRemoved ? "Removed from Canvas" : "Canvas"}
                 </Badge>
               )}
             </div>

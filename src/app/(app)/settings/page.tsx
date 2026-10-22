@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const user = await requireUser();
 
-  const [profile, availability, canvas, usage, subscription, teams] = await Promise.all([
+  const [profile, availability, canvas, usage, subscription, teams, feed] = await Promise.all([
     db.profile.findUnique({
       where: { userId: user.id },
       select: {
@@ -53,6 +53,7 @@ export default async function SettingsPage() {
       select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, stripeCustomerId: true },
     }),
     db.teamsConnection.findUnique({ where: { userId: user.id }, select: { status: true, accountName: true, lastSyncAt: true } }),
+    db.calendarFeed.findUnique({ where: { userId: user.id }, select: { status: true, host: true } }),
   ]);
 
   return (
@@ -161,6 +162,21 @@ export default async function SettingsPage() {
           </div>
           <Link href="/integrations/teams" className={buttonVariants({ variant: "outline" })}>
             {teams ? "Manage" : "Connect"}
+          </Link>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
+          <div>
+            <p className="font-medium">Canvas calendar feed</p>
+            <p className="text-sm text-muted-foreground">
+              {feed
+                ? feed.status === "ERROR"
+                  ? "The last read failed. Open it to see why."
+                  : `Reading assignments from ${feed.host}.`
+                : "For schools that turn off Canvas tokens. No token needed."}
+            </p>
+          </div>
+          <Link href="/integrations/canvas-calendar" className={buttonVariants({ variant: "outline" })}>
+            {feed ? "Manage" : "Connect"}
           </Link>
         </div>
       </section>

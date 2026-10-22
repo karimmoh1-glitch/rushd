@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock } from "lucide-react";
@@ -20,7 +21,7 @@ const STEPS = [
   },
   {
     title: "Copy it right away",
-    body: "Canvas shows the token only once. Paste it below. If you don't see New Access Token, your school has turned personal tokens off, and Rushd still works without Canvas.",
+    body: "Canvas shows the token only once. Paste it below. If you don't see New Access Token, your school has turned personal tokens off. Use your Canvas calendar feed instead (link below).",
   },
 ];
 
@@ -133,6 +134,14 @@ export function ConnectForm({
           <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           Rushd checks the token with Canvas, then stores it encrypted (AES-256-GCM). It&apos;s only used by
           Rushd&apos;s server to read your courses and assignments, and it&apos;s never shown again, not even to you.
+        </p>
+
+        <p className="rounded-lg border border-border px-3 py-2.5 text-sm">
+          School turned tokens off?{" "}
+          <Link href="/integrations/canvas-calendar" className="font-medium underline underline-offset-4">
+            Connect with your calendar feed
+          </Link>{" "}
+          instead. No token needed.
         </p>
       </form>
     </div>

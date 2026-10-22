@@ -47,6 +47,7 @@ model User {
   invitedByCode    InviteCode?         @relation(fields: [invitedByCodeId], references: [id])
   canvasConnection CanvasConnection?
   teamsConnection  TeamsConnection?
+  calendarFeed     CalendarFeed?
   scheduleBlocks   ScheduleBlock[]
   passwordResets   PasswordResetToken[]
   courseModules    CourseModule[]
@@ -162,6 +163,7 @@ enum AssignmentSource {
   MANUAL
   CANVAS
   TEAMS
+  CALENDAR
 }
 
 model Assignment {
@@ -191,6 +193,8 @@ model Assignment {
   // and "removed upstream" marker.
   teamsAssignmentId  String?
   teamsClassId       String?
+  // Canvas calendar feed identity for CALENDAR rows (the event UID).
+  feedUid            String?
   // Set when Canvas stops returning the assignment (deleted/unpublished). The
   // row is kept — it's the student's data — but dropped from planning.
   canvasRemovedAt    DateTime?
@@ -212,6 +216,7 @@ model Assignment {
   @@index([classId])
   @@index([userId, source])
   @@index([userId, teamsAssignmentId])
+  @@index([userId, feedUid])
 }
 
 model Exam {
@@ -847,4 +852,22 @@ model TeamsClass {
 
   @@unique([connectionId, teamsClassId])
   @@index([classId])
+}
+
+// A student's private Canvas calendar feed, for schools that turn off
+// personal access tokens. The URL is a capability (anyone with it can read the
+// calendar), so it is stored encrypted like a token.
+model CalendarFeed {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  encryptedUrl  String
+  host          String
+  status        String    @default("ACTIVE") // ACTIVE | ERROR
+  lastSyncAt    DateTime?
+  lastSyncError String?
+  syncStartedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
