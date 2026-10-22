@@ -86,9 +86,10 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
   const counted = useRef(false);
   const touched = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  function rank(source = text) {
+  function rank(source = text, fromUser = true) {
     const now = new Date();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const parsed = parseWeek(source, now);
@@ -120,6 +121,8 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
       counted.current = true;
       count("#try");
     }
+    // The form is replaced by the results: keep keyboard and screen-reader users with it.
+    if (fromUser) requestAnimationFrame(() => resultsRef.current?.focus());
   }
 
   // First homepage visit this session (the brand intro is playing): type the
@@ -150,7 +153,9 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
             setTyping(false);
             timer = window.setTimeout(() => {
               if (touched.current) return;
-              rank(EXAMPLE);
+              // The demo isn't a visitor ranking their week; don't count it.
+              counted.current = true;
+              rank(EXAMPLE, false);
               setAutoRanked(true);
             }, 450);
           }
@@ -175,7 +180,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
     if (!shared) return;
     const id = window.setTimeout(() => {
       setText(shared);
-      rank(shared);
+      rank(shared, false);
     }, 0);
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on load
@@ -235,6 +240,9 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
       onKeyDown={() => (touched.current = true)}
       onFocusCapture={() => (touched.current = true)}
       className={cn("relative z-10 rounded-2xl border border-border bg-card shadow-[0_30px_80px_-40px_hsl(var(--shadow-tint)/0.55)]", compact ? "p-4" : "p-4 sm:p-5")}>
+      <p className="sr-only" aria-live="polite">
+        {rows && rows.length ? `Ranked ${rows.length} item${rows.length === 1 ? "" : "s"} by Pulse. Start with ${rows[0].title}.` : ""}
+      </p>
       <div className="flex items-center justify-between gap-3 px-1">
         <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-signal" />
@@ -245,6 +253,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
             type="button"
             onClick={() => {
               if (autoRanked) setText("");
+              if (autoRanked) counted.current = false;
               setAutoRanked(false);
               setRows(null);
               requestAnimationFrame(() => inputRef.current?.focus());
@@ -323,7 +332,7 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
           </div>
         </form>
       ) : (
-        <div className="mt-3">
+        <div ref={resultsRef} tabIndex={-1} className="mt-3 outline-none">
           <ol className="relative" style={{ height: rows.length * ROW }} aria-label="Your week ranked by Pulse">
             {rows.map((r) => {
               const pos = settled ? r.rank : r.inputIndex;

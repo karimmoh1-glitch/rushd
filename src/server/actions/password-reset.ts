@@ -2,6 +2,7 @@
 
 import * as z from "zod";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { requireUserOrThrow } from "@/lib/auth/dal";
@@ -67,11 +68,14 @@ export async function requestPasswordReset(input: { email: string }): Promise<{ 
   if (!byIp.allowed) return { error: "Too many attempts. Try again in a few minutes." };
   if (!byEmail.allowed) return { success: true };
 
-  const user = await db.user.findUnique({ where: { email: email.data }, select: { id: true } });
-  if (user) {
+  // After the response, so how long the request takes can't reveal whether
+  // the account exists.
+  const address = email.data;
+  after(async () => {
+    const user = await db.user.findUnique({ where: { email: address }, select: { id: true } });
+    if (!user) return;
     const token = await issueResetToken(user.id);
-    const mail = passwordResetEmail(`${env.NEXT_PUBLIC_APP_URL}/reset-password#token=${token}`);
-    await sendEmail({ to: email.data, ...mail });
-  }
+    await sendEmail({ to: address, ...passwordResetEmail(`${env.NEXT_PUBLIC_APP_URL}/reset-password#token=${token}`) });
+  });
   return { success: true };
 }

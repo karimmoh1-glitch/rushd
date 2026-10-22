@@ -56,6 +56,15 @@ describe("Canvas calendar feed (real DB, scripted feed)", { timeout: 60_000 }, (
     expect(await db.assignment.count({ where: { userId: u.id, source: "MANUAL" } })).toBe(2);
   });
 
+  it("won't connect over a sync that's still running", async () => {
+    const u = await createTestUser({ displayName: "Feed3" });
+    users.push(u.id);
+    await connectFeed(u.id, URL_OK, { fetchText: async () => ics([]) });
+    await db.calendarFeed.update({ where: { userId: u.id }, data: { syncStartedAt: new Date() } });
+    const r = await connectFeed(u.id, URL_OK, { fetchText: async () => ics([]) });
+    expect(r).toMatchObject({ ok: false, code: "IN_PROGRESS" });
+  });
+
   it("refuses links that aren't Canvas feeds and records fetch failures", async () => {
     const u = await createTestUser({ displayName: "Feed2" });
     users.push(u.id);

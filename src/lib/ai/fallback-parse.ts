@@ -25,7 +25,8 @@ const EXPLICIT_DATE_RE = /\b(\d{1,2})\/(\d{1,2})\b/;
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 // "Dec 12", "December 12th", "sept. 3". Needs the day number, so "may" alone stays a word.
-const MONTH_DATE_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?:[a-z]*)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b/i;
+const MONTH_DATE_RE =
+  /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b/i;
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -98,7 +99,7 @@ function extractDate(text: string, now: Date): { date: Date | null; remaining: s
 
   const named = text.match(MONTH_DATE_RE);
   if (named) {
-    const month = MONTHS.indexOf(named[1].toLowerCase());
+    const month = MONTHS.indexOf(named[1].toLowerCase().slice(0, 3));
     const day = Number(named[2]);
     let candidate = new Date(now.getFullYear(), month, day, 23, 59, 0, 0);
     if (candidate.getTime() < now.getTime() - 24 * 60 * 60 * 1000) candidate = new Date(now.getFullYear() + 1, month, day, 23, 59, 0, 0);

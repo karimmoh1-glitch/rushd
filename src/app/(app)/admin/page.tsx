@@ -265,7 +265,7 @@ export default async function AdminPage() {
           {(
             [
               ["Daily sync and Sunday email (09:00 UTC)", crons.daily],
-              ["Evening streak reminders (23:00 UTC)", crons.evening],
+              ["Evening streak reminders (17:00, 23:00, 03:00 UTC)", crons.evening],
             ] as const
           ).map(([label, run]) => (
             <li key={label}>

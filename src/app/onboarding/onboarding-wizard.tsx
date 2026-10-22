@@ -16,16 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { completeOnboarding } from "@/server/actions/onboarding";
-import { TRY_STORAGE_KEY } from "@/lib/try/parse-week";
-
-const noopSubscribe = () => () => {};
-function hasTriedWeek(): boolean {
-  try {
-    return !!localStorage.getItem(TRY_STORAGE_KEY);
-  } catch {
-    return false;
-  }
-}
+import { readFreshTry } from "@/lib/try/storage";
 import {
   AVAILABILITY_PRESETS,
   formatMinutes,
@@ -36,6 +27,9 @@ import { formatDuration } from "@/lib/format";
 import { CLASS_COLORS, DEFAULT_CLASS_COLOR } from "@/lib/class-colors";
 import { CHALLENGE_OPTIONS, type AcademicChallengeValue } from "@/lib/validation/onboarding";
 import { cn } from "@/lib/utils";
+
+const noopSubscribe = () => () => {};
+const hasTriedWeek = () => readFreshTry() !== null;
 
 const COMMON_TIMEZONES = [
   "America/New_York",

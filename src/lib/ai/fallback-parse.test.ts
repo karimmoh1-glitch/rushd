@@ -58,6 +58,12 @@ describe("fallbackParseQuickAdd", () => {
     const march = new Date(fallbackParseQuickAdd("Essay march 3", [], NOW).dueAt!);
     expect([march.getFullYear(), march.getMonth()]).toEqual([2027, 2]);
     expect(fallbackParseQuickAdd("I may need help", [], NOW).dueAt).toBeNull();
+    // Words that merely start like a month are not dates.
+    const novel = fallbackParseQuickAdd("Novel 3 chapters Friday", [], NOW);
+    expect(new Date(novel.dueAt!).getDay()).toBe(5);
+    expect(novel.title).toBe("Novel 3 chapters");
+    expect(new Date(fallbackParseQuickAdd("decimals 4 worksheet Friday", [], NOW).dueAt!).getDay()).toBe(5);
+    expect(new Date(fallbackParseQuickAdd("Report September 9", [], NOW).dueAt!).getMonth()).toBe(8);
   });
 
   it("understands 'in N days' and 'next week'", () => {

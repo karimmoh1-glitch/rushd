@@ -16,6 +16,7 @@ import {
   Menu,
 } from "lucide-react";
 import { logout } from "@/server/actions/auth";
+import { clearTry } from "@/lib/try/storage";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ActiveSessionProvider } from "@/components/active-session-context";
@@ -130,7 +131,7 @@ export function AppShell({
             <span className="truncate text-sm font-medium">{displayName}</span>
             <div className="flex items-center gap-1">
               <ThemeToggle />
-              <form action={logout}>
+              <form action={logout} onSubmit={clearTry}>
                 <button
                   type="submit"
                   aria-label="Log out"
@@ -159,7 +160,7 @@ export function AppShell({
             <Settings className="h-5 w-5" aria-hidden="true" />
           </Link>
           <ThemeToggle />
-          <form action={logout}>
+          <form action={logout} onSubmit={clearTry}>
             <button
               type="submit"
               aria-label="Log out"

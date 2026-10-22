@@ -139,7 +139,7 @@ switchable in Settings, with one-click unsubscribe in every email.
 
 **Scheduled jobs.** `vercel.json` runs `/api/cron/daily` at 09:00 UTC (re-sync
 Canvas, Teams, and calendar feeds; Sunday emails) and `/api/cron/evening` at
-23:00 UTC (streak nudges). They need `CRON_SECRET` in Vercel, which is already
+17:00, 23:00 and 03:00 UTC (streak nudges, sent only in each student's 3–9 pm). They need `CRON_SECRET` in Vercel, which is already
 set for production. Runs show under the project's Cron Jobs tab and Logs.
 
 ## 5. Search (Google Search Console)

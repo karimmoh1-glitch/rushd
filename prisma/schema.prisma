@@ -225,7 +225,7 @@ model Assignment {
   @@index([classId])
   @@index([userId, source])
   @@index([userId, teamsAssignmentId])
-  @@index([userId, feedUid])
+  @@unique([userId, feedUid])
 }
 
 model Exam {

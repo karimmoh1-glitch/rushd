@@ -19,14 +19,3 @@ export async function countPageView(path: string): Promise<void> {
   }
 }
 
-/** Public, anonymous proof: how many weeks were ranked with the homepage tool
- * in the last 30 days. Null on any failure, so the page never depends on it. */
-export async function weeksRankedLast30Days(): Promise<number | null> {
-  try {
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const r = await db.pageView.aggregate({ where: { path: "#try", day: { gte: since } }, _sum: { count: true } });
-    return r._sum.count ?? 0;
-  } catch {
-    return null;
-  }
-}

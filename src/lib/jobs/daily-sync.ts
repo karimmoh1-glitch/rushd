@@ -63,7 +63,12 @@ export async function runDailySync(budgetMs: number, now = new Date()): Promise<
       break;
     }
     try {
-      const r = await run();
+      // A job that hangs past the budget is abandoned so the rest still run.
+      const remaining = Math.max(1_000, deadline - Date.now());
+      const r = await Promise.race([
+        run(),
+        new Promise<{ ok: boolean }>((resolve) => setTimeout(() => resolve({ ok: false }), Math.min(remaining, 30_000))),
+      ]);
       if (r.ok) {
         report[kind]++;
         touched.add(userId);

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { CANVAS_CLASS_COLORS } from "@/lib/canvas/colors";
 import { decryptToken, encryptToken, isVaultConfigured, VaultError } from "@/lib/canvas/token-vault";
 import { resolveTimeZone } from "@/lib/time/zone";
@@ -59,16 +60,34 @@ export async function connectFeed(userId: string, rawUrl: string, deps: FeedDeps
   if (!url) {
     return { ok: false, error: "That isn't a Canvas calendar feed link. It ends in .ics and is under Calendar → Calendar Feed.", code: "BAD_URL" };
   }
+  const now = (deps.now ?? (() => new Date()))();
+  let locked = false;
   try {
     const text = await (deps.fetchText ?? fetchFeedText)(url);
     const items = parseCanvasFeed(text, await timeZoneOf(userId));
-    await db.calendarFeed.upsert({
-      where: { userId },
-      create: { userId, encryptedUrl: encryptToken(userId, url.toString()), host: url.hostname },
-      update: { encryptedUrl: encryptToken(userId, url.toString()), host: url.hostname, status: "ACTIVE", lastSyncError: null, syncStartedAt: null },
+    // Hold the same lock as a sync, so a connect can't interleave with one.
+    const data = { encryptedUrl: encryptToken(userId, url.toString()), host: url.hostname, status: "ACTIVE", lastSyncError: null, syncStartedAt: now };
+    const updated = await db.calendarFeed.updateMany({
+      where: { userId, OR: [{ syncStartedAt: null }, { syncStartedAt: { lt: new Date(now.getTime() - SYNC_LOCK_MS) } }] },
+      data,
     });
-    return { ok: true, value: await applyFeed(userId, url.hostname, items, (deps.now ?? (() => new Date()))()) };
+    if (updated.count === 0) {
+      if (await db.calendarFeed.findUnique({ where: { userId }, select: { id: true } })) {
+        return { ok: false, error: "A sync is already running. Try again in a minute.", code: "IN_PROGRESS" };
+      }
+      try {
+        await db.calendarFeed.create({ data: { userId, ...data } });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          return { ok: false, error: "A sync is already running. Try again in a minute.", code: "IN_PROGRESS" };
+        }
+        throw error;
+      }
+    }
+    locked = true;
+    return { ok: true, value: await applyFeed(userId, url.hostname, items, now) };
   } catch (error) {
+    if (locked) await db.calendarFeed.update({ where: { userId }, data: { syncStartedAt: null } }).catch(() => {});
     return fail(error);
   }
 }
@@ -132,21 +151,25 @@ async function applyFeed(userId: string, host: string, items: FeedAssignment[], 
       });
       summary.updated++;
     } else if (item.dueAt >= cutoff) {
-      await db.assignment.create({
-        data: {
-          userId,
-          classId: await classFor(item.courseName ?? "Canvas"),
-          title: item.title,
-          dueAt: item.dueAt,
-          estimatedMinutes: DEFAULT_MINUTES,
-          estimatedByRushd: true,
-          source: "CALENDAR",
-          feedUid: item.uid,
-          canvasUrl: link,
-          canvasSyncedAt: now,
-        },
+      // (userId, feedUid) is unique: a row another sync just created is left alone.
+      const r = await db.assignment.createMany({
+        skipDuplicates: true,
+        data: [
+          {
+            userId,
+            classId: await classFor(item.courseName ?? "Canvas"),
+            title: item.title,
+            dueAt: item.dueAt,
+            estimatedMinutes: DEFAULT_MINUTES,
+            estimatedByRushd: true,
+            source: "CALENDAR",
+            feedUid: item.uid,
+            canvasUrl: link,
+            canvasSyncedAt: now,
+          },
+        ],
       });
-      summary.created++;
+      summary.created += r.count;
     }
   }
 

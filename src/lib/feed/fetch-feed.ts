@@ -52,6 +52,8 @@ export const fetchFeedText: FetchFeedText = async (url) => {
         headers: { Accept: "text/calendar", "User-Agent": USER_AGENT },
         redirect: "manual",
         dispatcher,
+        // bodyTimeout only bounds the gap between chunks; this bounds the whole read.
+        signal: AbortSignal.timeout(20_000),
       });
     } catch {
       throw new FeedError("NETWORK", "Couldn't reach that calendar. Check the link and try again.");
@@ -64,10 +66,15 @@ export const fetchFeedText: FetchFeedText = async (url) => {
 
     const chunks: Uint8Array[] = [];
     let size = 0;
-    for await (const chunk of res.body) {
-      size += chunk.byteLength;
-      if (size > MAX_BYTES) throw new FeedError("TOO_LARGE", "That calendar is too large to import.");
-      chunks.push(chunk);
+    try {
+      for await (const chunk of res.body) {
+        size += chunk.byteLength;
+        if (size > MAX_BYTES) throw new FeedError("TOO_LARGE", "That calendar is too large to import.");
+        chunks.push(chunk);
+      }
+    } catch (error) {
+      if (error instanceof FeedError) throw error;
+      throw new FeedError("NETWORK", "That calendar took too long to download. Try again in a moment.");
     }
     const text = Buffer.concat(chunks).toString("utf8");
     if (!text.includes("BEGIN:VCALENDAR")) throw new FeedError("NOT_CALENDAR", "That link didn't return a calendar.");

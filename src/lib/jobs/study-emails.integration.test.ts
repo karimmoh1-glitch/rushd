@@ -45,6 +45,15 @@ describe("study emails (real DB, captured mail)", { timeout: 60_000 }, () => {
     expect(weekday.sent).toBe(0);
   });
 
+  it("releases the claim when a send fails, so the student is tried again", async () => {
+    const u = await student(true);
+    const failed = await sendWeeklyDigests(30_000, { send: async () => false, now: SUNDAY_MORNING, userIds: [u.id] });
+    expect(failed.sent).toBe(0);
+    expect((await db.profile.findUniqueOrThrow({ where: { userId: u.id } })).lastDigestAt).toBeNull();
+    const retried = await sendWeeklyDigests(30_000, { send: async () => true, now: SUNDAY_MORNING, userIds: [u.id] });
+    expect(retried.sent).toBe(1);
+  });
+
   it("nudges in the evening only when a 3+ day streak would break", async () => {
     const u = await student(true);
     for (const daysAgo of [1, 2, 3]) {
