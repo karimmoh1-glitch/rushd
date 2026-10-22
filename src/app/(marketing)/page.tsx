@@ -17,6 +17,13 @@ import { explainScore } from "@/lib/planning/explain";
 import { pulseOf } from "@/lib/planning/pulse";
 import { formatDateInZone, formatTimeInZone } from "@/lib/time/zone";
 import { organizationJsonLd } from "@/lib/seo";
+import { weeksRankedLast30Days } from "@/lib/analytics/page-view";
+
+// Re-rendered hourly so the public "weeks ranked" count stays current.
+export const revalidate = 3600;
+
+// Shown only once the number means something; never padded or estimated.
+const PROOF_THRESHOLD = 50;
 
 export const metadata: Metadata = {
   title: { absolute: "Rushd: your personal AI study agent" },
@@ -56,7 +63,8 @@ function rankRows(): RankRow[] {
   }));
 }
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const ranked = await weeksRankedLast30Days();
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: INTRO }} />
@@ -121,6 +129,11 @@ export default function LandingPage() {
               <span key={n} className="font-medium">{n}</span>
             ))}
             <span className="text-muted-foreground">or just type it</span>
+            {ranked !== null && ranked >= PROOF_THRESHOLD && (
+              <span className="text-muted-foreground">
+                · <span className="font-medium text-foreground tabular-nums">{ranked.toLocaleString("en-US")}</span> weeks ranked this month
+              </span>
+            )}
           </p>
           <ul className="reveal-stagger flex flex-wrap gap-x-5 gap-y-2 text-muted-foreground lg:flex-nowrap">
             {["Read-only: never posts or submits", "No ads, never sells data", "Delete anytime"].map((t, i) => (
