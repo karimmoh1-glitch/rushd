@@ -16,10 +16,9 @@ export interface WeekForecast {
 const WEEK_LABELS = ["This week", "Next week", "The week after"];
 const WEEK_COUNT = 3;
 const DAYS_PER_WEEK = 7;
+const TOP_ITEMS_PER_WEEK = 3;
 
-/** Exported so callers simulating a hypothetical change (e.g. the what-if
- * "what happens if I skip today" comparison) can classify risk exactly the
- * way the real forecast does, instead of re-deriving the same thresholds. */
+/** Exported so the what-if simulator classifies risk the same way the forecast does. */
 export function riskFor(estimated: number, available: number): RiskLevel {
   if (available <= 0) return "unknown";
   const ratio = estimated / available;
@@ -29,17 +28,10 @@ export function riskFor(estimated: number, available: number): RiskLevel {
 }
 
 /**
- * Buckets already-scored work by which week its deadline falls in, and
- * compares it to available study time. Deliberately deterministic — no AI
- * call — reusing weeklyAvailableMinutes (the recurring StudyAvailability
- * pattern) for every bucket, since availability doesn't vary week to week
- * in the current data model (no one-off exceptions yet, see
- * docs/PLANNING_ENGINE.md limitations).
- *
- * Items overdue or due today fall into the "This week" bucket — the
- * pressure is now, not in some future week. Items due beyond the
- * 3-week window aren't counted; this is a near-term forecast, not a
- * semester-long one.
+ * Groups scored work by the week its deadline falls in and compares it to
+ * the student's weekly study time. Availability is the same every week, so
+ * each week gets the same `weeklyAvailableMinutes`. Overdue work counts
+ * toward "This week"; work due after three weeks isn't counted.
  */
 export function buildForecast(
   scored: ScoredItem[],
@@ -47,36 +39,42 @@ export function buildForecast(
   now: Date,
   timeZone?: string | null,
 ): WeekForecast[] {
-  const weeks: WeekForecast[] = Array.from({ length: WEEK_COUNT }, (_, i) => ({
-    label: WEEK_LABELS[i],
-    startDaysFromNow: i * DAYS_PER_WEEK,
-    estimatedMinutes: 0,
-    availableMinutes: weeklyAvailableMinutes,
-    risk: "unknown",
-    topItems: [],
-  }));
+  const weeks: WeekForecast[] = [];
+  for (let i = 0; i < WEEK_COUNT; i++) {
+    weeks.push({
+      label: WEEK_LABELS[i],
+      startDaysFromNow: i * DAYS_PER_WEEK,
+      estimatedMinutes: 0,
+      availableMinutes: weeklyAvailableMinutes,
+      risk: "unknown",
+      topItems: [],
+    });
+  }
 
-  const byWeek: ScoredItem[][] = Array.from({ length: WEEK_COUNT }, () => []);
+  // `scored` is already in rank order, so the first items added are the top ones.
+  for (const scoredItem of scored) {
+    const daysUntilDue = calendarDaysUntil(scoredItem.item.dueAt, now, timeZone);
+    if (daysUntilDue >= WEEK_COUNT * DAYS_PER_WEEK) continue;
 
-  for (const s of scored) {
-    const daysUntil = calendarDaysUntil(s.item.dueAt, now, timeZone);
-    const weekIndex = daysUntil <= 0 ? 0 : Math.min(WEEK_COUNT - 1, Math.floor(daysUntil / DAYS_PER_WEEK));
-    if (daysUntil < WEEK_COUNT * DAYS_PER_WEEK || daysUntil <= 0) {
-      weeks[weekIndex].estimatedMinutes += s.item.remainingMinutes;
-      byWeek[weekIndex].push(s);
+    let weekIndex = 0;
+    if (daysUntilDue > 0) {
+      weekIndex = Math.floor(daysUntilDue / DAYS_PER_WEEK);
+    }
+
+    const week = weeks[weekIndex];
+    week.estimatedMinutes += scoredItem.item.remainingMinutes;
+    if (week.topItems.length < TOP_ITEMS_PER_WEEK) {
+      week.topItems.push({
+        id: scoredItem.item.id,
+        title: scoredItem.item.title,
+        className: scoredItem.item.className,
+        classColor: scoredItem.item.classColor,
+      });
     }
   }
 
-  for (let i = 0; i < WEEK_COUNT; i++) {
-    weeks[i].risk = riskFor(weeks[i].estimatedMinutes, weeks[i].availableMinutes);
-    weeks[i].topItems = byWeek[i]
-      .slice(0, 3)
-      .map((s) => ({
-        id: s.item.id,
-        title: s.item.title,
-        className: s.item.className,
-        classColor: s.item.classColor,
-      }));
+  for (const week of weeks) {
+    week.risk = riskFor(week.estimatedMinutes, week.availableMinutes);
   }
 
   return weeks;

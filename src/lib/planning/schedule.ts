@@ -17,11 +17,13 @@ import type {
   PlanInput,
   PlanResult,
   PlanWarning,
+  PlanPreferences,
+  PinnedBlock,
   AvailabilityWindow,
   ScheduledSession,
+  ScoredItem,
   DayPlan,
   DayStatus,
-  WorkItem,
 } from "./types";
 
 /** The calendar day `date` falls on in `timeZone` ("YYYY-MM-DD"). */
@@ -29,231 +31,404 @@ export function dateKey(date: Date, timeZone?: string | null): string {
   return localDateKey(date, timeZone);
 }
 
+/** A stretch of time on one day, in minutes from local midnight. */
 interface Interval {
   start: number;
   end: number;
 }
 
+/** What the scheduler tracks for each day while it fills the plan. */
 interface DayState {
   key: string;
-  dow: number;
+  dayOfWeek: number;
+  /** Free time still open for new blocks, sorted and non-overlapping. */
   free: Interval[];
-  windowMinutes: number;
+  /** Minutes inside the availability windows (after removing time already past today). */
+  availableMinutes: number;
   plannedMinutes: number;
-  capRemaining: number;
+  /** Minutes left under the student's daily maximum. */
+  dailyCapRemaining: number;
 }
 
-function mergeIntervals(list: Interval[]): Interval[] {
-  const sorted = list
-    .filter((i) => i.end > i.start)
-    .sort((a, b) => a.start - b.start || a.end - b.end);
-  const out: Interval[] = [];
-  for (const i of sorted) {
-    const last = out[out.length - 1];
-    if (last && i.start <= last.end) last.end = Math.max(last.end, i.end);
-    else out.push({ ...i });
+// ---------------------------------------------------------------------------
+// Interval helpers
+// ---------------------------------------------------------------------------
+
+function compareIntervals(a: Interval, b: Interval): number {
+  if (a.start < b.start) return -1;
+  if (a.start > b.start) return 1;
+  if (a.end < b.end) return -1;
+  if (a.end > b.end) return 1;
+  return 0;
+}
+
+/** Drops empty intervals, sorts the rest, and joins any that overlap or touch. */
+function mergeIntervals(intervals: Interval[]): Interval[] {
+  const nonEmpty = intervals.filter((interval) => interval.end > interval.start);
+  nonEmpty.sort(compareIntervals);
+
+  const merged: Interval[] = [];
+  for (const interval of nonEmpty) {
+    const last = merged[merged.length - 1];
+    if (last && interval.start <= last.end) {
+      last.end = Math.max(last.end, interval.end);
+    } else {
+      merged.push({ start: interval.start, end: interval.end });
+    }
   }
-  return out;
+  return merged;
 }
 
+/** Removes `cut` from every interval, splitting an interval in two if needed. */
 function subtractInterval(intervals: Interval[], cut: Interval): Interval[] {
-  const out: Interval[] = [];
-  for (const i of intervals) {
-    if (cut.end <= i.start || cut.start >= i.end) {
-      out.push(i);
+  const result: Interval[] = [];
+  for (const interval of intervals) {
+    const noOverlap = cut.end <= interval.start || cut.start >= interval.end;
+    if (noOverlap) {
+      result.push(interval);
       continue;
     }
-    if (cut.start > i.start) out.push({ start: i.start, end: cut.start });
-    if (cut.end < i.end) out.push({ start: cut.end, end: i.end });
+    if (cut.start > interval.start) {
+      result.push({ start: interval.start, end: cut.start });
+    }
+    if (cut.end < interval.end) {
+      result.push({ start: cut.end, end: interval.end });
+    }
   }
-  return out;
+  return result;
 }
 
 function sumMinutes(intervals: Interval[]): number {
-  return intervals.reduce((sum, i) => sum + (i.end - i.start), 0);
+  let total = 0;
+  for (const interval of intervals) {
+    total += interval.end - interval.start;
+  }
+  return total;
 }
 
 function roundUpTo(minute: number, step: number): number {
   return Math.ceil(minute / step) * step;
 }
 
+// ---------------------------------------------------------------------------
+// Date key helpers
+// ---------------------------------------------------------------------------
+
+function laterKey(a: string, b: string): string {
+  if (diffDateKeys(a, b) >= 0) return b;
+  return a;
+}
+
+function earlierKey(a: string, b: string): string {
+  if (diffDateKeys(a, b) >= 0) return a;
+  return b;
+}
+
+/** Every day key from `firstKey` to `lastKey`, inclusive. Empty if `lastKey` is earlier. */
+function daysBetween(firstKey: string, lastKey: string): string[] {
+  const keys: string[] = [];
+  for (let key = firstKey; diffDateKeys(key, lastKey) >= 0; key = addDaysToKey(key, 1)) {
+    keys.push(key);
+  }
+  return keys;
+}
+
+/** Items are tracked by kind + id, because an assignment and an exam could share an id. */
+function itemKey(kind: string, id: string): string {
+  return `${kind}:${id}`;
+}
+
+// ---------------------------------------------------------------------------
+// Building the days
+// ---------------------------------------------------------------------------
+
+/** Builds each day's free time from the student's recurring weekly windows. */
+function buildDays(
+  availability: AvailabilityWindow[],
+  todayKey: string,
+  nowMinute: number,
+  horizonDays: number,
+): Map<string, DayState> {
+  const days = new Map<string, DayState>();
+
+  for (let i = 0; i < horizonDays; i++) {
+    const key = addDaysToKey(todayKey, i);
+    const dayOfWeek = dayOfWeekForKey(key);
+
+    const windows: Interval[] = [];
+    for (const window of availability) {
+      if (window.dayOfWeek === dayOfWeek) {
+        windows.push({ start: window.startMinute, end: window.endMinute });
+      }
+    }
+    let free = mergeIntervals(windows);
+
+    if (key === todayKey) {
+      // Time that already passed today isn't available any more.
+      const firstOpenMinute = roundUpTo(nowMinute, 5);
+      const stillAhead: Interval[] = [];
+      for (const interval of free) {
+        stillAhead.push({ start: Math.max(interval.start, firstOpenMinute), end: interval.end });
+      }
+      free = mergeIntervals(stillAhead);
+    }
+
+    days.set(key, {
+      key,
+      dayOfWeek,
+      free,
+      availableMinutes: sumMinutes(free),
+      plannedMinutes: 0,
+      dailyCapRemaining: Number.POSITIVE_INFINITY,
+    });
+  }
+
+  return days;
+}
+
 /**
- * Deterministic plan generation. See docs/PLANNING_ENGINE.md for the full
- * explanation of scoring and scheduling behavior.
+ * Reserves the blocks the student pinned by hand. They are fixed: they take
+ * their time out of the day and count toward the item's work. Returns the
+ * pinned sessions and how many pinned minutes each item already has.
+ */
+function placePinnedBlocks(
+  pinnedBlocks: PinnedBlock[],
+  scored: ScoredItem[],
+  days: Map<string, DayState>,
+  todayKey: string,
+  nowMinute: number,
+): { sessions: ScheduledSession[]; pinnedMinutesByItem: Map<string, number> } {
+  const scoredByKey = new Map<string, ScoredItem>();
+  for (const scoredItem of scored) {
+    scoredByKey.set(itemKey(scoredItem.item.kind, scoredItem.item.id), scoredItem);
+  }
+
+  const sessions: ScheduledSession[] = [];
+  const pinnedMinutesByItem = new Map<string, number>();
+
+  for (const block of pinnedBlocks) {
+    const key = itemKey(block.kind, block.itemId);
+    const day = days.get(block.date);
+    const scoredItem = scoredByKey.get(key);
+    // Skip blocks outside the horizon, or for work that no longer exists.
+    if (!day || !scoredItem) continue;
+
+    const end = block.startMinute + block.durationMinutes;
+    // Skip blocks that already finished earlier today.
+    if (block.date === todayKey && end <= nowMinute) continue;
+
+    day.free = subtractInterval(day.free, { start: block.startMinute, end });
+    day.plannedMinutes += block.durationMinutes;
+
+    const minutesSoFar = pinnedMinutesByItem.get(key) ?? 0;
+    pinnedMinutesByItem.set(key, minutesSoFar + block.durationMinutes);
+
+    sessions.push({
+      item: scoredItem.item,
+      scheduledDate: block.date,
+      scheduledMinutes: block.durationMinutes,
+      startMinute: block.startMinute,
+      endMinute: end,
+      score: scoredItem.score,
+      reasonCode: scoredItem.reasonCode,
+      pinned: true,
+      blockId: block.id,
+    });
+  }
+
+  return { sessions, pinnedMinutesByItem };
+}
+
+// ---------------------------------------------------------------------------
+// Placing blocks
+// ---------------------------------------------------------------------------
+
+/**
+ * Takes up to `wantMinutes` from the earliest free slot on `day` that can
+ * hold a worthwhile block. If `latestEnd` is given, the block must end by
+ * then. Returns the placed block, or null if nothing fits.
+ */
+function placeBlock(
+  day: DayState,
+  wantMinutes: number,
+  latestEnd: number | null,
+  breakMinutes: number,
+): Interval | null {
+  // A block must be at least MIN_BLOCK_MINUTES, unless the whole request is shorter.
+  const smallestUseful = Math.min(wantMinutes, MIN_BLOCK_MINUTES);
+
+  for (let index = 0; index < day.free.length; index++) {
+    const slot = day.free[index];
+
+    let slotEnd = slot.end;
+    if (latestEnd !== null) {
+      slotEnd = Math.min(slot.end, latestEnd);
+    }
+    const slotLength = slotEnd - slot.start;
+    if (slotLength <= 0) continue;
+
+    const blockLength = Math.min(wantMinutes, slotLength, day.dailyCapRemaining);
+    if (blockLength < smallestUseful) continue;
+
+    // Use the start of the slot, and leave a break before the next block.
+    const start = slot.start;
+    const nextFreeStart = start + blockLength + breakMinutes;
+    if (nextFreeStart >= slot.end) {
+      day.free.splice(index, 1);
+    } else {
+      slot.start = nextFreeStart;
+    }
+
+    day.dailyCapRemaining -= blockLength;
+    day.plannedMinutes += blockLength;
+    return { start, end: start + blockLength };
+  }
+
+  return null;
+}
+
+/** On the due day, a block must end by the due time. Overdue work has no deadline left to respect. */
+function latestEndMinute(
+  dayKey: string,
+  dueKey: string,
+  dueMinute: number,
+  isOverdue: boolean,
+): number | null {
+  if (!isOverdue && dayKey === dueKey) return dueMinute;
+  return null;
+}
+
+function makeSession(scoredItem: ScoredItem, dayKey: string, block: Interval): ScheduledSession {
+  return {
+    item: scoredItem.item,
+    scheduledDate: dayKey,
+    scheduledMinutes: block.end - block.start,
+    startMinute: block.start,
+    endMinute: block.end,
+    score: scoredItem.score,
+    reasonCode: scoredItem.reasonCode,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Results
+// ---------------------------------------------------------------------------
+
+/** Sorts by day, then start time, then item id. */
+function compareSessions(a: ScheduledSession, b: ScheduledSession): number {
+  const byDate = a.scheduledDate.localeCompare(b.scheduledDate);
+  if (byDate !== 0) return byDate;
+
+  const aStart = a.startMinute ?? 0;
+  const bStart = b.startMinute ?? 0;
+  if (aStart < bStart) return -1;
+  if (aStart > bStart) return 1;
+
+  return a.item.id.localeCompare(b.item.id);
+}
+
+function dayStatus(day: DayState): DayStatus {
+  // A pinned block may sit outside the windows (the student's choice), so
+  // capacity is whichever is larger. A day never reads as over 100% full.
+  const capacity = Math.max(day.availableMinutes, day.plannedMinutes);
+  if (capacity === 0) return "none";
+  if (day.plannedMinutes === 0) return "open";
+  if (day.plannedMinutes >= capacity * 0.9 || day.dailyCapRemaining === 0) return "full";
+  return "balanced";
+}
+
+/**
+ * Deterministic plan generation (see docs/PLANNING_ENGINE.md).
  *
- * In short: items are ranked by score; each, in rank order, claims the
- * earliest open time in the student's availability windows. Work is spread
- * one block per day first (spaced practice, room for other things), then any
- * remainder that would otherwise miss its deadline is packed into extra
- * blocks. Nothing is ever placed after its due time, work is never planned
- * earlier than the lead window, and anything that cannot fit before its
- * deadline is reported as a shortfall instead of silently dropped.
+ * Items are ranked by score. In rank order, each item takes the earliest
+ * open time in the student's availability. Work is first spread out to one
+ * block per day; anything that would still miss its deadline is then packed
+ * into extra blocks. Nothing is placed after its due time or earlier than
+ * the lead window, and work that can't fit is reported as a shortfall.
  */
 export function generatePlan(input: PlanInput): PlanResult {
   const timeZone = resolveTimeZone(input.timeZone);
   const horizonDays = input.horizonDays ?? DEFAULT_HORIZON_DAYS;
-  const preferred = Math.max(
-    MIN_BLOCK_MINUTES,
-    Math.min(MAX_SESSION_MINUTES, input.preferences?.preferredSessionMinutes ?? MAX_SESSION_MINUTES),
-  );
-  const breakMinutes = Math.max(0, input.preferences?.breakMinutes ?? 0);
-  const maxDaily = input.preferences?.maxDailyMinutes ?? null;
+
+  const preferences: PlanPreferences = input.preferences ?? {};
+  // Block length is the student's preference, kept between 15 and 90 minutes.
+  const requestedBlockMinutes = preferences.preferredSessionMinutes ?? MAX_SESSION_MINUTES;
+  const blockMinutes = Math.max(MIN_BLOCK_MINUTES, Math.min(MAX_SESSION_MINUTES, requestedBlockMinutes));
+  const breakMinutes = Math.max(0, preferences.breakMinutes ?? 0);
+  const maxDailyMinutes = preferences.maxDailyMinutes ?? null;
 
   const todayKey = localDateKey(input.now, timeZone);
   const nowMinute = localMinuteOfDay(input.now, timeZone);
   const horizonEndKey = addDaysToKey(todayKey, horizonDays - 1);
 
   const scored = scoreAndRank(input.workItems, input.now, timeZone);
+  const days = buildDays(input.availability, todayKey, nowMinute, horizonDays);
 
-  // --- Build each day's free time from the recurring weekly windows. ---------
-  const days = new Map<string, DayState>();
-  for (let i = 0; i < horizonDays; i++) {
-    const key = addDaysToKey(todayKey, i);
-    const dow = dayOfWeekForKey(key);
-    let free = mergeIntervals(
-      input.availability
-        .filter((w) => w.dayOfWeek === dow)
-        .map((w) => ({ start: w.startMinute, end: w.endMinute })),
-    );
-    if (key === todayKey) {
-      // Time that already passed today isn't available any more.
-      const from = roundUpTo(nowMinute, 5);
-      free = mergeIntervals(
-        free.map((w) => ({ start: Math.max(w.start, from), end: w.end })),
-      );
-    }
-    days.set(key, {
-      key,
-      dow,
-      free,
-      windowMinutes: sumMinutes(free),
-      plannedMinutes: 0,
-      capRemaining: Number.POSITIVE_INFINITY,
-    });
-  }
+  const pinned = placePinnedBlocks(input.pinnedBlocks ?? [], scored, days, todayKey, nowMinute);
+  const sessions = pinned.sessions;
 
-  const sessions: ScheduledSession[] = [];
-  const scoredById = new Map(scored.map((s) => [`${s.item.kind}:${s.item.id}`, s]));
-
-  // --- Pinned (locked / hand-placed) blocks: fixed commitments. --------------
-  const pinnedMinutesByItem = new Map<string, number>();
-  for (const pb of input.pinnedBlocks ?? []) {
-    const day = days.get(pb.date);
-    const entry = scoredById.get(`${pb.kind}:${pb.itemId}`);
-    if (!day || !entry) continue; // outside the horizon, or the item is gone
-    const end = pb.startMinute + pb.durationMinutes;
-    if (pb.date === todayKey && end <= nowMinute) continue; // already over
-    day.free = subtractInterval(day.free, { start: pb.startMinute, end });
-    day.plannedMinutes += pb.durationMinutes;
-    const k = `${pb.kind}:${pb.itemId}`;
-    pinnedMinutesByItem.set(k, (pinnedMinutesByItem.get(k) ?? 0) + pb.durationMinutes);
-    sessions.push({
-      item: entry.item,
-      scheduledDate: pb.date,
-      scheduledMinutes: pb.durationMinutes,
-      startMinute: pb.startMinute,
-      endMinute: end,
-      score: entry.score,
-      reasonCode: entry.reasonCode,
-      pinned: true,
-      blockId: pb.id,
-    });
-  }
+  // The daily maximum counts pinned time too.
   for (const day of days.values()) {
-    day.capRemaining =
-      maxDaily === null ? Number.POSITIVE_INFINITY : Math.max(0, maxDaily - day.plannedMinutes);
-  }
-
-  /** Places up to `want` minutes in the earliest free slot on `day` that can
-   * hold a worthwhile block, ending no later than `notAfter`. */
-  function placeBlock(
-    day: DayState,
-    want: number,
-    notAfter: number | null,
-  ): { start: number; end: number } | null {
-    const needed = Math.min(want, MIN_BLOCK_MINUTES);
-    for (let idx = 0; idx < day.free.length; idx++) {
-      const iv = day.free[idx];
-      const end = notAfter === null ? iv.end : Math.min(iv.end, notAfter);
-      const len = end - iv.start;
-      if (len <= 0) continue;
-      const chunk = Math.min(want, len, day.capRemaining);
-      if (chunk < needed) continue;
-      const start = iv.start;
-      const nextStart = start + chunk + breakMinutes;
-      if (nextStart >= iv.end) day.free.splice(idx, 1);
-      else iv.start = nextStart;
-      day.capRemaining -= chunk;
-      day.plannedMinutes += chunk;
-      return { start, end: start + chunk };
+    if (maxDailyMinutes === null) {
+      day.dailyCapRemaining = Number.POSITIVE_INFINITY;
+    } else {
+      day.dailyCapRemaining = Math.max(0, maxDailyMinutes - day.plannedMinutes);
     }
-    return null;
   }
 
   const unscheduledMinutesByItem: Record<string, number> = {};
   const deferredMinutesByItem: Record<string, number> = {};
   const warnings: PlanWarning[] = [];
-  const shortByDueDay = new Map<string, number>();
+  const shortMinutesByDay = new Map<string, number>();
 
   for (const scoredItem of scored) {
-    const { item } = scoredItem;
-    const itemKey = `${item.kind}:${item.id}`;
-    let remaining = Math.max(0, item.remainingMinutes - (pinnedMinutesByItem.get(itemKey) ?? 0));
+    const item = scoredItem.item;
+    const pinnedMinutes = pinned.pinnedMinutesByItem.get(itemKey(item.kind, item.id)) ?? 0;
+    let remaining = Math.max(0, item.remainingMinutes - pinnedMinutes);
     if (remaining === 0) continue;
 
     const dueKey = localDateKey(item.dueAt, timeZone);
     const dueMinute = localMinuteOfDay(item.dueAt, timeZone);
     const isOverdue = item.dueAt.getTime() < input.now.getTime();
 
-    // Overdue work may use any open capacity (catching up is still useful).
-    // Otherwise: not before the lead window, never after the due moment.
-    const firstKey = isOverdue
-      ? todayKey
-      : maxKey(todayKey, addDaysToKey(dueKey, -LEAD_WINDOW_DAYS));
-    const lastKey = isOverdue ? horizonEndKey : minKey(dueKey, horizonEndKey);
-
-    const windowKeys: string[] = [];
-    if (diffDateKeys(firstKey, lastKey) >= 0) {
-      for (let k = firstKey; diffDateKeys(k, lastKey) >= 0; k = addDaysToKey(k, 1)) {
-        windowKeys.push(k);
-      }
+    // Overdue work may use any open time (catching up still helps).
+    // Other work: not before the lead window, and never after the due day.
+    let dayKeys: string[];
+    if (isOverdue) {
+      dayKeys = daysBetween(todayKey, horizonEndKey);
+    } else {
+      const leadStartKey = addDaysToKey(dueKey, -LEAD_WINDOW_DAYS);
+      dayKeys = daysBetween(laterKey(todayKey, leadStartKey), earlierKey(dueKey, horizonEndKey));
     }
 
-    const emit = (day: DayState, block: { start: number; end: number }) => {
-      sessions.push({
-        item,
-        scheduledDate: day.key,
-        scheduledMinutes: block.end - block.start,
-        startMinute: block.start,
-        endMinute: block.end,
-        score: scoredItem.score,
-        reasonCode: scoredItem.reasonCode,
-      });
-      remaining -= block.end - block.start;
-    };
-    const deadlineClip = (day: DayState) => (!isOverdue && day.key === dueKey ? dueMinute : null);
-
-    // Pass 1 — spread: at most one block per day, so a big task is paced over
+    // Pass 1, spread: at most one block per day, so a big task is paced over
     // several days instead of crammed into one sitting.
-    for (const key of windowKeys) {
+    for (const key of dayKeys) {
       if (remaining <= 0) break;
       const day = days.get(key);
       if (!day) continue;
-      const block = placeBlock(day, Math.min(remaining, preferred), deadlineClip(day));
-      if (block) emit(day, block);
+      const latestEnd = latestEndMinute(day.key, dueKey, dueMinute, isOverdue);
+      const block = placeBlock(day, Math.min(remaining, blockMinutes), latestEnd, breakMinutes);
+      if (block) {
+        sessions.push(makeSession(scoredItem, day.key, block));
+        remaining -= block.end - block.start;
+      }
     }
 
-    // Pass 2 — catch-up: whatever would still miss its deadline is packed into
-    // extra blocks wherever capacity remains.
+    // Pass 2, catch-up: whatever would still miss its deadline is packed
+    // into extra blocks wherever there's room. Work due after the horizon
+    // isn't packed; it's simply planned later.
     const deadlineIsInRange = isOverdue || diffDateKeys(dueKey, horizonEndKey) >= 0;
     if (remaining > 0 && deadlineIsInRange) {
-      for (const key of windowKeys) {
+      for (const key of dayKeys) {
         const day = days.get(key);
         if (!day) continue;
+        const latestEnd = latestEndMinute(day.key, dueKey, dueMinute, isOverdue);
         while (remaining > 0) {
-          const block = placeBlock(day, Math.min(remaining, preferred), deadlineClip(day));
+          const block = placeBlock(day, Math.min(remaining, blockMinutes), latestEnd, breakMinutes);
           if (!block) break;
-          emit(day, block);
+          sessions.push(makeSession(scoredItem, day.key, block));
+          remaining -= block.end - block.start;
         }
         if (remaining <= 0) break;
       }
@@ -272,8 +447,10 @@ export function generatePlan(input: PlanInput): PlanResult {
           overdue: isOverdue,
           shortMinutes: remaining,
         });
-        const bucket = isOverdue ? todayKey : dueKey;
-        shortByDueDay.set(bucket, (shortByDueDay.get(bucket) ?? 0) + remaining);
+        // Overdue shortfalls are counted on today; others on their due day.
+        const shortDay = isOverdue ? todayKey : dueKey;
+        const shortSoFar = shortMinutesByDay.get(shortDay) ?? 0;
+        shortMinutesByDay.set(shortDay, shortSoFar + remaining);
       } else {
         deferredMinutesByItem[item.id] = remaining;
       }
@@ -283,44 +460,31 @@ export function generatePlan(input: PlanInput): PlanResult {
   if (input.workItems.length > 0 && input.availability.length === 0) {
     warnings.unshift({ type: "NO_AVAILABILITY" });
   }
-  for (const [date, shortMinutes] of [...shortByDueDay.entries()].sort()) {
+
+  const shortDays = [...shortMinutesByDay.keys()].sort();
+  for (const date of shortDays) {
     const day = days.get(date);
     warnings.push({
       type: "OVERLOADED_DAY",
       date,
-      shortMinutes,
-      availableMinutes: day?.windowMinutes ?? 0,
+      shortMinutes: shortMinutesByDay.get(date) ?? 0,
+      availableMinutes: day?.availableMinutes ?? 0,
       plannedMinutes: day?.plannedMinutes ?? 0,
     });
   }
 
-  sessions.sort(
-    (a, b) =>
-      a.scheduledDate.localeCompare(b.scheduledDate) ||
-      (a.startMinute ?? 0) - (b.startMinute ?? 0) ||
-      a.item.id.localeCompare(b.item.id),
-  );
+  sessions.sort(compareSessions);
 
-  const dayPlans: DayPlan[] = [...days.values()].map((d) => {
-    // A pinned block may sit outside the windows (the student's choice), so
-    // "capacity" is whichever is larger — a day never reads as over 100% full.
-    const total = Math.max(d.windowMinutes, d.plannedMinutes);
-    const status: DayStatus =
-      total === 0
-        ? "none"
-        : d.plannedMinutes === 0
-          ? "open"
-          : d.plannedMinutes >= total * 0.9 || d.capRemaining === 0
-            ? "full"
-            : "balanced";
-    return {
-      date: d.key,
-      dayOfWeek: d.dow,
-      availableMinutes: d.windowMinutes,
-      plannedMinutes: d.plannedMinutes,
-      status,
-    };
-  });
+  const dayPlans: DayPlan[] = [];
+  for (const day of days.values()) {
+    dayPlans.push({
+      date: day.key,
+      dayOfWeek: day.dayOfWeek,
+      availableMinutes: day.availableMinutes,
+      plannedMinutes: day.plannedMinutes,
+      status: dayStatus(day),
+    });
+  }
 
   return {
     scored,
@@ -331,14 +495,3 @@ export function generatePlan(input: PlanInput): PlanResult {
     warnings,
   };
 }
-
-function maxKey(a: string, b: string): string {
-  return diffDateKeys(a, b) >= 0 ? b : a;
-}
-
-function minKey(a: string, b: string): string {
-  return diffDateKeys(a, b) >= 0 ? a : b;
-}
-
-/** Re-exported for callers that only need the type. */
-export type { WorkItem, AvailabilityWindow };

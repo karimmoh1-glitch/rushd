@@ -3,12 +3,8 @@ import { db } from "@/lib/db";
 import { buildEstimationProfile, type EstimationProfile } from "./build-estimation-profile";
 import type { SessionRecord } from "@/lib/insights/build-insights";
 
-/** Single query + computation shared by every caller that needs a
- * student's estimation profile — the plan generator (so scheduling uses
- * calibrated minutes) and session-start prediction (so a new session's
- * plannedMinutes is already calibrated, which is what lets accuracy
- * converge toward 1.0 over time instead of forever comparing against the
- * original raw guess). One query, not duplicated per caller. */
+/** Loads a student's estimation profile. Shared by the plan generator and by
+ * session start, so new sessions are planned with already-adjusted minutes. */
 export async function getEstimationProfileForUser(userId: string): Promise<EstimationProfile> {
   const rows = await db.studySession.findMany({
     where: { userId, status: { in: ["COMPLETED", "ABANDONED"] } },
@@ -23,14 +19,14 @@ export async function getEstimationProfileForUser(userId: string): Promise<Estim
     },
   });
 
-  const sessions: SessionRecord[] = rows.map((r) => ({
-    className: r.className,
-    classColor: r.classColor,
-    status: r.status as "COMPLETED" | "ABANDONED",
-    plannedMinutes: r.plannedMinutes,
-    actualMinutes: r.actualMinutes,
-    perceivedDifficulty: r.perceivedDifficulty,
-    startedAt: r.startedAt,
+  const sessions: SessionRecord[] = rows.map((row) => ({
+    className: row.className,
+    classColor: row.classColor,
+    status: row.status as "COMPLETED" | "ABANDONED",
+    plannedMinutes: row.plannedMinutes,
+    actualMinutes: row.actualMinutes,
+    perceivedDifficulty: row.perceivedDifficulty,
+    startedAt: row.startedAt,
   }));
 
   return buildEstimationProfile(sessions);

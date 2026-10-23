@@ -23,59 +23,71 @@ interface ExamRow {
   class: { name: string; color: string; priority: "LOW" | "MEDIUM" | "HIGH" };
 }
 
-/** Builds the planning engine's WorkItem list from raw DB rows. Only
- * incomplete assignments and exams should be passed in — this function
- * doesn't filter by status itself, so the caller's query is the single
- * source of truth for "what counts as open work."
- *
- * `estimationProfile`, when provided, personalizes remainingMinutes using
- * the student's real StudySession history (see src/lib/estimation) — the
- * "measurement -> better prediction" half of the loop. Omitting it (as
- * existing tests do) falls back to the raw, un-personalized estimate
- * exactly as before; this keeps the function's default behavior unchanged
- * for every caller that hasn't opted in yet. */
+interface EstimateFields {
+  remainingMinutes: number;
+  rawEstimatedMinutes: number;
+  estimateAdjusted: boolean;
+}
+
+/** The estimate fields of a WorkItem. Without a profile, the raw estimate is used as is. */
+function estimateFields(
+  rawMinutes: number,
+  className: string,
+  estimationProfile?: EstimationProfile,
+): EstimateFields {
+  if (!estimationProfile) {
+    return { remainingMinutes: rawMinutes, rawEstimatedMinutes: rawMinutes, estimateAdjusted: false };
+  }
+  const adjusted = adjustEstimate(rawMinutes, className, estimationProfile);
+  return {
+    remainingMinutes: adjusted.minutes,
+    rawEstimatedMinutes: rawMinutes,
+    estimateAdjusted: adjusted.adjusted,
+  };
+}
+
+/**
+ * Builds the planning engine's WorkItem list from database rows. The caller
+ * passes only open work; this function doesn't filter by status.
+ * `estimationProfile`, when given, personalizes the minutes using the
+ * student's study history (see src/lib/estimation).
+ */
 export function buildWorkItems(
   assignments: AssignmentRow[],
   exams: ExamRow[],
   estimationProfile?: EstimationProfile,
 ): WorkItem[] {
-  const withEstimate = (rawMinutes: number, className: string) => {
-    if (!estimationProfile) {
-      return { remainingMinutes: rawMinutes, rawEstimatedMinutes: rawMinutes, estimateAdjusted: false };
-    }
-    const adjusted = adjustEstimate(rawMinutes, className, estimationProfile);
-    return {
-      remainingMinutes: adjusted.minutes,
-      rawEstimatedMinutes: rawMinutes,
-      estimateAdjusted: adjusted.adjusted,
-    };
-  };
+  const workItems: WorkItem[] = [];
 
-  const fromAssignments: WorkItem[] = assignments.map((a) => ({
-    kind: "assignment",
-    id: a.id,
-    classId: a.classId,
-    title: a.title,
-    className: a.class.name,
-    classColor: a.class.color,
-    priority: a.priority,
-    classPriority: a.class.priority,
-    dueAt: a.dueAt,
-    ...withEstimate(a.estimatedMinutes, a.class.name),
-  }));
+  for (const assignment of assignments) {
+    workItems.push({
+      kind: "assignment",
+      id: assignment.id,
+      classId: assignment.classId,
+      title: assignment.title,
+      className: assignment.class.name,
+      classColor: assignment.class.color,
+      priority: assignment.priority,
+      classPriority: assignment.class.priority,
+      dueAt: assignment.dueAt,
+      ...estimateFields(assignment.estimatedMinutes, assignment.class.name, estimationProfile),
+    });
+  }
 
-  const fromExams: WorkItem[] = exams.map((e) => ({
-    kind: "exam",
-    id: e.id,
-    classId: e.classId,
-    title: e.title,
-    className: e.class.name,
-    classColor: e.class.color,
-    priority: e.priority,
-    classPriority: e.class.priority,
-    dueAt: e.examAt,
-    ...withEstimate(e.prepMinutes, e.class.name),
-  }));
+  for (const exam of exams) {
+    workItems.push({
+      kind: "exam",
+      id: exam.id,
+      classId: exam.classId,
+      title: exam.title,
+      className: exam.class.name,
+      classColor: exam.class.color,
+      priority: exam.priority,
+      classPriority: exam.class.priority,
+      dueAt: exam.examAt,
+      ...estimateFields(exam.prepMinutes, exam.class.name, estimationProfile),
+    });
+  }
 
-  return [...fromAssignments, ...fromExams];
+  return workItems;
 }

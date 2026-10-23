@@ -17,18 +17,13 @@ export interface WorkItem {
   priority: PriorityValue;
   classPriority: PriorityValue;
   dueAt: Date;
-  /** What the scheduler actually plans and scores against — the raw
-   * estimate, personalized by the student's own StudySession history when
-   * there's enough of it (see src/lib/estimation). Equal to
-   * rawEstimatedMinutes when no personalization applies. */
+  /** The minutes the scheduler plans and scores with: the raw estimate,
+   * adjusted by the student's study history when there's enough of it. */
   remainingMinutes: number;
-  /** The un-adjusted number from Assignment.estimatedMinutes /
-   * Exam.prepMinutes — the student's or import's own input, never silently
-   * rewritten. Kept alongside remainingMinutes so the UI can show both. */
+  /** The student's own estimate, never rewritten. Kept so the UI can show both. */
   rawEstimatedMinutes: number;
   estimateAdjusted: boolean;
-  /** Where the work came from. Optional so older callers/tests are unchanged;
-   * "CANVAS" items are shown with their origin in the UI. */
+  /** Where the work came from. Optional so older callers and tests still work. */
   source?: "MANUAL" | "CANVAS" | "TEAMS" | "CALENDAR";
 }
 
@@ -53,9 +48,8 @@ export interface ScoredItem {
   breakdown: ScoreBreakdown;
 }
 
-/** A study block the student placed or locked by hand. The scheduler treats
- * it as a fixed commitment: it reserves the time, counts toward the item's
- * remaining work, and is never moved or dropped by regeneration. */
+/** A study block the student placed or locked by hand. The scheduler never
+ * moves it; it reserves the time and counts toward the item's work. */
 export interface PinnedBlock {
   id: string;
   kind: "assignment" | "exam";
@@ -93,8 +87,7 @@ export interface PlanInput {
   availability: AvailabilityWindow[];
   now: Date;
   horizonDays?: number;
-  /** IANA zone the student lives in; days/times are read in it. Defaults to
-   * the runtime's zone (kept for tests and older callers). */
+  /** The student's IANA timezone. Defaults to the runtime's zone. */
   timeZone?: string | null;
   preferences?: PlanPreferences;
   pinnedBlocks?: PinnedBlock[];
@@ -105,8 +98,7 @@ export type DayStatus = "none" | "open" | "balanced" | "full";
 export interface DayPlan {
   date: string;
   dayOfWeek: number;
-  /** Minutes inside the student's availability windows that day (for today,
-   * only what's still ahead of the clock). */
+  /** Minutes inside the availability windows that day (for today, only what's still ahead). */
   availableMinutes: number;
   plannedMinutes: number;
   status: DayStatus;
@@ -137,13 +129,11 @@ export type PlanWarning =
 export interface PlanResult {
   scored: ScoredItem[];
   sessions: ScheduledSession[];
-  /** Minutes per item id that cannot fit before the item's deadline within
-   * the planning horizon (or, for overdue work, within the horizon at all).
-   * Work that is simply too far out to plan yet is NOT listed here — see
-   * deferredMinutesByItem. */
+  /** Minutes per item id that can't fit before the deadline (or, for overdue
+   * work, anywhere in the horizon). Work that's just too far out is in
+   * deferredMinutesByItem instead. */
   unscheduledMinutesByItem: Record<string, number>;
-  /** Minutes held back because the deadline is beyond the planning lead
-   * window — not a problem, just not scheduled yet. */
+  /** Minutes not planned yet because the deadline is past the horizon. Not a problem. */
   deferredMinutesByItem?: Record<string, number>;
   days?: DayPlan[];
   warnings?: PlanWarning[];

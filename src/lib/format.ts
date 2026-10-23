@@ -6,17 +6,16 @@ import {
   resolveTimeZone,
 } from "@/lib/time/zone";
 
-// Every date/time a student sees is rendered in THEIR timezone (Profile.timezone),
-// passed explicitly. Without it, server-rendered pages would show UTC (the
-// host's clock) and the client would re-render in the device zone — wrong
-// times and hydration mismatches. `timeZone` falls back to the runtime zone
-// only for callers that genuinely don't know it.
+// Every date and time a student sees is shown in THEIR timezone, passed in
+// explicitly. Otherwise the server would render UTC and the browser would
+// re-render in the device zone: wrong times and hydration mismatches.
 
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+  const leftoverMinutes = minutes % 60;
+  if (leftoverMinutes === 0) return `${hours}h`;
+  return `${hours}h ${leftoverMinutes}m`;
 }
 
 export function formatDueDate(date: Date, timeZone?: string | null, now: Date = new Date()): string {
@@ -26,13 +25,18 @@ export function formatDueDate(date: Date, timeZone?: string | null, now: Date = 
   if (days === 0) return `Today, ${time}`;
   if (days === 1) return `Tomorrow, ${time}`;
   if (days === -1) return `Yesterday, ${time}`;
-  const sameYear = localDateKey(date, tz).slice(0, 4) === localDateKey(now, tz).slice(0, 4);
-  const day = formatDateInZone(date, tz, {
-    weekday: days > 1 && days < 7 ? "short" : undefined,
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
+
+  const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  // Within the coming week, the weekday name helps ("Fri, Oct 23").
+  if (days > 1 && days < 7) {
+    options.weekday = "short";
+  }
+  const year = localDateKey(date, tz).slice(0, 4);
+  const thisYear = localDateKey(now, tz).slice(0, 4);
+  if (year !== thisYear) {
+    options.year = "numeric";
+  }
+  const day = formatDateInZone(date, tz, options);
   return `${day}, ${time}`;
 }
 

@@ -1,6 +1,5 @@
-// Onboarding offers these as one-tap presets instead of a full weekly grid —
-// see docs/PRODUCT.md ("onboarding should be quick"). Each preset expands to
-// one StudyAvailability row per day it covers.
+// One-tap availability presets for onboarding, so students don't have to
+// fill in a weekly grid. Each preset becomes one row per day it covers.
 export interface AvailabilityPreset {
   id: string;
   label: string;
@@ -50,6 +49,7 @@ export const AVAILABILITY_PRESETS: AvailabilityPreset[] = [
   },
 ];
 
+/** The weekly availability rows for one preset (empty if the id is unknown). */
 export function presetToWindows(presetId: string) {
   const preset = AVAILABILITY_PRESETS.find((p) => p.id === presetId);
   if (!preset) return [];
@@ -60,20 +60,14 @@ export function presetToWindows(presetId: string) {
   }));
 }
 
+/** "3:00 PM" for a minute of the day. */
 export function formatMinutes(minute: number): string {
   const hour24 = Math.floor(minute / 60);
-  const min = minute % 60;
+  const minutesPastHour = minute % 60;
   const period = hour24 >= 12 ? "PM" : "AM";
-  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-  return `${hour12}:${min.toString().padStart(2, "0")} ${period}`;
+  let hour12 = hour24 % 12;
+  if (hour12 === 0) {
+    hour12 = 12;
+  }
+  return `${hour12}:${minutesPastHour.toString().padStart(2, "0")} ${period}`;
 }
-
-export const DAY_LABELS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
