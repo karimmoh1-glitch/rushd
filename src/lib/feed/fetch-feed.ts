@@ -1,13 +1,14 @@
 import "server-only";
-import { Agent, fetch as undiciFetch } from "undici";
+import { fetch as undiciFetch } from "undici";
 import { CanvasUrlError, normalizeCanvasBaseUrl, resolvePublicAddresses } from "@/lib/canvas/base-url";
+import { createPinnedAgent } from "@/lib/canvas/client";
 
-// Fetches a student's calendar feed with the same SSRF rules as the Canvas
-// API client: the hostname is vetted, DNS is resolved once and the connection
-// pinned to those public addresses, redirects are refused, and the body is
-// capped.
+// Downloads a student's calendar feed with the same SSRF protections as the
+// Canvas API client: the host is checked, the connection is pinned to its
+// public addresses, redirects are refused, and the size is capped.
 
 const MAX_BYTES = 6 * 1024 * 1024;
+const TOTAL_TIMEOUT_MS = 20_000;
 const USER_AGENT = "Rushd/1.0 (+https://therushd.com)";
 
 export class FeedError extends Error {
@@ -22,29 +23,44 @@ export class FeedError extends Error {
 
 export type FetchFeedText = (url: URL) => Promise<string>;
 
-export const fetchFeedText: FetchFeedText = async (url) => {
-  let addresses: string[];
+/** Checks the feed's host and returns its public addresses. */
+async function checkedAddresses(url: URL): Promise<string[]> {
   try {
     normalizeCanvasBaseUrl(url.origin);
-    addresses = await resolvePublicAddresses(url.origin);
+    return await resolvePublicAddresses(url.origin);
   } catch (error) {
-    if (error instanceof CanvasUrlError) throw new FeedError("UNSAFE_URL", error.message);
+    if (error instanceof CanvasUrlError) {
+      throw new FeedError("UNSAFE_URL", error.message);
+    }
     throw error;
   }
-  let i = 0;
-  const dispatcher = new Agent({
-    connect: {
-      timeout: 8_000,
-      lookup: ((_h: string, opts: { all?: boolean }, cb: (err: Error | null, address: unknown, family?: number) => void) => {
-        const address = addresses[i++ % addresses.length];
-        const family = address.includes(":") ? 6 : 4;
-        if (opts?.all) cb(null, [{ address, family }]);
-        else cb(null, address, family);
-      }) as never,
-    },
-    headersTimeout: 15_000,
-    bodyTimeout: 20_000,
-  });
+}
+
+/** Reads the whole body, stopping as soon as it gets too large. */
+async function readBodyWithLimit(body: AsyncIterable<Uint8Array>): Promise<string> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for await (const chunk of body) {
+      size += chunk.byteLength;
+      if (size > MAX_BYTES) {
+        throw new FeedError("TOO_LARGE", "That calendar is too large to import.");
+      }
+      chunks.push(chunk);
+    }
+  } catch (error) {
+    if (error instanceof FeedError) {
+      throw error;
+    }
+    throw new FeedError("NETWORK", "That calendar took too long to download. Try again in a moment.");
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+export const fetchFeedText: FetchFeedText = async (url) => {
+  const addresses = await checkedAddresses(url);
+  const dispatcher = createPinnedAgent(addresses);
+
   try {
     let res: Awaited<ReturnType<typeof undiciFetch>>;
     try {
@@ -52,32 +68,27 @@ export const fetchFeedText: FetchFeedText = async (url) => {
         headers: { Accept: "text/calendar", "User-Agent": USER_AGENT },
         redirect: "manual",
         dispatcher,
-        // bodyTimeout only bounds the gap between chunks; this bounds the whole read.
-        signal: AbortSignal.timeout(20_000),
+        // The agent's bodyTimeout only limits the gap between chunks; this limits the whole download.
+        signal: AbortSignal.timeout(TOTAL_TIMEOUT_MS),
       });
     } catch {
       throw new FeedError("NETWORK", "Couldn't reach that calendar. Check the link and try again.");
     }
-    if (res.status >= 300 && res.status < 400) throw new FeedError("UNSAFE_URL", "That link redirected somewhere else. Copy it again from Canvas.");
+
+    if (res.status >= 300 && res.status < 400) {
+      throw new FeedError("UNSAFE_URL", "That link redirected somewhere else. Copy it again from Canvas.");
+    }
     if (res.status === 404 || res.status === 401 || res.status === 403) {
       throw new FeedError("NOT_FOUND", "Canvas didn't recognize that feed link. Copy it again from Calendar → Calendar Feed.");
     }
-    if (!res.ok || !res.body) throw new FeedError("NETWORK", "Canvas didn't return the calendar. Try again in a moment.");
-
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    try {
-      for await (const chunk of res.body) {
-        size += chunk.byteLength;
-        if (size > MAX_BYTES) throw new FeedError("TOO_LARGE", "That calendar is too large to import.");
-        chunks.push(chunk);
-      }
-    } catch (error) {
-      if (error instanceof FeedError) throw error;
-      throw new FeedError("NETWORK", "That calendar took too long to download. Try again in a moment.");
+    if (!res.ok || !res.body) {
+      throw new FeedError("NETWORK", "Canvas didn't return the calendar. Try again in a moment.");
     }
-    const text = Buffer.concat(chunks).toString("utf8");
-    if (!text.includes("BEGIN:VCALENDAR")) throw new FeedError("NOT_CALENDAR", "That link didn't return a calendar.");
+
+    const text = await readBodyWithLimit(res.body);
+    if (!text.includes("BEGIN:VCALENDAR")) {
+      throw new FeedError("NOT_CALENDAR", "That link didn't return a calendar.");
+    }
     return text;
   } finally {
     await dispatcher.close();

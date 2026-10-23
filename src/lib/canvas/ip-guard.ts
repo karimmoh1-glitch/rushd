@@ -1,24 +1,19 @@
 import { BlockList, isIP } from "node:net";
 
-// Decides whether an IP address is safe for the server to connect to on a
-// student's behalf. The student controls the Canvas hostname, so without this
-// a hostname could point at localhost, the private network, or a cloud
-// metadata service (169.254.169.254) and turn Rushd into a proxy into
-// infrastructure it can reach and the student can't.
-//
-// Allow-list in spirit: an address is acceptable only if it is a normal,
-// globally-routable unicast address. Everything reserved, private, loopback,
-// link-local, multicast, documentation, or otherwise special is refused —
-// including IPv4 hidden inside IPv6 (::ffff:127.0.0.1, NAT64, 6to4, Teredo).
+// Decides whether the server may connect to an IP address for a student.
+// Security: students control the Canvas hostname, so without this check a
+// hostname could point at localhost, our private network, or cloud metadata
+// (169.254.169.254). Only normal public addresses are allowed, and IPv4
+// hidden inside IPv6 (::ffff:127.0.0.1, NAT64, 6to4, Teredo) is checked too.
 
 const blocked = new BlockList();
 
-const V4_BLOCKS: [string, number][] = [
+const BLOCKED_IPV4_RANGES: [string, number][] = [
   ["0.0.0.0", 8], // "this network"
   ["10.0.0.0", 8], // private
   ["100.64.0.0", 10], // carrier-grade NAT
   ["127.0.0.0", 8], // loopback
-  ["169.254.0.0", 16], // link-local — incl. cloud metadata 169.254.169.254
+  ["169.254.0.0", 16], // link-local, including cloud metadata 169.254.169.254
   ["172.16.0.0", 12], // private
   ["192.0.0.0", 24], // IETF protocol assignments
   ["192.0.2.0", 24], // documentation
@@ -30,9 +25,8 @@ const V4_BLOCKS: [string, number][] = [
   ["224.0.0.0", 4], // multicast
   ["240.0.0.0", 4], // reserved + broadcast (255.255.255.255)
 ];
-for (const [net, prefix] of V4_BLOCKS) blocked.addSubnet(net, prefix, "ipv4");
 
-const V6_BLOCKS: [string, number][] = [
+const BLOCKED_IPV6_RANGES: [string, number][] = [
   ["::", 128], // unspecified
   ["::1", 128], // loopback
   ["64:ff9b::", 96], // NAT64 (embeds IPv4; checked separately too)
@@ -46,36 +40,55 @@ const V6_BLOCKS: [string, number][] = [
   ["fec0::", 10], // site-local (deprecated)
   ["ff00::", 8], // multicast
 ];
-for (const [net, prefix] of V6_BLOCKS) blocked.addSubnet(net, prefix, "ipv6");
 
-/** Extracts the IPv4 address embedded in an IPv4-mapped/compatible IPv6
- * address (::ffff:a.b.c.d, ::ffff:0:a.b.c.d, ::a.b.c.d), if any. */
+for (const [network, prefix] of BLOCKED_IPV4_RANGES) {
+  blocked.addSubnet(network, prefix, "ipv4");
+}
+for (const [network, prefix] of BLOCKED_IPV6_RANGES) {
+  blocked.addSubnet(network, prefix, "ipv6");
+}
+
+/** Finds an IPv4 address hidden inside an IPv6 address, like ::ffff:1.2.3.4
+ * or ::ffff:7f00:1. Returns null when there isn't one. */
 function embeddedIPv4(ip: string): string | null {
   const lower = ip.toLowerCase();
-  const dotted = lower.match(/(\d{1,3}(?:\.\d{1,3}){3})$/);
-  if (dotted && lower.includes(":")) return dotted[1];
-  // Hex-group form, e.g. ::ffff:7f00:1 — expand and read the last 32 bits.
-  const m = lower.match(/^::(?:ffff:(?:0:)?)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-  if (m) {
-    const hi = parseInt(m[1], 16);
-    const lo = parseInt(m[2], 16);
-    return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+
+  // Dotted form, e.g. ::ffff:127.0.0.1
+  const dottedMatch = lower.match(/(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (dottedMatch && lower.includes(":")) {
+    return dottedMatch[1];
   }
+
+  // Hex form, e.g. ::ffff:7f00:1 — the last two groups are the 32 IPv4 bits.
+  const hexMatch = lower.match(/^::(?:ffff:(?:0:)?)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hexMatch) {
+    const high = parseInt(hexMatch[1], 16);
+    const low = parseInt(hexMatch[2], 16);
+    return `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
+  }
+
   return null;
 }
 
-/** True only for an ordinary public unicast address. Anything that is not a
- * syntactically valid IP returns false. */
+/** True only for an ordinary public address. Anything that isn't a valid IP
+ * returns false. */
 export function isPublicIp(ip: string): boolean {
   const family = isIP(ip);
-  if (family === 0) return false;
+  if (family === 0) {
+    return false;
+  }
 
-  if (family === 4) return !blocked.check(ip, "ipv4");
+  if (family === 4) {
+    return !blocked.check(ip, "ipv4");
+  }
 
-  // IPv6: refuse the block list outright, and independently refuse any v6
-  // address whose embedded IPv4 is itself non-public.
-  if (blocked.check(ip, "ipv6")) return false;
-  const v4 = embeddedIPv4(ip);
-  if (v4 && isIP(v4) === 4 && blocked.check(v4, "ipv4")) return false;
+  // IPv6: refuse blocked ranges, and also refuse it if the IPv4 hidden inside is blocked.
+  if (blocked.check(ip, "ipv6")) {
+    return false;
+  }
+  const hiddenIPv4 = embeddedIPv4(ip);
+  if (hiddenIPv4 && isIP(hiddenIPv4) === 4 && blocked.check(hiddenIPv4, "ipv4")) {
+    return false;
+  }
   return true;
 }

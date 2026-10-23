@@ -3,19 +3,14 @@ import { Agent, fetch as undiciFetch, type Dispatcher } from "undici";
 import { resolvePublicAddresses, CanvasUrlError } from "./base-url";
 import type { CanvasAnnouncement, CanvasModule, CanvasModuleItem, CanvasPage } from "./content";
 
-// Minimal Canvas LMS REST client, scoped to what the sync needs. Endpoints
-// and parameters follow the official docs:
-//   https://developerdocs.instructure.com/services/canvas
-//
-// Design constraints (all security-relevant):
-//  * The hostname is resolved and every address vetted (base-url.ts) and the
-//    socket is then pinned to those addresses — the request cannot be
-//    rerouted by a DNS change between check and connect.
-//  * Redirects are never followed (a redirect to a private host would skip
-//    the vetting). Canvas APIs don't redirect on success.
-//  * Hard timeouts on connect/headers/body; bounded response size.
-//  * The token only ever appears in the Authorization header. It is never
-//    put in a URL, never logged, never included in a thrown error.
+// A small read-only Canvas REST client with just what the sync needs.
+// Docs: https://developerdocs.instructure.com/services/canvas
+// Security rules:
+//  - The hostname's addresses are checked (base-url.ts) and the connection is
+//    pinned to them, so a DNS change between check and connect can't reroute us.
+//  - Redirects are never followed (a redirect could point at a private host).
+//  - Timeouts on connect/headers/body, and a maximum response size.
+//  - The token only goes in the Authorization header: never in a URL, a log, or an error.
 
 export type CanvasErrorCode =
   | "UNAUTHORIZED" // token invalid/expired/revoked
@@ -72,8 +67,7 @@ export interface CanvasSubmission {
   missing?: boolean;
   late?: boolean;
   excused?: boolean;
-  // Canvas also returns score/grade on this object; Rushd deliberately
-  // doesn't type, read, or store them.
+  // Canvas also sends score/grade here; Rushd deliberately never reads or stores them.
 }
 
 export interface CanvasAssignment {
@@ -92,8 +86,7 @@ export interface CanvasAssignment {
   has_submitted_submissions?: boolean;
   submission?: CanvasSubmission;
   only_visible_to_overrides?: boolean;
-  // Present when the assignment has an associated rubric; validated by
-  // parseRubric in content.ts before anything stores it.
+  // Checked by parseRubric (content.ts) before anything stores it.
   rubric?: unknown;
 }
 
@@ -101,13 +94,118 @@ const CONNECT_TIMEOUT_MS = 8_000;
 const HEADERS_TIMEOUT_MS = 15_000;
 const BODY_TIMEOUT_MS = 20_000;
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
-const MAX_PAGES = 50; // 50 × per_page=100 = 5,000 records — far beyond any student
+const MAX_PAGES = 50; // 50 pages × 100 per page = 5,000 records, far more than any student has
 const PER_PAGE = 100;
 const USER_AGENT = "Rushd/1.0 (+https://therushd.com)";
 
+type QueryParams = Record<string, string | string[]>;
+type FetchResponse = Awaited<ReturnType<typeof undiciFetch>>;
+type LookupCallback = (err: Error | null, address: unknown, family?: number) => void;
+
+/**
+ * Makes an HTTP agent that only ever connects to the given (already checked)
+ * addresses, taking turns between them. This is the "pinned DNS" protection.
+ * Also used by the calendar feed fetcher.
+ */
+export function createPinnedAgent(addresses: string[]): Agent {
+  let nextIndex = 0;
+
+  // Node calls lookup either wanting one address, or (with `all: true`) a list.
+  function pinnedLookup(_hostname: string, options: { all?: boolean }, callback: LookupCallback) {
+    const address = addresses[nextIndex % addresses.length];
+    nextIndex++;
+    const family = address.includes(":") ? 6 : 4;
+    if (options?.all) {
+      callback(null, [{ address, family }]);
+    } else {
+      callback(null, address, family);
+    }
+  }
+
+  return new Agent({
+    connect: {
+      timeout: CONNECT_TIMEOUT_MS,
+      lookup: pinnedLookup as never,
+    },
+    headersTimeout: HEADERS_TIMEOUT_MS,
+    bodyTimeout: BODY_TIMEOUT_MS,
+    // No redirect interceptor is installed and requests use redirect: "manual",
+    // so a 3xx comes back to us (and is rejected), never followed.
+  });
+}
+
+/** Turns a failed fetch (network problem or timeout) into a CanvasApiError. */
+function toNetworkError(error: unknown): CanvasApiError {
+  if (error instanceof CanvasUrlError) {
+    return new CanvasApiError("UNSAFE_URL", error.message);
+  }
+  const message = String((error as Error)?.cause ?? error);
+  const isTimeout = /timeout|timed out|ETIMEDOUT|UND_ERR_(CONNECT|HEADERS|BODY)_TIMEOUT/i.test(message);
+  if (isTimeout) {
+    return new CanvasApiError("TIMEOUT", "Canvas took too long to respond. Try again in a moment.");
+  }
+  return new CanvasApiError("NETWORK", "Couldn't reach Canvas. Check the address and your connection.");
+}
+
+/** Throws a friendly CanvasApiError for any response that isn't a normal success. */
+function checkStatus(res: FetchResponse): void {
+  const status = res.status;
+
+  if (status >= 300 && status < 400) {
+    throw new CanvasApiError("NOT_FOUND", "That address redirected somewhere else. Use your school's exact Canvas address.", status);
+  }
+  if (status === 401) {
+    throw new CanvasApiError("UNAUTHORIZED", "Canvas rejected this token. It may be expired or revoked.", 401);
+  }
+  if (status === 403) {
+    // Canvas also uses 403 for rate limiting, with a special header.
+    const remaining = res.headers.get("x-rate-limit-remaining");
+    if (remaining !== null && Number(remaining) <= 0) {
+      throw new CanvasApiError("RATE_LIMITED", "Canvas is rate-limiting requests. Try again shortly.", 403);
+    }
+    throw new CanvasApiError("FORBIDDEN", "This token doesn't have permission to read that.", 403);
+  }
+  if (status === 404) {
+    throw new CanvasApiError("NOT_FOUND", "No Canvas API found at that address.", 404);
+  }
+  if (status === 429) {
+    throw new CanvasApiError("RATE_LIMITED", "Canvas is rate-limiting requests. Try again shortly.", 429);
+  }
+  if (status >= 500) {
+    throw new CanvasApiError("SERVER_ERROR", "Canvas is having trouble right now. Try again later.", status);
+  }
+  if (!res.ok) {
+    throw new CanvasApiError("BAD_RESPONSE", `Canvas returned an unexpected response (${status}).`, status);
+  }
+}
+
+/** Reads the response body as JSON, refusing anything too large. */
+async function readJsonBody<T>(res: FetchResponse): Promise<T> {
+  const declaredLength = Number(res.headers.get("content-length") ?? 0);
+  if (declaredLength > MAX_BODY_BYTES) {
+    throw new CanvasApiError("BAD_RESPONSE", "Canvas returned more data than expected.");
+  }
+
+  let text: string;
+  try {
+    text = await res.text();
+  } catch {
+    throw new CanvasApiError("TIMEOUT", "Canvas took too long to respond. Try again in a moment.");
+  }
+  if (text.length > MAX_BODY_BYTES) {
+    throw new CanvasApiError("BAD_RESPONSE", "Canvas returned more data than expected.");
+  }
+
+  try {
+    // Canvas puts "while(1);" before some JSON to stop JSON hijacking.
+    return JSON.parse(text.replace(/^while\(1\);/, "")) as T;
+  } catch {
+    throw new CanvasApiError("BAD_RESPONSE", "That address didn't answer like a Canvas site.");
+  }
+}
+
 interface ClientOptions {
-  /** Test seam: pre-resolved addresses skip DNS (and the vetting that goes
-   * with it) — production never passes this. */
+  /** For tests only: skips the DNS lookup (and its checks). Production never passes this. */
   resolvedAddresses?: string[];
   fetchImpl?: typeof undiciFetch;
 }
@@ -127,32 +225,13 @@ export class CanvasClient {
   }
 
   private async getDispatcher(): Promise<Dispatcher> {
-    if (this.dispatcher) return this.dispatcher;
-    const addresses = this.addresses ?? (await resolvePublicAddresses(this.baseUrl));
-    this.addresses = addresses;
-    // Pin DNS: connect only to the vetted addresses, round-robin on retry.
-    let i = 0;
-    this.dispatcher = new Agent({
-      connect: {
-        timeout: CONNECT_TIMEOUT_MS,
-        // Node calls lookup either expecting a single address or, with
-        // `all: true` (happy-eyeballs), an array — honor both shapes.
-        lookup: ((
-          _hostname: string,
-          opts: { all?: boolean },
-          cb: (err: Error | null, address: unknown, family?: number) => void,
-        ) => {
-          const address = addresses[i++ % addresses.length];
-          const family = address.includes(":") ? 6 : 4;
-          if (opts?.all) cb(null, [{ address, family }]);
-          else cb(null, address, family);
-        }) as never,
-      },
-      headersTimeout: HEADERS_TIMEOUT_MS,
-      bodyTimeout: BODY_TIMEOUT_MS,
-      // No redirect interceptor is installed and requests use
-      // redirect: "manual", so a 3xx is surfaced (and rejected), never followed.
-    });
+    if (this.dispatcher) {
+      return this.dispatcher;
+    }
+    if (!this.addresses) {
+      this.addresses = await resolvePublicAddresses(this.baseUrl);
+    }
+    this.dispatcher = createPinnedAgent(this.addresses);
     return this.dispatcher;
   }
 
@@ -161,23 +240,27 @@ export class CanvasClient {
     this.dispatcher = null;
   }
 
-  private async request<T>(path: string, params: Record<string, string | string[]> = {}): Promise<{ data: T; next: string | null }> {
+  private async request<T>(path: string, params: QueryParams = {}): Promise<{ data: T; next: string | null }> {
     const url = new URL(`/api/v1${path}`, this.baseUrl);
-    for (const [k, v] of Object.entries(params)) {
-      if (Array.isArray(v)) for (const item of v) url.searchParams.append(k, item);
-      else url.searchParams.set(k, v);
+    for (const [name, value] of Object.entries(params)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          url.searchParams.append(name, item);
+        }
+      } else {
+        url.searchParams.set(name, value);
+      }
     }
     return this.requestUrl<T>(url.toString());
   }
 
   private async requestUrl<T>(absoluteUrl: string): Promise<{ data: T; next: string | null }> {
-    // Pagination "next" links come from Canvas itself; refuse any that leave
-    // the vetted origin.
+    // "next" page links come from Canvas, so refuse any that leave the checked site.
     if (!absoluteUrl.startsWith(`${this.baseUrl}/`)) {
       throw new CanvasApiError("UNSAFE_URL", "Canvas returned a link to a different site.");
     }
 
-    let res: Awaited<ReturnType<typeof undiciFetch>>;
+    let res: FetchResponse;
     try {
       res = await this.fetchImpl(absoluteUrl, {
         method: "GET",
@@ -190,98 +273,39 @@ export class CanvasClient {
         dispatcher: await this.getDispatcher(),
       });
     } catch (error) {
-      if (error instanceof CanvasUrlError) {
-        throw new CanvasApiError("UNSAFE_URL", error.message);
-      }
-      const msg = String((error as Error)?.cause ?? error);
-      const code: CanvasErrorCode = /timeout|timed out|ETIMEDOUT|UND_ERR_(CONNECT|HEADERS|BODY)_TIMEOUT/i.test(msg)
-        ? "TIMEOUT"
-        : "NETWORK";
-      throw new CanvasApiError(
-        code,
-        code === "TIMEOUT"
-          ? "Canvas took too long to respond. Try again in a moment."
-          : "Couldn't reach Canvas. Check the address and your connection.",
-      );
+      throw toNetworkError(error);
     }
 
-    if (res.status >= 300 && res.status < 400) {
-      throw new CanvasApiError(
-        "NOT_FOUND",
-        "That address redirected somewhere else. Use your school's exact Canvas address.",
-        res.status,
-      );
-    }
-    if (res.status === 401) {
-      throw new CanvasApiError("UNAUTHORIZED", "Canvas rejected this token. It may be expired or revoked.", 401);
-    }
-    if (res.status === 403) {
-      // Canvas also uses 403 for rate limiting with a specific header/body.
-      const rl = res.headers.get("x-rate-limit-remaining");
-      if (rl !== null && Number(rl) <= 0) {
-        throw new CanvasApiError("RATE_LIMITED", "Canvas is rate-limiting requests. Try again shortly.", 403);
-      }
-      throw new CanvasApiError("FORBIDDEN", "This token doesn't have permission to read that.", 403);
-    }
-    if (res.status === 404) {
-      throw new CanvasApiError("NOT_FOUND", "No Canvas API found at that address.", 404);
-    }
-    if (res.status === 429) {
-      throw new CanvasApiError("RATE_LIMITED", "Canvas is rate-limiting requests. Try again shortly.", 429);
-    }
-    if (res.status >= 500) {
-      throw new CanvasApiError("SERVER_ERROR", "Canvas is having trouble right now. Try again later.", res.status);
-    }
-    if (!res.ok) {
-      throw new CanvasApiError("BAD_RESPONSE", `Canvas returned an unexpected response (${res.status}).`, res.status);
-    }
-
-    const length = Number(res.headers.get("content-length") ?? 0);
-    if (length > MAX_BODY_BYTES) {
-      throw new CanvasApiError("BAD_RESPONSE", "Canvas returned more data than expected.");
-    }
-    let text: string;
-    try {
-      text = await res.text();
-    } catch {
-      throw new CanvasApiError("TIMEOUT", "Canvas took too long to respond. Try again in a moment.");
-    }
-    if (text.length > MAX_BODY_BYTES) {
-      throw new CanvasApiError("BAD_RESPONSE", "Canvas returned more data than expected.");
-    }
-    let data: T;
-    try {
-      // Canvas prefixes some JSON with "while(1);" as an anti-hijacking measure.
-      data = JSON.parse(text.replace(/^while\(1\);/, "")) as T;
-    } catch {
-      throw new CanvasApiError("BAD_RESPONSE", "That address didn't answer like a Canvas site.");
-    }
-
+    checkStatus(res);
+    const data = await readJsonBody<T>(res);
     return { data, next: parseNextLink(res.headers.get("link")) };
   }
 
-  protected paginateList<T>(path: string, params: Record<string, string | string[]>): Promise<T[]> {
-    return this.paginate<T>(path, params);
-  }
+  /** Fetches every page of a list endpoint (up to MAX_PAGES). */
+  protected async paginate<T>(path: string, params: QueryParams): Promise<T[]> {
+    const results: T[] = [];
 
-  private async paginate<T>(path: string, params: Record<string, string | string[]>): Promise<T[]> {
-    const out: T[] = [];
-    let { data, next } = await this.request<T[]>(path, { ...params, per_page: String(PER_PAGE) });
-    if (!Array.isArray(data)) throw new CanvasApiError("BAD_RESPONSE", "Canvas returned an unexpected shape.");
-    out.push(...data);
-    let pages = 1;
-    while (next && pages < MAX_PAGES) {
-      ({ data, next } = await this.requestUrl<T[]>(next));
-      if (!Array.isArray(data)) break;
-      out.push(...data);
-      pages++;
+    const firstPage = await this.request<T[]>(path, { ...params, per_page: String(PER_PAGE) });
+    if (!Array.isArray(firstPage.data)) {
+      throw new CanvasApiError("BAD_RESPONSE", "Canvas returned an unexpected shape.");
     }
-    return out;
+    results.push(...firstPage.data);
+
+    let nextUrl = firstPage.next;
+    let pageCount = 1;
+    while (nextUrl && pageCount < MAX_PAGES) {
+      const page = await this.requestUrl<T[]>(nextUrl);
+      if (!Array.isArray(page.data)) {
+        break;
+      }
+      results.push(...page.data);
+      nextUrl = page.next;
+      pageCount++;
+    }
+    return results;
   }
 
-  // --- Endpoints ---------------------------------------------------------------
-
-  /** GET /api/v1/users/self — proves the token works and whose it is. */
+  /** GET /api/v1/users/self: proves the token works and whose it is. */
   async getSelf(): Promise<CanvasUser> {
     const { data } = await this.request<CanvasUser>("/users/self");
     if (!data || typeof data.id !== "number" || typeof data.name !== "string") {
@@ -290,7 +314,7 @@ export class CanvasClient {
     return data;
   }
 
-  /** GET /api/v1/courses — the student's active enrollments (as a student). */
+  /** GET /api/v1/courses: the courses the student is actively enrolled in. */
   async listCourses(): Promise<CanvasCourse[]> {
     const courses = await this.paginate<CanvasCourse>("/courses", {
       enrollment_type: "student",
@@ -298,65 +322,82 @@ export class CanvasClient {
       "state[]": ["available"],
       "include[]": ["term"],
     });
-    return courses.filter((c) => c && typeof c.id === "number" && typeof c.name === "string" && !c.access_restricted_by_date);
+    return courses.filter((course) => {
+      return course && typeof course.id === "number" && typeof course.name === "string" && !course.access_restricted_by_date;
+    });
   }
 
-  /** GET /api/v1/courses/:id/assignments with the student's own submission. */
+  /** GET /api/v1/courses/:id/assignments, including the student's own submission. */
   async listAssignments(courseId: string | number): Promise<CanvasAssignment[]> {
-    const assignments = await this.paginate<CanvasAssignment>(`/courses/${encodeURIComponent(String(courseId))}/assignments`, {
+    const path = `/courses/${encodeURIComponent(String(courseId))}/assignments`;
+    const assignments = await this.paginate<CanvasAssignment>(path, {
       "include[]": ["submission"],
       order_by: "due_at",
     });
-    return assignments.filter((a) => a && typeof a.id === "number" && typeof a.name === "string");
+    return assignments.filter((assignment) => {
+      return assignment && typeof assignment.id === "number" && typeof assignment.name === "string";
+    });
   }
 }
 
-/** Read-only course content endpoints. All GETs through the same guarded
- * request path; Rushd never writes to Canvas. */
+/** Read-only course content. Uses the same protected request path; Rushd never writes to Canvas. */
 export class CanvasContentClient extends CanvasClient {
-  /** GET /courses/:id/modules?include[]=items, filling in items Canvas
-   * leaves out for large modules from /modules/:id/items. */
+  /** GET /courses/:id/modules with items. Large modules leave items out, so
+   * those are fetched separately from /modules/:id/items. */
   async listModules(courseId: string | number): Promise<CanvasModule[]> {
     const course = encodeURIComponent(String(courseId));
-    const modules = (await this.paginateList<CanvasModule>(`/courses/${course}/modules`, { "include[]": ["items"] })).filter(
-      (m) => m && typeof m.id === "number" && typeof m.name === "string",
-    );
-    for (const m of modules) {
-      if (!Array.isArray(m.items) && (m.items_count ?? 0) > 0) {
-        m.items = await this.paginateList<CanvasModuleItem>(`/courses/${course}/modules/${m.id}/items`, {});
+    const allModules = await this.paginate<CanvasModule>(`/courses/${course}/modules`, { "include[]": ["items"] });
+    const modules = allModules.filter((canvasModule) => {
+      return canvasModule && typeof canvasModule.id === "number" && typeof canvasModule.name === "string";
+    });
+
+    for (const canvasModule of modules) {
+      const itemsMissing = !Array.isArray(canvasModule.items) && (canvasModule.items_count ?? 0) > 0;
+      if (itemsMissing) {
+        canvasModule.items = await this.paginate<CanvasModuleItem>(`/courses/${course}/modules/${canvasModule.id}/items`, {});
       }
-      m.items = (m.items ?? []).filter((i) => i && typeof i.id === "number" && typeof i.title === "string");
+      canvasModule.items = (canvasModule.items ?? []).filter((item) => {
+        return item && typeof item.id === "number" && typeof item.title === "string";
+      });
     }
     return modules;
   }
 
-  /** GET /courses/:id/pages?include[]=body — published pages the student can see. */
+  /** GET /courses/:id/pages with body: published pages the student can see. */
   async listPages(courseId: string | number): Promise<CanvasPage[]> {
-    const pages = await this.paginateList<CanvasPage>(`/courses/${encodeURIComponent(String(courseId))}/pages`, {
+    const pages = await this.paginate<CanvasPage>(`/courses/${encodeURIComponent(String(courseId))}/pages`, {
       "include[]": ["body"],
       sort: "title",
     });
-    return pages.filter((p) => p && typeof p.url === "string" && typeof p.title === "string" && p.published !== false);
+    return pages.filter((page) => {
+      return page && typeof page.url === "string" && typeof page.title === "string" && page.published !== false;
+    });
   }
 
-  /** GET /announcements for one course, posted since `since`. */
+  /** GET /announcements for one course, between `since` and `until`. */
   async listAnnouncements(courseId: string | number, since: Date, until: Date): Promise<CanvasAnnouncement[]> {
-    const items = await this.paginateList<CanvasAnnouncement>("/announcements", {
+    const announcements = await this.paginate<CanvasAnnouncement>("/announcements", {
       "context_codes[]": [`course_${String(courseId)}`],
       start_date: since.toISOString().slice(0, 10),
       end_date: until.toISOString().slice(0, 10),
       active_only: "true",
     });
-    return items.filter((a) => a && typeof a.id === "number" && typeof a.title === "string");
+    return announcements.filter((announcement) => {
+      return announcement && typeof announcement.id === "number" && typeof announcement.title === "string";
+    });
   }
 }
 
-/** Parses an RFC 5988 Link header for rel="next". */
+/** Finds the rel="next" link in a Link header. */
 export function parseNextLink(header: string | null): string | null {
-  if (!header) return null;
+  if (!header) {
+    return null;
+  }
   for (const part of header.split(",")) {
-    const m = part.match(/<([^>]+)>\s*;\s*rel="?next"?/i);
-    if (m) return m[1];
+    const match = part.match(/<([^>]+)>\s*;\s*rel="?next"?/i);
+    if (match) {
+      return match[1];
+    }
   }
   return null;
 }

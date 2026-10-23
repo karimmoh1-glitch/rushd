@@ -2,19 +2,12 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { isPublicIp } from "./ip-guard";
 
-// Validates a student-supplied Canvas base URL before the server will talk to
-// it. Two layers:
-//
-//  1. Shape (synchronous, also used client-side for instant feedback): https
-//     only, a real hostname, no credentials/port/path/query, not an IP
-//     literal, not a local-looking name.
-//  2. Destination (server-side, async): resolve the hostname and refuse if
-//     ANY resulting address is non-public — a name with one public and one
-//     private record is still an SSRF vector. The resolved addresses are
-//     returned so the HTTP layer can pin the connection to what was checked.
-//
-// Redirects are never followed by the client (see client.ts), so a public
-// host cannot bounce the server somewhere private.
+// Checks a Canvas address a student typed in, before the server talks to it.
+// 1. Shape: https only, a real hostname, no login/port, not an IP or local name.
+// 2. Destination: look up the hostname and refuse it if ANY address is private
+//    (one public + one private record is still an SSRF risk). The addresses are
+//    returned so the HTTP client can connect to exactly what was checked.
+// The client never follows redirects, so a public host can't bounce us somewhere private.
 
 export class CanvasUrlError extends Error {
   constructor(
@@ -38,14 +31,32 @@ export class CanvasUrlError extends Error {
 
 const LOCAL_SUFFIXES = [".local", ".localhost", ".internal", ".lan", ".home", ".corp", ".intranet", ".arpa"];
 
-/** Accepts "school.instructure.com", "https://school.instructure.com/",
- * or a pasted deep link, and returns the canonical origin. Throws
- * CanvasUrlError with a user-facing message otherwise. */
+const VALID_HOSTNAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+
+function isLocalName(host: string): boolean {
+  if (host === "localhost") {
+    return true;
+  }
+  for (const suffix of LOCAL_SUFFIXES) {
+    if (host.endsWith(suffix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Accepts "school.instructure.com", "https://school.instructure.com/", or a
+ * pasted deep link, and returns just the origin. Throws CanvasUrlError with a
+ * message for the student otherwise. */
 export function normalizeCanvasBaseUrl(raw: string): string {
   const trimmed = (raw ?? "").trim();
-  if (!trimmed) throw new CanvasUrlError("EMPTY", "Enter your school's Canvas address.");
+  if (!trimmed) {
+    throw new CanvasUrlError("EMPTY", "Enter your school's Canvas address.");
+  }
 
-  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed);
+  const withScheme = hasScheme ? trimmed : `https://${trimmed}`;
+
   let url: URL;
   try {
     url = new URL(withScheme);
@@ -64,37 +75,32 @@ export function normalizeCanvasBaseUrl(raw: string): string {
   }
 
   const host = url.hostname.toLowerCase().replace(/\.$/, "");
-  // WHATWG URL parsing already canonicalizes exotic IPv4 forms
-  // ("2130706433", "0x7f.1") to dotted quads, so isIP catches them too.
-  if (isIP(host.replace(/^\[|\]$/g, "")) !== 0) {
+
+  // URL parsing already turns odd IPv4 forms ("2130706433", "0x7f.1") into
+  // dotted quads, so isIP catches those too.
+  const hostWithoutBrackets = host.replace(/^\[|\]$/g, "");
+  if (isIP(hostWithoutBrackets) !== 0) {
     throw new CanvasUrlError("IP_LITERAL", "Enter Canvas's hostname, not an IP address.");
   }
   if (!host.includes(".")) {
     throw new CanvasUrlError("LOCAL_NAME", "Enter the full address, like school.instructure.com.");
   }
-  if (LOCAL_SUFFIXES.some((s) => host.endsWith(s)) || host === "localhost") {
+  if (isLocalName(host)) {
     throw new CanvasUrlError("LOCAL_NAME", "That address isn't reachable from the internet.");
   }
-  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(host)) {
+  if (!VALID_HOSTNAME.test(host)) {
     throw new CanvasUrlError("NOT_URL", "That hostname contains characters Canvas addresses don't use.");
   }
 
-  // Deep links are fine to paste — we only keep the origin. A path that is
-  // clearly not Canvas (e.g. someone pasting a Google Doc) is still allowed;
-  // the connection test will give a precise answer.
-  void url.pathname;
-
+  // Any path in a pasted deep link is dropped; we only keep the origin.
   return `https://${host}`;
 }
 
-export function isLikelyCanvasHost(origin: string): boolean {
-  return /instructure\.com$|canvas\./.test(new URL(origin).hostname);
-}
-
-/** Resolves the host and insists every address is public. Returns them so
- * the fetch can be pinned to the vetted addresses. */
+/** Looks up the host and insists every address is public. Returns the
+ * addresses so the request can be pinned to them. */
 export async function resolvePublicAddresses(origin: string): Promise<string[]> {
   const host = new URL(origin).hostname;
+
   let records: { address: string; family: number }[];
   try {
     records = await lookup(host, { all: true, verbatim: true });
@@ -104,10 +110,13 @@ export async function resolvePublicAddresses(origin: string): Promise<string[]> 
   if (records.length === 0) {
     throw new CanvasUrlError("UNRESOLVABLE", "That address couldn't be found. Check the spelling.");
   }
-  for (const r of records) {
-    if (!isPublicIp(r.address)) {
+
+  const addresses: string[] = [];
+  for (const record of records) {
+    if (!isPublicIp(record.address)) {
       throw new CanvasUrlError("PRIVATE_ADDRESS", "That address points somewhere Rushd can't connect to.");
     }
+    addresses.push(record.address);
   }
-  return records.map((r) => r.address);
+  return addresses;
 }
