@@ -31,8 +31,17 @@ export function MasteryChip({ status, className }: { status: MasteryStatusV2; cl
   );
 }
 
-/** "Estimated 62–88% · medium confidence", or the honest "not enough evidence". */
-export function estimateLine(e: { estimate: number | null; low: number | null; high: number | null; confidence: string; answers: number }): string {
-  if (e.estimate === null || e.low === null || e.high === null) return "No answers yet";
-  return `About ${e.low}–${e.high}% · ${e.confidence} confidence · ${e.answers} answer${e.answers === 1 ? "" : "s"}`;
+/** "About 62–88% · medium confidence · 6 answers"; no range at all while there's too little evidence. Null with no answers. */
+export function estimateLine(e: {
+  status: MasteryStatusV2;
+  estimate: number | null;
+  low: number | null;
+  high: number | null;
+  confidence: string;
+  answers: number;
+}): string | null {
+  if (e.answers === 0 || e.estimate === null || e.low === null || e.high === null) return null;
+  const answers = `${e.answers} answer${e.answers === 1 ? "" : "s"}`;
+  if (e.status === "not_enough_evidence") return `${answers} so far · too few for an estimate`;
+  return `About ${e.low}–${e.high}% · ${e.confidence} confidence · ${answers}`;
 }

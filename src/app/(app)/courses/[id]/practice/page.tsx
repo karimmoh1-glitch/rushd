@@ -103,7 +103,7 @@ export default async function CoursePracticePage({ params }: { params: Promise<{
             </PathEmpty>
           ) : (
             groups.map(({ topic, questions: list }) => (
-              <div key={topic?.id ?? "none"}>
+              <div key={topic?.id ?? "none"} className={topic?.parentId ? "ml-4 border-l border-border pl-4 sm:ml-6" : undefined}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-semibold">
                     {topic ? topic.title : "Not tied to a topic"}
@@ -140,10 +140,12 @@ export default async function CoursePracticePage({ params }: { params: Promise<{
               </div>
             ))
           )}
+          {(aiEnabled || questions.some((q) => q.origin === "AI_GENERATED")) && (
           <p className="text-xs text-muted-foreground">
             Generated questions are practice material written by AI from your topics and course materials. They aren&apos;t
             official exam questions and may contain mistakes; report any that look wrong.
           </p>
+          )}
         </section>
       </div>
     </div>

@@ -228,7 +228,12 @@ export function SessionRunner({
 
       <article className="rounded-xl bg-card px-4 py-5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07] sm:px-6">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {question.topicTitle && <span className="font-medium text-foreground/80">{question.topicTitle}</span>}
+          {question.topicTitle && (
+            <>
+              <span className="font-medium text-foreground/80">{question.topicTitle}</span>
+              <span aria-hidden="true">·</span>
+            </>
+          )}
           {generated ? (
             <span className="font-medium text-signal-ink">AI-generated · unverified</span>
           ) : (

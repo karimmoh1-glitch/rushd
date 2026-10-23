@@ -43,7 +43,7 @@ export interface TopicRow {
   remediation: { reason: string; topicId: string | null; title: string | null } | null;
 }
 
-const selectClass = "h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm dark:bg-input/30";
+const selectClass = "h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm sm:h-8 dark:bg-input/30";
 
 function AddTopicForm({ courseId, parents }: { courseId: string; parents: TopicRow[] }) {
   const router = useRouter();
@@ -279,7 +279,7 @@ function TopicItem({
             <MasteryChip status={topic.status} />
             {topic.due && <span className="text-xs font-medium text-signal-ink">Review due</span>}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{estimateLine(topic)}</p>
+          {estimateLine(topic) && <p className="mt-1 text-xs text-muted-foreground">{estimateLine(topic)}</p>}
           <p className="mt-1 text-sm text-muted-foreground">{topic.explanation}</p>
           {topic.prerequisiteTitles.length > 0 && (
             <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">

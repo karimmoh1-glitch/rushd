@@ -276,6 +276,7 @@ export function estimateTopic(input: Observation[], now: Date): TopicEstimate {
   let earned = 0;
   let answers = 0;
   let correct = 0;
+  let partial = 0;
   let practiceAnswers = 0;
   let heavyHintAnswers = 0;
   for (const o of observations) {
@@ -286,6 +287,7 @@ export function estimateTopic(input: Observation[], now: Date): TopicEstimate {
     answers += o.items;
     correct += o.items > 1 ? Math.round(clamp01(o.score) * o.items) : o.score >= 1 ? 1 : 0;
     if (o.items === 1) {
+      if (o.score > 0 && o.score < 1) partial += 1;
       practiceAnswers += 1;
       if ((o.hintsUsed ?? 0) >= 2) heavyHintAnswers += 1;
     }
@@ -328,7 +330,7 @@ export function estimateTopic(input: Observation[], now: Date): TopicEstimate {
 
   // Plain-language explanation.
   const facts: string[] = [];
-  facts.push(`${correct} of ${plural(answers, "answer")} correct across ${plural(occasions.length, "session")}`);
+  facts.push(`${correct} of ${plural(answers, "answer")} correct${partial ? ` (${partial} partly)` : ""} across ${plural(occasions.length, "session")}`);
   if (plan.lastSuccessAt) {
     facts.push(`last correct ${daysAgoPhrase((now.getTime() - plan.lastSuccessAt.getTime()) / DAY_MS)}`);
   } else {
@@ -350,7 +352,7 @@ export function estimateTopic(input: Observation[], now: Date): TopicEstimate {
         meaning = "the same kind of mistake keeps coming back";
         improve.push("Review the explanation for the questions you missed, then retry them in a new session.");
       } else {
-        meaning = "the results so far are mostly incorrect";
+        meaning = "too many answers have been wrong to call it known yet";
         improve.push("Review the topic (or its prerequisites), then try two or three questions without hints.");
       }
       break;

@@ -51,7 +51,6 @@ function AddQuestionForm({
         toast.error(result.error);
         return;
       }
-      toast.success("Question added.");
       router.refresh();
       onDone();
     });

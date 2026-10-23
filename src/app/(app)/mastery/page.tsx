@@ -44,7 +44,7 @@ function TopicLine({
         )}
         <MasteryChip status={estimate.status} />
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{estimateLine(estimate)}</p>
+      {estimateLine(estimate) && <p className="mt-1 text-xs text-muted-foreground">{estimateLine(estimate)}</p>}
       <p className="mt-0.5 text-sm text-muted-foreground">{estimate.explanation}</p>
       {children}
     </li>
