@@ -1,17 +1,15 @@
 import type { MappedAssignment, SkipReason } from "./mapping";
 
-// The pure heart of Canvas sync: given what Rushd already has and what Canvas
-// just returned, decide exactly what to change. No I/O — so the rules that
-// protect a student's data are unit-tested directly (sync-diff.test.ts).
-//
-// Ground rules:
-//  * Canvas owns title, due date, points and link for Canvas-sourced rows.
-//  * The student owns priority, notes, and any estimate they chose.
-//  * Completion flows Canvas -> Rushd once per new submission; a student who
-//    reopens work in Rushd isn't overridden until Canvas reports a newer one.
-//  * Work that disappears from a course is marked removed (kept, but out of
-//    the plan) — only when that course was fetched successfully and fully.
-//  * MANUAL rows are never part of this diff at all.
+// Decides what a Canvas sync should change, given what Rushd has and what
+// Canvas returned. No network or database here (tested in sync-diff.test.ts).
+// Rules that protect the student's data:
+//  - Canvas owns title, due date, points and link. The student owns priority,
+//    notes, and any estimate they chose.
+//  - A Canvas submission marks work complete once; if the student reopens it in
+//    Rushd, we wait for a newer submission before marking it again.
+//  - Work missing from a course is marked removed (kept, but out of the plan),
+//    and only when that course was fetched successfully.
+//  - Manual assignments are never part of this.
 
 export interface ExistingCanvasRow {
   id: string;
@@ -31,7 +29,7 @@ export interface ExistingCanvasRow {
 export interface FetchedCourse {
   canvasCourseId: string;
   classId: string;
-  /** False when the course fetch failed — its rows are left untouched. */
+  /** False when the course fetch failed; its rows are left untouched. */
   ok: boolean;
   assignments: MappedAssignment[];
   skipped: { id: string; reason: SkipReason }[];
@@ -83,13 +81,75 @@ export interface SyncDiff {
   };
 }
 
-const sameTime = (a: Date | null, b: Date | null) =>
-  (a?.getTime() ?? null) === (b?.getTime() ?? null);
+/** True when both dates are the same moment (or both are null). */
+function sameTime(a: Date | null, b: Date | null): boolean {
+  const timeA = a ? a.getTime() : null;
+  const timeB = b ? b.getTime() : null;
+  return timeA === timeB;
+}
 
-export function diffCanvasAssignments(
-  existing: ExistingCanvasRow[],
-  courses: FetchedCourse[],
-): SyncDiff {
+function rowKey(canvasCourseId: string, canvasAssignmentId: string): string {
+  return `${canvasCourseId}:${canvasAssignmentId}`;
+}
+
+/** Works out the update for one existing row. Returns null when nothing changed. */
+function buildUpdate(row: ExistingCanvasRow, mapped: MappedAssignment): UpdateOp | null {
+  const data: UpdateOp["data"] = {};
+  const kinds = new Set<UpdateKind>();
+
+  if (row.title !== mapped.title) {
+    data.title = mapped.title;
+  }
+  if (row.dueAt.getTime() !== mapped.dueAt.getTime()) {
+    data.dueAt = mapped.dueAt;
+  }
+  if (row.pointsPossible !== mapped.pointsPossible) {
+    data.pointsPossible = mapped.pointsPossible;
+  }
+  if (row.canvasUrl !== mapped.canvasUrl) {
+    data.canvasUrl = mapped.canvasUrl;
+  }
+  if (Object.keys(data).length > 0) {
+    kinds.add("details");
+  }
+
+  if (row.canvasRemovedAt) {
+    data.canvasRemovedAt = null;
+    kinds.add("restored");
+  }
+
+  if (mapped.complete) {
+    // Only a new submission counts, so a student who reopened the work isn't overridden.
+    if (!sameTime(row.canvasSubmittedAt, mapped.completionMarker)) {
+      data.canvasSubmittedAt = mapped.completionMarker;
+      if (row.status !== "COMPLETED") {
+        data.status = "COMPLETED";
+        const marker = mapped.completionMarker;
+        const hasRealTime = marker !== null && marker.getUTCFullYear() > 1970;
+        data.completedAt = hasRealTime ? marker : new Date();
+        kinds.add("completed");
+      }
+    }
+  } else if (row.canvasSubmittedAt) {
+    // Canvas no longer shows a submission (e.g. the teacher reopened it).
+    // Forget the old marker so the next real submission counts as new.
+    // Rushd's own status is left alone; the student decides that.
+    data.canvasSubmittedAt = null;
+    kinds.add("reopened-in-canvas");
+  }
+
+  if (row.estimatedByRushd && row.estimatedMinutes !== mapped.defaultEstimate) {
+    data.estimatedMinutes = mapped.defaultEstimate;
+    kinds.add("estimate");
+  }
+
+  if (kinds.size === 0) {
+    return null;
+  }
+  return { id: row.id, title: mapped.title, kinds: [...kinds], data };
+}
+
+export function diffCanvasAssignments(existing: ExistingCanvasRow[], courses: FetchedCourse[]): SyncDiff {
   const creates: CreateOp[] = [];
   const updates: UpdateOp[] = [];
   const removes: RemoveOp[] = [];
@@ -105,82 +165,70 @@ export function diffCanvasAssignments(
     skippedUnpublished: 0,
   };
 
-  const byKey = new Map(existing.map((r) => [`${r.canvasCourseId}:${r.canvasAssignmentId}`, r]));
+  const existingByKey = new Map<string, ExistingCanvasRow>();
+  for (const row of existing) {
+    existingByKey.set(rowKey(row.canvasCourseId, row.canvasAssignmentId), row);
+  }
 
   for (const course of courses) {
-    if (!course.ok) continue;
-    for (const s of course.skipped) {
-      if (s.reason === "NO_DUE_DATE") counts.skippedNoDueDate++;
-      else counts.skippedUnpublished++;
+    if (!course.ok) {
+      continue;
+    }
+
+    for (const skipped of course.skipped) {
+      if (skipped.reason === "NO_DUE_DATE") {
+        counts.skippedNoDueDate++;
+      } else {
+        counts.skippedUnpublished++;
+      }
     }
 
     const seen = new Set<string>();
-    for (const m of course.assignments) {
-      const key = `${course.canvasCourseId}:${m.canvasAssignmentId}`;
-      if (seen.has(key)) continue; // Canvas shouldn't repeat ids; be safe anyway
+    for (const mapped of course.assignments) {
+      const key = rowKey(course.canvasCourseId, mapped.canvasAssignmentId);
+      // Canvas shouldn't repeat ids, but be safe anyway.
+      if (seen.has(key)) {
+        continue;
+      }
       seen.add(key);
-      const row = byKey.get(key);
 
+      const row = existingByKey.get(key);
       if (!row) {
-        creates.push({ classId: course.classId, mapped: m });
+        creates.push({ classId: course.classId, mapped });
         counts.created++;
-        if (m.complete) counts.createdAlreadyComplete++;
+        if (mapped.complete) {
+          counts.createdAlreadyComplete++;
+        }
         continue;
       }
 
-      const data: UpdateOp["data"] = {};
-      const kinds = new Set<UpdateKind>();
-
-      if (row.title !== m.title) data.title = m.title;
-      if (row.dueAt.getTime() !== m.dueAt.getTime()) data.dueAt = m.dueAt;
-      if (row.pointsPossible !== m.pointsPossible) data.pointsPossible = m.pointsPossible;
-      if (row.canvasUrl !== m.canvasUrl) data.canvasUrl = m.canvasUrl;
-      if (Object.keys(data).length > 0) kinds.add("details");
-
-      if (row.canvasRemovedAt) {
-        data.canvasRemovedAt = null;
-        kinds.add("restored");
-      }
-
-      if (m.complete) {
-        if (!sameTime(row.canvasSubmittedAt, m.completionMarker)) {
-          data.canvasSubmittedAt = m.completionMarker;
-          if (row.status !== "COMPLETED") {
-            data.status = "COMPLETED";
-            data.completedAt =
-              m.completionMarker && m.completionMarker.getUTCFullYear() > 1970 ? m.completionMarker : new Date();
-            kinds.add("completed");
-          }
-        }
-      } else if (row.canvasSubmittedAt) {
-        // Canvas no longer shows a submission (e.g. the teacher reopened it):
-        // forget the old marker so the next real submission counts as new.
-        // Rushd's own status is left alone — the student decides that.
-        data.canvasSubmittedAt = null;
-        kinds.add("reopened-in-canvas");
-      }
-
-      if (row.estimatedByRushd && row.estimatedMinutes !== m.defaultEstimate) {
-        data.estimatedMinutes = m.defaultEstimate;
-        kinds.add("estimate");
-      }
-
-      if (kinds.size === 0) {
+      const update = buildUpdate(row, mapped);
+      if (!update) {
         counts.unchanged++;
         continue;
       }
-      updates.push({ id: row.id, title: m.title, kinds: [...kinds], data });
+      updates.push(update);
       counts.updated++;
-      if (kinds.has("completed")) counts.completed++;
-      if (kinds.has("restored")) counts.restored++;
+      if (update.kinds.includes("completed")) {
+        counts.completed++;
+      }
+      if (update.kinds.includes("restored")) {
+        counts.restored++;
+      }
     }
 
-    // Anything this course used to have that Canvas no longer lists (or now
-    // lists without a due date) leaves the plan — but is kept.
+    // Anything this course had that Canvas no longer lists (or lists without
+    // a due date) leaves the plan, but is kept.
     for (const row of existing) {
-      if (row.canvasCourseId !== course.canvasCourseId) continue;
-      if (row.canvasRemovedAt) continue;
-      if (seen.has(`${row.canvasCourseId}:${row.canvasAssignmentId}`)) continue;
+      if (row.canvasCourseId !== course.canvasCourseId) {
+        continue;
+      }
+      if (row.canvasRemovedAt) {
+        continue;
+      }
+      if (seen.has(rowKey(row.canvasCourseId, row.canvasAssignmentId))) {
+        continue;
+      }
       removes.push({ id: row.id, title: row.title });
       counts.removed++;
     }
@@ -190,6 +238,6 @@ export function diffCanvasAssignments(
 }
 
 /** True when applying the diff would change anything at all. */
-export function diffHasChanges(d: SyncDiff): boolean {
-  return d.creates.length + d.updates.length + d.removes.length > 0;
+export function diffHasChanges(diff: SyncDiff): boolean {
+  return diff.creates.length + diff.updates.length + diff.removes.length > 0;
 }

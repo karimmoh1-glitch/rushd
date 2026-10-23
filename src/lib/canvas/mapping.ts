@@ -1,80 +1,103 @@
 import type { CanvasAssignment } from "./client";
 
-// Pure translation from Canvas API objects to the fields Rushd stores. No I/O,
-// so every rule here is unit-tested directly (mapping.test.ts).
+// Turns Canvas API objects into the fields Rushd stores. No network or
+// database here, so every rule is tested directly in mapping.test.ts.
 
-/** Whether Canvas says the student is done with this assignment. Excused,
- * submitted, graded and awaiting-review all count; "unsubmitted" (including
- * missing/late flags) does not. */
-export function isCompleteInCanvas(a: CanvasAssignment): boolean {
-  const s = a.submission;
-  if (!s) return false;
-  if (s.excused) return true;
-  if (s.workflow_state === "submitted" || s.workflow_state === "graded" || s.workflow_state === "pending_review") {
+/** Whether Canvas says the student is done. Excused, submitted, graded and
+ * awaiting review all count; "unsubmitted" does not. */
+export function isCompleteInCanvas(assignment: CanvasAssignment): boolean {
+  const submission = assignment.submission;
+  if (!submission) {
+    return false;
+  }
+  if (submission.excused) {
     return true;
   }
-  return Boolean(s.submitted_at);
+  const state = submission.workflow_state;
+  if (state === "submitted" || state === "graded" || state === "pending_review") {
+    return true;
+  }
+  return Boolean(submission.submitted_at);
 }
 
 /**
- * A marker for "the completion Canvas reported." Rushd only applies a Canvas
- * completion when this marker is new, so a student who deliberately reopens
- * an assignment in Rushd isn't overridden by every subsequent sync — only by
- * a genuinely new submission. Excused/graded-without-submission work has no
- * timestamp, so it gets a fixed sentinel (applied once, then stable).
+ * A marker for "the completion Canvas reported". Rushd only applies a Canvas
+ * completion when this marker changes, so a student who reopens work in Rushd
+ * isn't overridden on every sync. Work with no submission time (e.g. excused)
+ * gets a fixed placeholder date instead.
  */
-export function completionMarker(a: CanvasAssignment): Date | null {
-  if (!isCompleteInCanvas(a)) return null;
-  const at = a.submission?.submitted_at;
-  if (at) {
-    const d = new Date(at);
-    if (!Number.isNaN(d.getTime())) return d;
+export function completionMarker(assignment: CanvasAssignment): Date | null {
+  if (!isCompleteInCanvas(assignment)) {
+    return null;
+  }
+  const submittedAt = assignment.submission?.submitted_at;
+  if (submittedAt) {
+    const date = new Date(submittedAt);
+    if (!Number.isNaN(date.getTime())) {
+      return date;
+    }
   }
   return new Date(Date.UTC(1970, 0, 1, 0, 0, 1));
 }
 
-/** Parses Canvas's due_at (ISO 8601 with offset, typically UTC "Z"). Canvas
- * already applies the student's section/individual override to due_at for
- * the requesting user. Returns null when absent or unparseable — such work
- * can't be scheduled and is reported, never given an invented date. */
-export function parseDueAt(a: CanvasAssignment): Date | null {
-  if (!a.due_at) return null;
-  // Require an explicit offset so the instant is unambiguous; a bare
-  // "2026-10-23T23:59:00" would be read in the server's zone.
-  if (!/(Z|[+-]\d{2}:?\d{2})$/i.test(a.due_at)) return null;
-  const d = new Date(a.due_at);
-  return Number.isNaN(d.getTime()) ? null : d;
+/** Reads Canvas's due_at (Canvas already applies the student's own override).
+ * Returns null when it's missing or unreadable; we never invent a date. */
+export function parseDueAt(assignment: CanvasAssignment): Date | null {
+  if (!assignment.due_at) {
+    return null;
+  }
+  // Require a time zone offset. Without one, the date would be read in the server's zone.
+  if (!/(Z|[+-]\d{2}:?\d{2})$/i.test(assignment.due_at)) {
+    return null;
+  }
+  const date = new Date(assignment.due_at);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
 }
 
 /**
- * Rushd's starting estimate for an imported assignment, in minutes. Canvas
- * has no notion of effort, so this is a transparent heuristic — shown as an
- * estimate the student can edit, never presented as fact:
- *
- *   quizzes / discussion posts .............. 30 min
- *   no submission (reading, attendance) ..... 20 min
- *   everything else: 45 min, scaled up by points possible relative to a
- *   typical 10-point homework (capped at 180 min).
+ * Rushd's starting time estimate in minutes (students can edit it):
+ *  - quizzes and discussions: 30 min
+ *  - nothing to submit (reading, attendance): 20 min
+ *  - everything else: 45 min, scaled by points compared to a 10-point homework (30 to 180 min)
  */
-export function estimateMinutes(a: CanvasAssignment): number {
-  const types = a.submission_types ?? [];
-  if (types.includes("online_quiz")) return 30;
-  if (types.includes("discussion_topic")) return 30;
-  if (types.length > 0 && types.every((t) => t === "none" || t === "not_graded")) return 20;
+export function estimateMinutes(assignment: CanvasAssignment): number {
+  const types = assignment.submission_types ?? [];
+  if (types.includes("online_quiz")) {
+    return 30;
+  }
+  if (types.includes("discussion_topic")) {
+    return 30;
+  }
+  const nothingToSubmit = types.length > 0 && types.every((type) => type === "none" || type === "not_graded");
+  if (nothingToSubmit) {
+    return 20;
+  }
 
-  const points = typeof a.points_possible === "number" && a.points_possible > 0 ? a.points_possible : null;
-  if (points === null) return 45;
+  const points = assignment.points_possible;
+  const hasPoints = typeof points === "number" && points > 0;
+  if (!hasPoints) {
+    return 45;
+  }
   const scaled = 45 * Math.sqrt(points / 10);
-  return Math.max(30, Math.min(180, Math.round(scaled / 15) * 15));
+  const roundedTo15 = Math.round(scaled / 15) * 15;
+  return Math.max(30, Math.min(180, roundedTo15));
 }
 
-/** Only https links on the connected Canvas origin are kept — never render a
- * link Canvas data could point elsewhere. */
+/** Only keeps https links on the connected Canvas site, so Canvas data can't
+ * make us show a link to somewhere else. */
 export function safeCanvasUrl(baseUrl: string, htmlUrl: string | undefined): string | null {
-  if (!htmlUrl) return null;
+  if (!htmlUrl) {
+    return null;
+  }
   try {
-    const u = new URL(htmlUrl);
-    return u.origin === baseUrl && u.protocol === "https:" ? u.toString() : null;
+    const url = new URL(htmlUrl);
+    if (url.origin === baseUrl && url.protocol === "https:") {
+      return url.toString();
+    }
+    return null;
   } catch {
     return null;
   }
@@ -97,25 +120,33 @@ export type SkipReason = "NO_DUE_DATE" | "UNPUBLISHED";
 export function mapAssignment(
   baseUrl: string,
   courseId: string,
-  a: CanvasAssignment,
+  assignment: CanvasAssignment,
 ): { ok: true; value: MappedAssignment } | { ok: false; reason: SkipReason } {
-  if (a.published === false || a.workflow_state === "unpublished" || a.workflow_state === "deleted") {
+  const state = assignment.workflow_state;
+  if (assignment.published === false || state === "unpublished" || state === "deleted") {
     return { ok: false, reason: "UNPUBLISHED" };
   }
-  const dueAt = parseDueAt(a);
-  if (!dueAt) return { ok: false, reason: "NO_DUE_DATE" };
+
+  const dueAt = parseDueAt(assignment);
+  if (!dueAt) {
+    return { ok: false, reason: "NO_DUE_DATE" };
+  }
+
+  const title = assignment.name.trim().slice(0, 160) || "Untitled assignment";
+  const pointsPossible = typeof assignment.points_possible === "number" ? assignment.points_possible : null;
+
   return {
     ok: true,
     value: {
-      canvasAssignmentId: String(a.id),
+      canvasAssignmentId: String(assignment.id),
       canvasCourseId: courseId,
-      title: a.name.trim().slice(0, 160) || "Untitled assignment",
+      title,
       dueAt,
-      pointsPossible: typeof a.points_possible === "number" ? a.points_possible : null,
-      canvasUrl: safeCanvasUrl(baseUrl, a.html_url),
-      complete: isCompleteInCanvas(a),
-      completionMarker: completionMarker(a),
-      defaultEstimate: estimateMinutes(a),
+      pointsPossible,
+      canvasUrl: safeCanvasUrl(baseUrl, assignment.html_url),
+      complete: isCompleteInCanvas(assignment),
+      completionMarker: completionMarker(assignment),
+      defaultEstimate: estimateMinutes(assignment),
     },
   };
 }

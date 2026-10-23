@@ -1,7 +1,7 @@
 import * as z from "zod";
 
-// Course content as Canvas returns it, and the pure transforms Rushd applies
-// before storing it. Nothing here touches the network or the database.
+// Course content as Canvas returns it, and the cleanup Rushd does before
+// storing it. No network or database here.
 
 export interface CanvasModuleItem {
   id: number;
@@ -45,7 +45,7 @@ export interface CanvasAnnouncement {
 }
 
 /** Longest plain text Rushd keeps per item; enough for long course pages. */
-export const MAX_BODY_CHARS = 40_000;
+const MAX_BODY_CHARS = 40_000;
 
 const ENTITIES: Record<string, string> = {
   amp: "&",
@@ -63,38 +63,54 @@ const ENTITIES: Record<string, string> = {
   ldquo: "“",
 };
 
-function decodeEntities(text: string): string {
-  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code: string) => {
-    if (code[0] === "#") {
-      const n = code[1] === "x" || code[1] === "X" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
-      return Number.isFinite(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "";
+/** Turns one HTML entity (the part between & and ;) into its character. */
+function decodeEntity(match: string, code: string): string {
+  if (code[0] === "#") {
+    let codePoint: number;
+    if (code[1] === "x" || code[1] === "X") {
+      codePoint = parseInt(code.slice(2), 16);
+    } else {
+      codePoint = parseInt(code.slice(1), 10);
     }
-    return ENTITIES[code.toLowerCase()] ?? match;
-  });
+    const isValid = Number.isFinite(codePoint) && codePoint > 0 && codePoint <= 0x10ffff;
+    return isValid ? String.fromCodePoint(codePoint) : "";
+  }
+  return ENTITIES[code.toLowerCase()] ?? match;
+}
+
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, decodeEntity);
 }
 
 /**
- * Canvas HTML to readable plain text. The result is only ever rendered as
- * text (React escapes it) or handed to the model as data, so this needs to be
- * faithful, not a sanitizer: scripts, styles and markup are dropped, block
- * boundaries become line breaks, list items become "- " lines.
+ * Turns Canvas HTML into readable plain text. The result is only shown as text
+ * (React escapes it) or given to the AI as data, so this doesn't need to be a
+ * sanitizer, just faithful.
  */
 export function htmlToText(html: string | null | undefined, maxChars = MAX_BODY_CHARS): string {
-  if (!html) return "";
-  const text = html
-    .replace(/<(script|style|noscript|iframe|svg)[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<li[^>]*>/gi, "\n- ")
-    .replace(/<(br|hr)\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|h[1-6]|tr|table|ul|ol|blockquote|pre|section|article)>/gi, "\n")
-    .replace(/<(td|th)[^>]*>/gi, " ")
-    .replace(/<[^>]+>/g, "");
-  const cleaned = decodeEntities(text)
-    .replace(/[ \t\f\v ]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  return cleaned.length > maxChars ? `${cleaned.slice(0, maxChars).trimEnd()}…` : cleaned;
+  if (!html) {
+    return "";
+  }
+
+  let text = html;
+  text = text.replace(/<(script|style|noscript|iframe|svg)[^>]*>[\s\S]*?<\/\1\s*>/gi, " "); // drop scripts, styles, etc.
+  text = text.replace(/<!--[\s\S]*?-->/g, " "); // drop comments
+  text = text.replace(/<li[^>]*>/gi, "\n- "); // list items become "- " lines
+  text = text.replace(/<(br|hr)\s*\/?>/gi, "\n");
+  text = text.replace(/<\/(p|div|h[1-6]|tr|table|ul|ol|blockquote|pre|section|article)>/gi, "\n"); // end of a block
+  text = text.replace(/<(td|th)[^>]*>/gi, " ");
+  text = text.replace(/<[^>]+>/g, ""); // remove all other tags
+
+  text = decodeEntities(text);
+  text = text.replace(/[ \t\f\v ]+/g, " "); // collapse spaces
+  text = text.replace(/ *\n */g, "\n");
+  text = text.replace(/\n{3,}/g, "\n\n");
+  text = text.trim();
+
+  if (text.length > maxChars) {
+    return `${text.slice(0, maxChars).trimEnd()}…`;
+  }
+  return text;
 }
 
 // --- Rubrics -------------------------------------------------------------------
@@ -106,7 +122,7 @@ const RatingSchema = z.object({
   points: z.number().finite().min(0).max(10_000),
 });
 
-export const RubricCriterionSchema = z.object({
+const RubricCriterionSchema = z.object({
   id: z.string().min(1).max(100),
   description: z.string().max(500),
   longDescription: z.string().max(8000).default(""),
@@ -115,6 +131,7 @@ export const RubricCriterionSchema = z.object({
 });
 export type RubricCriterion = z.infer<typeof RubricCriterionSchema>;
 
+/** The rubric shape Canvas sends (loosely checked). */
 const RawCriterionSchema = z.object({
   id: z.union([z.string(), z.number()]),
   description: z.string().nullish(),
@@ -132,42 +149,69 @@ const RawCriterionSchema = z.object({
     )
     .nullish(),
 });
+type RawCriterion = z.infer<typeof RawCriterionSchema>;
 
-/**
- * Validates the `rubric` array Canvas attaches to an assignment. Returns null
- * when there is no usable rubric; Rushd never fills one in. Criteria Canvas
- * marks `ignore_for_scoring` are dropped, as are malformed entries.
- */
-export function parseRubric(raw: unknown): RubricCriterion[] | null {
-  if (!Array.isArray(raw) || raw.length === 0) return null;
-  const out: RubricCriterion[] = [];
-  for (const entry of raw.slice(0, 50)) {
-    const parsed = RawCriterionSchema.safeParse(entry);
-    if (!parsed.success || parsed.data.ignore_for_scoring) continue;
-    const c = parsed.data;
-    const criterion = RubricCriterionSchema.safeParse({
-      id: String(c.id),
-      description: htmlToText(c.description ?? "", 500) || "Untitled criterion",
-      longDescription: htmlToText(c.long_description ?? "", 8000),
-      points: c.points ?? 0,
-      ratings: (c.ratings ?? []).slice(0, 20).map((r, i) => ({
-        id: String(r.id ?? i),
-        description: htmlToText(r.description ?? "", 500),
-        longDescription: htmlToText(r.long_description ?? "", 4000),
-        points: r.points ?? 0,
-      })),
+/** Converts one Canvas rubric criterion into Rushd's shape (not yet validated). */
+function toCriterion(raw: RawCriterion) {
+  const rawRatings = (raw.ratings ?? []).slice(0, 20);
+  const ratings = [];
+  for (let i = 0; i < rawRatings.length; i++) {
+    const rating = rawRatings[i];
+    ratings.push({
+      id: String(rating.id ?? i),
+      description: htmlToText(rating.description ?? "", 500),
+      longDescription: htmlToText(rating.long_description ?? "", 4000),
+      points: rating.points ?? 0,
     });
-    if (criterion.success) out.push(criterion.data);
   }
-  return out.length > 0 ? out : null;
+
+  return {
+    id: String(raw.id),
+    description: htmlToText(raw.description ?? "", 500) || "Untitled criterion",
+    longDescription: htmlToText(raw.long_description ?? "", 8000),
+    points: raw.points ?? 0,
+    ratings,
+  };
 }
 
-/** Reads a stored rubric back out of the database (Json column). */
+/**
+ * Checks the `rubric` list Canvas attaches to an assignment. Returns null when
+ * there's no usable rubric (Rushd never makes one up). Criteria marked
+ * `ignore_for_scoring` and broken entries are dropped.
+ */
+export function parseRubric(raw: unknown): RubricCriterion[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return null;
+  }
+
+  const criteria: RubricCriterion[] = [];
+  for (const entry of raw.slice(0, 50)) {
+    const parsedRaw = RawCriterionSchema.safeParse(entry);
+    if (!parsedRaw.success || parsedRaw.data.ignore_for_scoring) {
+      continue;
+    }
+    const criterion = RubricCriterionSchema.safeParse(toCriterion(parsedRaw.data));
+    if (criterion.success) {
+      criteria.push(criterion.data);
+    }
+  }
+
+  return criteria.length > 0 ? criteria : null;
+}
+
+/** Reads a rubric back out of the database (Json column). */
 export function readStoredRubric(value: unknown): RubricCriterion[] | null {
   const parsed = z.array(RubricCriterionSchema).safeParse(value);
-  return parsed.success && parsed.data.length > 0 ? parsed.data : null;
+  if (parsed.success && parsed.data.length > 0) {
+    return parsed.data;
+  }
+  return null;
 }
 
 export function rubricTotal(rubric: RubricCriterion[]): number {
-  return rubric.reduce((n, c) => n + c.points, 0);
+  let total = 0;
+  for (const criterion of rubric) {
+    total += criterion.points;
+  }
+  return total;
 }
