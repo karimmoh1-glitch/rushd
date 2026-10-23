@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const noop = () => () => {};
 
 interface Props {
   url: string;
@@ -17,7 +15,12 @@ interface Props {
 
 export function InviteCard({ url, joined, qualified, bonus, perFriend, maxFriends }: Props) {
   const [copied, setCopied] = useState(false);
-  const canShare = useSyncExternalStore(noop, () => "share" in navigator, () => false);
+  // Checked after mount so the server render and the first client render match.
+  const [canShare, setCanShare] = useState(false);
+
+  useEffect(() => {
+    setCanShare("share" in navigator);
+  }, []);
 
   async function copy() {
     try {

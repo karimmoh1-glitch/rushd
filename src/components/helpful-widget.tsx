@@ -3,14 +3,9 @@
 import { useState, useTransition } from "react";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { submitFeedback } from "@/server/actions/feedback";
-import { cn } from "@/lib/utils";
 
-/**
- * Lightweight per-feature signal, distinct from the general FeedbackDialog.
- * Reuses the Feedback model rather than adding a new table: helpful/not
- * maps to rating 5/1 on a feature-specific context (e.g. "one_thing_helpful"),
- * so it shows up alongside other feedback in /admin without a schema change.
- */
+// A quick yes/no on one feature. Saved as normal feedback (rating 5 or 1 with a
+// "<feature>_helpful" context), so it shows up in /admin without a new table.
 export function HelpfulWidget({ feature, label = "Was this helpful?" }: { feature: string; label?: string }) {
   const [answered, setAnswered] = useState<"yes" | "no" | null>(null);
   const [pending, startTransition] = useTransition();
@@ -38,7 +33,7 @@ export function HelpfulWidget({ feature, label = "Was this helpful?" }: { featur
         type="button"
         onClick={() => vote(true)}
         aria-label="Yes, this was helpful"
-        className={cn("rounded p-1 hover:bg-muted hover:text-foreground")}
+        className="rounded p-1 hover:bg-muted hover:text-foreground"
       >
         <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
@@ -46,7 +41,7 @@ export function HelpfulWidget({ feature, label = "Was this helpful?" }: { featur
         type="button"
         onClick={() => vote(false)}
         aria-label="No, this was not helpful"
-        className={cn("rounded p-1 hover:bg-muted hover:text-foreground")}
+        className="rounded p-1 hover:bg-muted hover:text-foreground"
       >
         <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
       </button>

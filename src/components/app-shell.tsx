@@ -57,7 +57,16 @@ function isActive(pathname: string, href: string): boolean {
 // Without AI, Tutor and Practice give their places to Assignments and Courses.
 const MORE = { href: "/more", label: "More", icon: Menu };
 function mobileNavItems(ai: boolean) {
-  return ai ? [NAV_ITEMS[0], NAV_ITEMS[1], NAV_ITEMS[4], NAV_ITEMS[5], MORE] : [NAV_ITEMS[0], NAV_ITEMS[1], NAV_ITEMS[3], NAV_ITEMS[2], MORE];
+  const [today, plan, courses, assignments, tutor, practice] = NAV_ITEMS;
+  if (ai) return [today, plan, tutor, practice, MORE];
+  return [today, plan, assignments, courses, MORE];
+}
+
+// "More" lights up for its own page and for the sections that live inside it on phones.
+const MORE_SECTIONS = ["/courses", "/assignments", "/mastery", "/settings", "/exams"];
+function isMobileActive(pathname: string, href: string): boolean {
+  if (href !== "/more") return isActive(pathname, href);
+  return pathname.startsWith("/more") || MORE_SECTIONS.some((p) => pathname.startsWith(p));
 }
 
 export function AppShell({
@@ -185,10 +194,7 @@ export function AppShell({
         aria-label="Main navigation"
       >
         {mobileNavItems(ai).map((item) => {
-          const active =
-            item.href === "/more"
-              ? pathname.startsWith("/more") || ["/courses", "/assignments", "/mastery", "/settings", "/exams"].some((p) => pathname.startsWith(p))
-              : isActive(pathname, item.href);
+          const active = isMobileActive(pathname, item.href);
           return (
             <Link
               key={item.href}
