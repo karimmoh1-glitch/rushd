@@ -2,28 +2,34 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import * as z from "zod";
 
-// Microsoft identity platform (v2) authorization-code flow with PKCE for a
-// confidential web client. Hosts are fixed (login.microsoftonline.com), so
-// there is no user-controlled URL to guard. Scopes are read-only.
+// Microsoft sign-in (OAuth authorization code flow with PKCE). The hosts are
+// fixed (login.microsoftonline.com), so there's no user-controlled URL to
+// guard. All scopes are read-only.
 
-export const TEAMS_SCOPES = ["openid", "profile", "offline_access", "User.Read", "EduRoster.ReadBasic", "EduAssignments.ReadBasic"];
+const TEAMS_SCOPES = ["openid", "profile", "offline_access", "User.Read", "EduRoster.ReadBasic", "EduAssignments.ReadBasic"];
+const TOKEN_TIMEOUT_MS = 15_000;
 
 export function teamsConfigured(): boolean {
   return Boolean(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET);
 }
 
 function tenant(): string {
-  // "organizations" = any work or school account; education APIs don't
-  // support personal Microsoft accounts.
-  const t = process.env.MICROSOFT_TENANT_ID || "organizations";
-  if (!/^[A-Za-z0-9.-]{1,100}$/.test(t)) throw new Error("Invalid MICROSOFT_TENANT_ID");
-  return t;
+  // "organizations" means any work or school account; the education APIs
+  // don't support personal Microsoft accounts.
+  const tenantId = process.env.MICROSOFT_TENANT_ID || "organizations";
+  // It goes into a URL path, so only allow safe characters.
+  if (!/^[A-Za-z0-9.-]{1,100}$/.test(tenantId)) {
+    throw new Error("Invalid MICROSOFT_TENANT_ID");
+  }
+  return tenantId;
 }
 
-export function redirectUri(): string {
-  return `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/integrations/teams/callback`;
+function redirectUri(): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return `${appUrl}/api/integrations/teams/callback`;
 }
 
+/** Makes a fresh PKCE verifier/challenge pair and a random state value. */
 export function newPkce() {
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
@@ -32,8 +38,8 @@ export function newPkce() {
 }
 
 export function authorizeUrl(state: string, challenge: string): string {
-  const u = new URL(`https://login.microsoftonline.com/${tenant()}/oauth2/v2.0/authorize`);
-  u.search = new URLSearchParams({
+  const url = new URL(`https://login.microsoftonline.com/${tenant()}/oauth2/v2.0/authorize`);
+  const params = new URLSearchParams({
     client_id: process.env.MICROSOFT_CLIENT_ID!,
     response_type: "code",
     redirect_uri: redirectUri(),
@@ -43,8 +49,9 @@ export function authorizeUrl(state: string, challenge: string): string {
     code_challenge: challenge,
     code_challenge_method: "S256",
     prompt: "select_account",
-  }).toString();
-  return u.toString();
+  });
+  url.search = params.toString();
+  return url.toString();
 }
 
 const TokenResponse = z.object({
@@ -75,27 +82,40 @@ async function tokenRequest(params: Record<string, string>, fetchImpl: typeof fe
         scope: TEAMS_SCOPES.join(" "),
         ...params,
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
     });
   } catch {
     throw new TeamsAuthError("Couldn't reach Microsoft. Try again.", "NETWORK");
   }
-  const body = (await res.json().catch(() => null)) as { error?: string; error_description?: string } | null;
+
+  let body: { error?: string; error_description?: string } | null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+
   if (!res.ok) {
-    const desc = body?.error_description ?? "";
-    // AADSTS65001/90094: the school requires an administrator to approve the app.
-    if (/AADSTS(65001|90094|90095)/.test(desc)) {
+    const description = body?.error_description ?? "";
+    // AADSTS65001/90094/90095: the school requires an administrator to approve the app.
+    if (/AADSTS(65001|90094|90095)/.test(description)) {
       throw new TeamsAuthError("Your school needs an administrator to approve Rushd before you can connect Teams.", "CONSENT_REQUIRED");
     }
     throw new TeamsAuthError("Microsoft didn't accept the sign-in. Reconnect Teams.", "INVALID_GRANT");
   }
+
   const parsed = TokenResponse.safeParse(body);
-  if (!parsed.success) throw new TeamsAuthError("Microsoft returned an unexpected response.", "BAD_RESPONSE");
+  if (!parsed.success) {
+    throw new TeamsAuthError("Microsoft returned an unexpected response.", "BAD_RESPONSE");
+  }
   return parsed.data;
 }
 
 export function exchangeCode(code: string, verifier: string, fetchImpl: typeof fetch = fetch): Promise<Tokens> {
-  return tokenRequest({ grant_type: "authorization_code", code, redirect_uri: redirectUri(), code_verifier: verifier }, fetchImpl);
+  return tokenRequest(
+    { grant_type: "authorization_code", code, redirect_uri: redirectUri(), code_verifier: verifier },
+    fetchImpl,
+  );
 }
 
 export function refreshTokens(refreshToken: string, fetchImpl: typeof fetch = fetch): Promise<Tokens> {
