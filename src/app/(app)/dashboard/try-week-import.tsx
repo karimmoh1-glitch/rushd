@@ -1,33 +1,60 @@
 "use client";
 
-import { useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { TryItem } from "@/lib/try/parse-week";
-import { clearTry as clear, readFreshTry as read } from "@/lib/try/storage";
+import { clearTry, readFreshTry } from "@/lib/try/storage";
 import { importTriedWeek } from "@/server/actions/try-week";
 
-// Offers to add the week the student ranked on the homepage before signing
-// up. The list lives only in this browser; it's removed once added or
-// dismissed, and ignored after two weeks.
+// Offers to add the week the student ranked on the homepage before signing up.
+// The list lives only in this browser and is ignored after two weeks.
 
-const noop = () => () => {};
+/** The saved items, or an empty list if nothing (valid) was saved. */
+function parseStoredItems(stored: string | null): TryItem[] {
+  if (!stored) return [];
+  try {
+    const data = JSON.parse(stored) as { items?: TryItem[] } | null;
+    if (data?.items && Array.isArray(data.items)) return data.items;
+    return [];
+  } catch {
+    return [];
+  }
+}
 
 export function TryWeekImport() {
   const router = useRouter();
-  const stored = useSyncExternalStore(noop, read, () => null);
+  // localStorage only exists in the browser, so read it after mounting.
+  const [stored, setStored] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
+  const [pending, startTransition] = useTransition();
 
-  let items: TryItem[] = [];
-  try {
-    const data = stored ? (JSON.parse(stored) as { items?: TryItem[] }) : null;
-    if (data?.items && Array.isArray(data.items)) items = data.items;
-  } catch {
-    items = [];
-  }
+  useEffect(() => {
+    setStored(readFreshTry());
+  }, []);
+
+  const items = parseStoredItems(stored);
   if (hidden || items.length === 0) return null;
+
+  function handleAdd() {
+    startTransition(async () => {
+      const weekItems = items.map(({ kind, title, className, dueAt, minutes }) => ({ kind, title, className, dueAt, minutes }));
+      const result = await importTriedWeek(weekItems);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      clearTry();
+      setHidden(true);
+      router.refresh();
+    });
+  }
+
+  function handleDismiss() {
+    clearTry();
+    setHidden(true);
+  }
 
   return (
     <section className="rounded-xl border border-signal/50 bg-signal-soft/40 p-4">
@@ -36,38 +63,15 @@ export function TryWeekImport() {
         Add the {items.length === 1 ? "item" : `${items.length} items`} you ranked?
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {items.slice(0, 3).map((i) => i.title).join(", ")}
+        {items.slice(0, 3).map((item) => item.title).join(", ")}
         {items.length > 3 ? `, and ${items.length - 3} more` : ""}. You can edit or delete any of them after.
       </p>
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
       <div className="mt-3 flex gap-2">
-        <Button
-          disabled={pending}
-          onClick={() =>
-            start(async () => {
-              const r = await importTriedWeek(
-                items.map(({ kind, title, className, dueAt, minutes }) => ({ kind, title, className, dueAt, minutes })),
-              );
-              if ("error" in r) {
-                setError(r.error);
-                return;
-              }
-              clear();
-              setHidden(true);
-              router.refresh();
-            })
-          }
-        >
+        <Button disabled={pending} onClick={handleAdd}>
           {pending ? "Adding…" : "Add them"}
         </Button>
-        <Button
-          variant="ghost"
-          disabled={pending}
-          onClick={() => {
-            clear();
-            setHidden(true);
-          }}
-        >
+        <Button variant="ghost" disabled={pending} onClick={handleDismiss}>
           No thanks
         </Button>
       </div>
