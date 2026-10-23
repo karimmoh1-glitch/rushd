@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createDraftReview } from "@/server/actions/course";
 
-const MIN = 200;
-const MAX = 30_000;
+const MIN_LENGTH = 200;
+const MAX_LENGTH = 30_000;
 
 export function DraftReviewForm({ assignmentId }: { assignmentId: string }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -17,9 +17,9 @@ export function DraftReviewForm({ assignmentId }: { assignmentId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
     setError(null);
     startTransition(async () => {
       const result = await createDraftReview({
@@ -45,14 +45,14 @@ export function DraftReviewForm({ assignmentId }: { assignmentId: string }) {
           id="draft"
           name="draft"
           required
-          minLength={MIN}
-          maxLength={MAX}
+          minLength={MIN_LENGTH}
+          maxLength={MAX_LENGTH}
           rows={10}
-          onChange={(e) => setLength(e.currentTarget.value.length)}
+          onChange={(event) => setLength(event.currentTarget.value.length)}
           placeholder="Paste the text of your draft here."
         />
         <p className="text-xs text-muted-foreground tabular-nums">
-          {length.toLocaleString()} / {MAX.toLocaleString()} characters{length > 0 && length < MIN ? ` · at least ${MIN} needed` : ""}
+          {length.toLocaleString()} / {MAX_LENGTH.toLocaleString()} characters{length > 0 && length < MIN_LENGTH ? ` · at least ${MIN_LENGTH} needed` : ""}
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-3">
@@ -60,7 +60,7 @@ export function DraftReviewForm({ assignmentId }: { assignmentId: string }) {
           <Label htmlFor="label">Label (optional)</Label>
           <Input id="label" name="label" maxLength={60} placeholder="e.g. Second draft" className="w-56" />
         </div>
-        <Button type="submit" disabled={pending || length < MIN}>
+        <Button type="submit" disabled={pending || length < MIN_LENGTH}>
           {pending ? "Reviewing… (up to a minute)" : "Get feedback"}
         </Button>
       </div>

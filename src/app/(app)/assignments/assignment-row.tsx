@@ -37,6 +37,14 @@ export interface AssignmentRowData extends AssignmentInput {
   canvasRemoved?: boolean;
 }
 
+/** The small badge that says where the assignment came from. */
+function sourceBadgeLabel(source: AssignmentRowData["source"], removed: boolean | undefined): string {
+  if (source === "TEAMS") {
+    return removed ? "Removed from Teams" : "Teams";
+  }
+  return removed ? "Removed from Canvas" : "Canvas";
+}
+
 export function AssignmentRow({
   data,
   classes,
@@ -52,13 +60,13 @@ export function AssignmentRow({
   const completed = data.status === "COMPLETED";
   const due = new Date(data.dueAt);
   const overdue = !completed && isOverdue(due);
+  const showSourceBadge = Boolean(data.source) && data.source !== "MANUAL";
+  const linkLabel = data.source === "TEAMS" ? "Teams" : "Canvas";
 
   function toggleComplete(checked: boolean) {
     startTransition(async () => {
-      const result = await setAssignmentStatus(
-        data.id,
-        checked ? "COMPLETED" : "NOT_STARTED",
-      );
+      const newStatus = checked ? "COMPLETED" : "NOT_STARTED";
+      const result = await setAssignmentStatus(data.id, newStatus);
       if ("error" in result) toast.error(result.error);
     });
   }
@@ -66,8 +74,11 @@ export function AssignmentRow({
   function handleDelete() {
     startTransition(async () => {
       const result = await deleteAssignment(data.id);
-      if ("error" in result) toast.error(result.error);
-      else toast.success("Assignment deleted.");
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Assignment deleted.");
+      }
     });
   }
 
@@ -77,7 +88,7 @@ export function AssignmentRow({
         <CardContent className="flex items-center gap-3 py-4">
           <Checkbox
             checked={completed}
-            onCheckedChange={(v) => toggleComplete(v === true)}
+            onCheckedChange={(checked) => toggleComplete(checked === true)}
             disabled={pending}
             aria-label={completed ? "Mark not started" : "Mark completed"}
           />
@@ -102,11 +113,9 @@ export function AssignmentRow({
                   Overdue
                 </Badge>
               )}
-              {data.source && data.source !== "MANUAL" && (
+              {showSourceBadge && (
                 <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
-                  {data.source === "TEAMS"
-                    ? data.canvasRemoved ? "Removed from Teams" : "Teams"
-                    : data.canvasRemoved ? "Removed from Canvas" : "Canvas"}
+                  {sourceBadgeLabel(data.source, data.canvasRemoved)}
                 </Badge>
               )}
             </div>
@@ -134,10 +143,10 @@ export function AssignmentRow({
               target="_blank"
               rel="noopener noreferrer"
               className="hidden shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
-              aria-label={`Open ${data.title} in ${data.source === "TEAMS" ? "Teams" : "Canvas"} (opens in a new tab)`}
+              aria-label={`Open ${data.title} in ${linkLabel} (opens in a new tab)`}
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-              {data.source === "TEAMS" ? "Teams" : "Canvas"}
+              {linkLabel}
             </a>
           )}
 

@@ -55,6 +55,12 @@ export interface AssignmentPrefill {
   priority?: AssignmentInput["priority"];
 }
 
+function submitLabel(pending: boolean, editing: boolean): string {
+  if (pending) return "Saving…";
+  if (editing) return "Save changes";
+  return "Add assignment";
+}
+
 export function AssignmentDialog({
   open,
   onOpenChange,
@@ -111,8 +117,9 @@ function AssignmentDialogForm({
   );
   const [title, setTitle] = useState(initialData?.title ?? prefill?.title ?? "");
   const [dueAt, setDueAt] = useState(() => {
-    const source = initialData?.dueAt ?? prefill?.dueAt;
-    return source ? toDatetimeLocalValue(new Date(source)) : "";
+    const startingDueAt = initialData?.dueAt ?? prefill?.dueAt;
+    if (!startingDueAt) return "";
+    return toDatetimeLocalValue(new Date(startingDueAt));
   });
   const [estimatedMinutes, setEstimatedMinutes] = useState(
     initialData?.estimatedMinutes ?? prefill?.estimatedMinutes ?? 30,
@@ -125,8 +132,11 @@ function AssignmentDialogForm({
   );
   const [notes, setNotes] = useState(initialData?.notes ?? "");
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  // Fields Canvas controls are shown read-only and greyed out.
+  const lockedFieldClass = managedByCanvas ? "bg-muted text-muted-foreground" : undefined;
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     if (!dueAt) {
       toast.error("Choose a due date.");
       return;
@@ -143,9 +153,12 @@ function AssignmentDialogForm({
     };
 
     startTransition(async () => {
-      const result = initialData
-        ? await updateAssignment(initialData.id, input)
-        : await createAssignment(input);
+      let result;
+      if (initialData) {
+        result = await updateAssignment(initialData.id, input);
+      } else {
+        result = await createAssignment(input);
+      }
 
       if ("error" in result) {
         toast.error(result.error);
@@ -175,23 +188,23 @@ function AssignmentDialogForm({
           <Input
             id="assignment-title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
             placeholder="e.g. Lab report: acid-base titration"
             maxLength={160}
             required
             autoFocus={!managedByCanvas}
             readOnly={managedByCanvas}
             aria-readonly={managedByCanvas || undefined}
-            className={managedByCanvas ? "bg-muted text-muted-foreground" : undefined}
+            className={lockedFieldClass}
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="assignment-class">Course</Label>
-          <Select value={classId} onValueChange={(v) => v && setClassId(v)} disabled={managedByCanvas}>
+          <Select value={classId} onValueChange={(value) => value && setClassId(value)} disabled={managedByCanvas}>
             <SelectTrigger id="assignment-class" className="w-full">
               <SelectValue>
-                {(v: string) => classes.find((c) => c.id === v)?.name ?? "Choose a class"}
+                {(value: string) => classes.find((c) => c.id === value)?.name ?? "Choose a class"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -211,11 +224,11 @@ function AssignmentDialogForm({
               id="assignment-due"
               type="datetime-local"
               value={dueAt}
-              onChange={(e) => setDueAt(e.target.value)}
+              onChange={(event) => setDueAt(event.target.value)}
               required
               readOnly={managedByCanvas}
               aria-readonly={managedByCanvas || undefined}
-              className={managedByCanvas ? "bg-muted text-muted-foreground" : undefined}
+              className={lockedFieldClass}
             />
           </div>
           <div className="space-y-2">
@@ -227,7 +240,7 @@ function AssignmentDialogForm({
               max={1000}
               step={5}
               value={estimatedMinutes}
-              onChange={(e) => setEstimatedMinutes(Number(e.target.value))}
+              onChange={(event) => setEstimatedMinutes(Number(event.target.value))}
               required
               aria-describedby={estimatedByRushd ? "assignment-effort-hint" : undefined}
             />
@@ -244,11 +257,11 @@ function AssignmentDialogForm({
             <Label htmlFor="assignment-priority">Priority</Label>
             <Select
               value={priority}
-              onValueChange={(v) => v && setPriority(v as AssignmentInput["priority"])}
+              onValueChange={(value) => value && setPriority(value as AssignmentInput["priority"])}
             >
               <SelectTrigger id="assignment-priority" className="w-full">
                 <SelectValue>
-                  {(v: AssignmentInput["priority"]) => PRIORITY_LABELS[v]}
+                  {(value: AssignmentInput["priority"]) => PRIORITY_LABELS[value]}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -262,11 +275,11 @@ function AssignmentDialogForm({
             <Label htmlFor="assignment-status">Status</Label>
             <Select
               value={status}
-              onValueChange={(v) => v && setStatus(v as AssignmentInput["status"])}
+              onValueChange={(value) => value && setStatus(value as AssignmentInput["status"])}
             >
               <SelectTrigger id="assignment-status" className="w-full">
                 <SelectValue>
-                  {(v: AssignmentInput["status"]) => STATUS_LABELS[v]}
+                  {(value: AssignmentInput["status"]) => STATUS_LABELS[value]}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -283,7 +296,7 @@ function AssignmentDialogForm({
           <Textarea
             id="assignment-notes"
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(event) => setNotes(event.target.value)}
             maxLength={2000}
             rows={3}
           />
@@ -292,11 +305,7 @@ function AssignmentDialogForm({
 
       <DialogFooter>
         <Button type="submit" disabled={pending || classes.length === 0}>
-          {pending
-            ? "Saving…"
-            : initialData
-              ? "Save changes"
-              : "Add assignment"}
+          {submitLabel(pending, Boolean(initialData))}
         </Button>
       </DialogFooter>
     </form>
