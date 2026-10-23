@@ -24,6 +24,8 @@ import type {
   ScoredItem,
   DayPlan,
   DayStatus,
+  PlanExclusion,
+  WorkItem,
 } from "./types";
 
 /** The calendar day `date` falls on in `timeZone` ("YYYY-MM-DD"). */
@@ -136,6 +138,68 @@ function daysBetween(firstKey: string, lastKey: string): string[] {
 /** Items are tracked by kind + id, because an assignment and an exam could share an id. */
 function itemKey(kind: string, id: string): string {
   return `${kind}:${id}`;
+}
+
+// ---------------------------------------------------------------------------
+// The student's overrides and the course term
+// ---------------------------------------------------------------------------
+
+interface ItemExclusions {
+  skipDates: Set<string>;
+  /** No work before this day ("not this week"). */
+  notBefore: string | null;
+}
+
+function exclusionsByItem(exclusions: PlanExclusion[]): Map<string, ItemExclusions> {
+  const map = new Map<string, ItemExclusions>();
+  for (const exclusion of exclusions) {
+    const key = itemKey(exclusion.kind, exclusion.itemId);
+    let entry = map.get(key);
+    if (!entry) {
+      entry = { skipDates: new Set(), notBefore: null };
+      map.set(key, entry);
+    }
+    if (exclusion.type === "skip") {
+      entry.skipDates.add(exclusion.date);
+    } else if (!entry.notBefore || diffDateKeys(entry.notBefore, exclusion.date) > 0) {
+      entry.notBefore = exclusion.date;
+    }
+  }
+  return map;
+}
+
+/** Days the student's overrides allow. Also reports which kind of override removed any. */
+function applyExclusions(
+  dayKeys: string[],
+  exclusions: ItemExclusions | undefined,
+): { allowed: string[]; removedBy: "skip" | "not_this_week" | undefined } {
+  if (!exclusions) return { allowed: dayKeys, removedBy: undefined };
+  let removedBy: "skip" | "not_this_week" | undefined;
+  const allowed: string[] = [];
+  for (const key of dayKeys) {
+    if (exclusions.notBefore && diffDateKeys(key, exclusions.notBefore) > 0) {
+      removedBy = "not_this_week";
+      continue;
+    }
+    if (exclusions.skipDates.has(key)) {
+      removedBy ??= "skip";
+      continue;
+    }
+    allowed.push(key);
+  }
+  return { allowed, removedBy };
+}
+
+/** Keeps only days inside the course's term (when the student set one). */
+function withinTerm(dayKeys: string[], item: WorkItem): string[] {
+  const start = item.term?.start ?? null;
+  const end = item.term?.end ?? null;
+  if (!start && !end) return dayKeys;
+  return dayKeys.filter((key) => {
+    if (start && diffDateKeys(start, key) < 0) return false;
+    if (end && diffDateKeys(key, end) < 0) return false;
+    return true;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -380,6 +444,7 @@ export function generatePlan(input: PlanInput): PlanResult {
   const deferredMinutesByItem: Record<string, number> = {};
   const warnings: PlanWarning[] = [];
   const shortMinutesByDay = new Map<string, number>();
+  const exclusions = exclusionsByItem(input.exclusions ?? []);
 
   for (const scoredItem of scored) {
     const item = scoredItem.item;
@@ -393,13 +458,26 @@ export function generatePlan(input: PlanInput): PlanResult {
 
     // Overdue work may use any open time (catching up still helps).
     // Other work: not before the lead window, and never after the due day.
-    let dayKeys: string[];
+    let windowKeys: string[];
     if (isOverdue) {
-      dayKeys = daysBetween(todayKey, horizonEndKey);
+      windowKeys = daysBetween(todayKey, horizonEndKey);
     } else {
       const leadStartKey = addDaysToKey(dueKey, -LEAD_WINDOW_DAYS);
-      dayKeys = daysBetween(laterKey(todayKey, leadStartKey), earlierKey(dueKey, horizonEndKey));
+      windowKeys = daysBetween(laterKey(todayKey, leadStartKey), earlierKey(dueKey, horizonEndKey));
     }
+
+    // No work for a course outside its term. If that leaves no day at all,
+    // say so instead of reporting a shortfall the student can't fix here.
+    const termKeys = withinTerm(windowKeys, item);
+    if (windowKeys.length > 0 && termKeys.length === 0) {
+      if (!item.soft) {
+        warnings.push({ type: "OUTSIDE_TERM", itemId: item.id, kind: item.kind, title: item.title, className: item.className });
+      }
+      continue;
+    }
+
+    // The student's "skip today" / "not this week".
+    const { allowed: dayKeys, removedBy: overrideUsed } = applyExclusions(termKeys, exclusions.get(itemKey(item.kind, item.id)));
 
     // Pass 1, spread: at most one block per day, so a big task is paced over
     // several days instead of crammed into one sitting.
@@ -418,7 +496,8 @@ export function generatePlan(input: PlanInput): PlanResult {
     // Pass 2, catch-up: whatever would still miss its deadline is packed
     // into extra blocks wherever there's room. Work due after the horizon
     // isn't packed; it's simply planned later.
-    const deadlineIsInRange = isOverdue || diffDateKeys(dueKey, horizonEndKey) >= 0;
+    // Soft work (reviews) is never packed: if it doesn't fit, it waits.
+    const deadlineIsInRange = !item.soft && (isOverdue || diffDateKeys(dueKey, horizonEndKey) >= 0);
     if (remaining > 0 && deadlineIsInRange) {
       for (const key of dayKeys) {
         const day = days.get(key);
@@ -446,6 +525,7 @@ export function generatePlan(input: PlanInput): PlanResult {
           dueAt: item.dueAt,
           overdue: isOverdue,
           shortMinutes: remaining,
+          ...(overrideUsed ? { override: overrideUsed } : {}),
         });
         // Overdue shortfalls are counted on today; others on their due day.
         const shortDay = isOverdue ? todayKey : dueKey;

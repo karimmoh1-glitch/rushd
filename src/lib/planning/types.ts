@@ -2,13 +2,47 @@ export type PriorityValue = "LOW" | "MEDIUM" | "HIGH";
 
 export type ReasonCode =
   | "OVERDUE"
+  | "REVIEW_DUE"
   | "EXAM_PROXIMITY"
   | "DUE_SOON"
   | "HIGH_PRIORITY"
+  | "HIGH_WEIGHT"
   | "STANDARD";
 
+export type WorkKind = "assignment" | "exam" | "review";
+
+/** How a course's confirmed topics stand, from the mastery estimator. */
+export interface MasterySummary {
+  total: number;
+  secure: number;
+  developing: number;
+  needsReview: number;
+  /** Topics with too little evidence to say (including never practiced). */
+  unknown: number;
+}
+
+/** One topic inside a review block. */
+export interface ReviewTopic {
+  topicId: string;
+  title: string;
+  status: "secure" | "developing" | "needs_review" | "not_enough_evidence";
+  /** Whole days since the last clean recall; null if never recalled cleanly. */
+  daysSinceRecall: number | null;
+  /** Days past its review date (0 when due today). */
+  overdueDays: number;
+  /** The review interval it was on, in days. */
+  intervalDays: number;
+}
+
+/** Why an exam's prep time differs from the student's own number. */
+export interface PrepAdjustment {
+  baseMinutes: number;
+  factor: number;
+  mastery: MasterySummary;
+}
+
 export interface WorkItem {
-  kind: "assignment" | "exam";
+  kind: WorkKind;
   id: string;
   classId: string;
   title: string;
@@ -25,6 +59,25 @@ export interface WorkItem {
   estimateAdjusted: boolean;
   /** Where the work came from. Optional so older callers and tests still work. */
   source?: "MANUAL" | "CANVAS" | "TEAMS" | "CALENDAR";
+
+  // Optional planner inputs. Every one of them is opt-in: when a caller leaves
+  // a field undefined (the public demo tools do), scoring is exactly as before.
+
+  /** Share of the course grade in percent. null = the student doesn't know
+   * (exams then get the default exam weight); undefined = not modeled. */
+  weightPercent?: number | null;
+  /** The course's mastery picture (exams only, when the course has topics). */
+  mastery?: MasterySummary;
+  /** Set when exam prep minutes were scaled by mastery. */
+  prep?: PrepAdjustment;
+  /** Review blocks: the due topics, most urgent first. */
+  review?: { topics: ReviewTopic[]; examDaysAway: number | null };
+  /** Observed pace for this course, when the estimate was adjusted. */
+  estimateNote?: { percentOff: number; sampleSize: number; source: "class" | "overall" };
+  /** The course's term, as local date keys. No work is planned outside it. */
+  term?: { start: string | null; end: string | null };
+  /** Soft work (reviews): no catch-up packing, and no deadline warning when it doesn't fit. */
+  soft?: boolean;
 }
 
 export interface AvailabilityWindow {
@@ -39,6 +92,12 @@ export interface ScoreBreakdown {
   overdue: number;
   examProximity: number;
   effortTiebreak: number;
+  /** Grade weight when known; the default exam weight when it isn't. */
+  assessmentWeight: number;
+  /** Exams: how much of the course's topic map is weak, scaled by closeness. */
+  masteryGap: number;
+  /** Review blocks: how overdue, how weak, and whether an exam is near. */
+  reviewUrgency: number;
 }
 
 export interface ScoredItem {
@@ -82,6 +141,15 @@ export interface ScheduledSession {
   blockId?: string;
 }
 
+/** A student's "not now": keep this item off one day, or before a day. */
+export interface PlanExclusion {
+  kind: WorkKind;
+  itemId: string;
+  /** "skip": not on `date`. "not_this_week": not before `date`. */
+  type: "skip" | "not_this_week";
+  date: string;
+}
+
 export interface PlanInput {
   workItems: WorkItem[];
   availability: AvailabilityWindow[];
@@ -91,6 +159,7 @@ export interface PlanInput {
   timeZone?: string | null;
   preferences?: PlanPreferences;
   pinnedBlocks?: PinnedBlock[];
+  exclusions?: PlanExclusion[];
 }
 
 export type DayStatus = "none" | "open" | "balanced" | "full";
@@ -109,13 +178,23 @@ export type PlanWarning =
   | {
       type: "DEADLINE_SHORTFALL";
       itemId: string;
-      kind: "assignment" | "exam";
+      kind: WorkKind;
       title: string;
       className: string;
       dueAt: Date;
       overdue: boolean;
       /** Minutes of this item that cannot be placed before its deadline. */
       shortMinutes: number;
+      /** Set when the student's own override is what took the time away. */
+      override?: "skip" | "not_this_week";
+    }
+  | {
+      /** The work falls outside its course's term dates, so it isn't planned. */
+      type: "OUTSIDE_TERM";
+      itemId: string;
+      kind: WorkKind;
+      title: string;
+      className: string;
     }
   | {
       type: "OVERLOADED_DAY";
