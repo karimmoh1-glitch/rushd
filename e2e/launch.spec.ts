@@ -43,11 +43,13 @@ test("signed-in student: practice, mastery, tutor preferences, and plan limits",
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Launch Tester");
+  // Onboarding: level, skip courses and work, finish on Today.
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip for now" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByRole("heading", { name: "Your Rushd profile is ready." })).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard/);
   // "Check my work" is offered only when AI is on; the page itself always exists.
   await page.goto("/practice");
   await expect(page.getByRole("heading", { name: "Practice", exact: true })).toBeVisible();
@@ -88,11 +90,13 @@ test("a visitor ranks their week, signs up, and keeps it", async ({ page }) => {
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Try Tester");
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  // The ranked week is already in the "your work" step.
+  await expect(page.getByRole("list", { name: "Work to add" }).getByText("Lab report")).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await page.getByRole("button", { name: "Add the week I ranked" }).click();
 
   // One step: the week is added and the student lands on Today with it ranked.
   await expect(page).toHaveURL(/\/dashboard/);
@@ -115,9 +119,13 @@ test("an invite link credits the inviter when a friend joins", async ({ browser 
     await page.getByRole("checkbox", { name: /13 or older/ }).check();
     await page.getByRole("button", { name: "Create account" }).click();
     await page.getByLabel("What should we call you?").fill("Invite Tester");
-    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
+    // Onboarding: level, skip courses and work, finish on Today.
+    await page.getByRole("radio", { name: "High school", exact: true }).check();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Skip for now" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("button", { name: "Finish setup" }).click();
-    await expect(page.getByRole("heading", { name: "Your Rushd profile is ready." })).toBeVisible();
+    await expect(page).toHaveURL(/\/dashboard/);
   }
   const stamp = Date.now();
   const inviter = await (await browser.newContext()).newPage();
@@ -162,9 +170,13 @@ test("a new student types their week on Today and gets it ranked", async ({ page
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Start Tester");
-  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
+  // Onboarding: level, skip courses and work, finish on Today.
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await page.getByRole("button", { name: "Go to my plan" }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
   await page.getByLabel("Your assignments and tests this week, one per line").fill("Chem: titration lab tomorrow 1h\nSpanish quiz friday");
   await expect(page.getByText("2 items in Chem, Spanish.")).toBeVisible();
   await page.getByRole("button", { name: "Add and rank" }).click();
@@ -201,10 +213,14 @@ test("with AI off, AI features don't look available", async ({ page }) => {
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("No AI");
-  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
+  // Onboarding: level, skip courses and work, finish on Today.
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole("button", { name: "Check my work" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Go to my plan" }).click();
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav.getByRole("link", { name: "Study plan" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Tutor" })).toHaveCount(0);

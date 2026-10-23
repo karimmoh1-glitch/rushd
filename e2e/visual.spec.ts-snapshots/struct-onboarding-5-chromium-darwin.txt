@@ -1,0 +1,49 @@
+body .min-h-full flex flex-col 
+  div . 
+  div .mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-4 py-12 
+    div .space-y-8 
+      div . 
+        div .mb-2 flex items-center justify-between text-sm text-muted-foreground 
+          span . 
+          span . 
+        div .relative flex items-center justify-between 
+          span .absolute inset-x-1.5 top-1/2 h-px -translate-y-1/2 bg-border 
+          span .absolute left-1.5 top-1/2 h-px -translate-y-1/2 bg-foreground transition-[width] duration-500 ease-[var(--ease-settle)] 
+          span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground bg-foreground 
+          span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground bg-foreground 
+          span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground bg-foreground 
+          span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground bg-foreground 
+          span .relative z-10 rounded-full border-2 transition-all duration-300 h-3.5 w-3.5 border-signal bg-signal 
+      div .space-y-4 
+        div .space-y-1.5 
+          h1 .font-display text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem] 
+          p .text-sm text-muted-foreground 
+        div .grid grid-cols-1 gap-2 sm:grid-cols-2 
+          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+            div .font-medium 
+            div .text-muted-foreground 
+          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-primary bg-accent text-accent-foreground aria-pressed=true type=button
+            div .font-medium 
+            div .text-muted-foreground 
+          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+            div .font-medium 
+            div .text-muted-foreground 
+          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+            div .font-medium 
+            div .text-muted-foreground 
+          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+            div .font-medium 
+            div .text-muted-foreground 
+        fieldset .space-y-2 pt-4 
+          legend .text-sm font-medium 
+          p .text-sm text-muted-foreground 
+          div .flex flex-wrap gap-2 pt-1 
+            button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
+            button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
+            button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-primary bg-primary text-primary-foreground aria-pressed=true type=button
+            button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
+      div .flex flex-wrap items-center justify-between gap-2 border-t pt-6 
+        button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+        div .flex items-center gap-2 
+          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-signal text-[oklch(0.2_0.02_70)] shadow-[inset_0_1px_0_0_oklch(1_0_0/0.35),0_1px_2px_0_oklch(0_0_0/0.2)] hover:bg-[color-mix(in_oklch,var(--signal),white_12%)] h-10 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3 type=button
+  section . aria-label=Notifications alt+T

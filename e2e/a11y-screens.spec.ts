@@ -16,26 +16,55 @@ test("main screens have no axe violations in light or dark", async ({ browser })
     await page.getByLabel("Password").fill("password123");
     await page.getByRole("checkbox", { name: /13 or older/ }).check();
     await page.getByRole("button", { name: "Create account" }).click();
+    const results: string[] = [];
+    async function axe(name: string) {
+      const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+      for (const v of r.violations) results.push(`${colorScheme} ${name}: ${v.id} (${v.nodes.length}) ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);
+    }
+    // Every onboarding step, including the course picker with results and chips.
     await page.getByLabel("What should we call you?").fill("Axe");
+    await page.getByRole("radio", { name: "AP", exact: true }).check();
+    await axe("onboarding-level");
+    await page.getByRole("button", { name: "Continue" }).click();
+    const picker = page.getByRole("combobox", { name: "Search courses" });
+    await picker.fill("AP Chemistry");
+    await picker.press("Enter");
+    await picker.fill("calc");
+    await page.waitForTimeout(300);
+    await axe("onboarding-courses");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Add details for AP Chemistry" }).click();
+    await axe("onboarding-details");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByLabel("Assignments and exams, one per line").fill("Chem: lab report tomorrow 2h");
+    await page.getByRole("button", { name: "Add to my list" }).click();
+    await axe("onboarding-work");
+    // Today's own "What's due" box is checked below, so start with nothing due.
+    await page.getByRole("button", { name: "Remove Lab report" }).click();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByText("Weekday evenings").click();
-    await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByPlaceholder("e.g. AP Chemistry").fill("AP Chemistry");
-    await page.getByRole("button", { name: "Continue" }).click();
+    await axe("onboarding-study-time");
     await page.getByRole("button", { name: "Finish setup" }).click();
-    await page.getByRole("heading", { name: "Your Rushd profile is ready." }).waitFor();
-    await page.goto("/dashboard");
+    await page.waitForURL(/dashboard/);
     await page.getByLabel("Your assignments and tests this week, one per line").fill("AP Chemistry: lab report tomorrow 2h\nAP Chemistry quiz in 3 days\nEnglish essay in 5 days 1h");
     await page.getByRole("button", { name: "Add and rank" }).click();
     await expect(page.getByRole("heading", { name: "What's due this week?" })).toBeHidden({ timeout: 15_000 });
     pages.push(["/dashboard", "dashboard"], ["/courses", "courses"], ["/assignments", "assignments"]);
-    const results: string[] = [];
     for (const [path, name] of pages) {
       await page.goto(path);
       await page.waitForTimeout(1200);
       const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
       for (const v of r.violations) results.push(`${colorScheme} ${name}: ${v.id} (${v.nodes.length}) ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);
     }
+    // The multi-course picker in the Courses dialog.
+    await page.goto("/courses");
+    await page.locator("#main-content").getByRole("button", { name: "Add course" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Add several at once" }).click();
+    await page.getByRole("dialog").getByRole("combobox", { name: "Search courses" }).fill("bio");
+    await page.waitForTimeout(400);
+    await axe("courses-multi-picker");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
     await page.goto("/courses");
     await page.getByRole("link", { name: "AP Chemistry" }).first().click();
     await page.waitForTimeout(1500);

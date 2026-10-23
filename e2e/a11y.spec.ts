@@ -37,9 +37,13 @@ test("a11y: signed-in pages", async ({ browser }) => {
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Axe Tester");
-  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
+  // Onboarding: level, skip courses and work, finish on Today.
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByRole("heading", { name: "Your Rushd profile is ready." })).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard/);
   const problems: string[] = [];
   for (const path of ["/dashboard", "/assignments", "/plan", "/settings", "/integrations/canvas", "/integrations/canvas-calendar", "/integrations/teams", "/mastery", "/practice"]) {
     await page.goto(path);

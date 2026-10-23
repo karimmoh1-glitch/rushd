@@ -13,26 +13,27 @@ body .min-h-full flex flex-col
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground bg-foreground 
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground bg-foreground 
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-3.5 w-3.5 border-signal bg-signal 
-      div .space-y-4 
-        h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-        p .text-sm text-muted-foreground 
+          span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground/25 bg-background 
+      div .space-y-6 
+        div .space-y-1.5 
+          h1 .font-display text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem] 
+          p .text-sm text-muted-foreground 
         div .space-y-2 
-          button .w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-          button .w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-          button .w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-          button .w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-          button .w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-      div .flex items-center justify-between border-t pt-6 
+          label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+          textarea .block w-full resize-none rounded-xl border border-border bg-background px-3.5 py-3 font-mono text-[13px] leading-[1.7] outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 placeholder=Chem: lab report Thursday #h
+Calc quiz Friday
+English essay draft Monday #h
+          div .flex flex-wrap items-center justify-between gap-2 
+            p .text-xs text-muted-foreground 
+            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+        label .flex items-start gap-2.5 rounded-xl border border-border p-3.5 text-sm 
+          input .mt-0.5 h-4 w-4 shrink-0 accent-[var(--signal)] type=checkbox
+          span . 
+            span .font-medium 
+            span .block text-muted-foreground 
+      div .flex flex-wrap items-center justify-between gap-2 border-t pt-6 
         button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
-        button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+        div .flex items-center gap-2 
+          button .group/button shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 hidden sm:inline-flex type=button
+          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-10 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3 type=button
   section . aria-label=Notifications alt+T

@@ -25,28 +25,28 @@ test("golden path: landing through completing a plan item", async ({ page }) => 
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
 
-  // Onboarding — step 1: basics.
+  // Onboarding — step 1: name and level.
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByLabel("What should we call you?").fill("Playwright Student");
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
   await page.getByRole("button", { name: "Continue" }).click();
 
-  // Step 2: study availability. Select both weekday and weekend presets so
+  // Step 2: courses (a custom one, added with Enter).
+  await expect(page.getByText("Add your courses")).toBeVisible();
+  await page.getByPlaceholder("e.g. AP Chemistry").fill("Playwright Chemistry");
+  await page.getByPlaceholder("e.g. AP Chemistry").press("Enter");
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  // Steps 3 and 4: details and work are optional — skip them.
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  // Step 5: study availability. Select both weekday and weekend presets so
   // this test isn't flaky depending on which day of the week it runs.
   await expect(page.getByText("When can you usually study?")).toBeVisible();
   await page.getByText("Weekday afternoons").click();
   await page.getByText("Weekend afternoons").click();
-  await page.getByRole("button", { name: "Continue" }).click();
-
-  // Step 3: courses.
-  await expect(page.getByText("Add your courses")).toBeVisible();
-  await page.getByPlaceholder("e.g. AP Chemistry").fill("Playwright Chemistry");
-  await page.getByRole("button", { name: "Continue" }).click();
-
-  // Step 4: biggest challenge (optional — skip it).
-  await expect(page.getByText("What's your biggest academic challenge?")).toBeVisible();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
-  await page.getByRole("button", { name: "Go to my plan" }).click();
 
   // Dashboard.
   await expect(page).toHaveURL(/\/dashboard/);
@@ -114,18 +114,16 @@ test("study session: start, persists across navigation, completes with an edited
 
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByLabel("What should we call you?").fill("Session Tester");
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByPlaceholder("e.g. AP Chemistry").fill("Session Test Class");
+  await page.getByPlaceholder("e.g. AP Chemistry").press("Enter");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByText("Weekday afternoons").click();
   await page.getByText("Weekend afternoons").click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByPlaceholder("e.g. AP Chemistry").fill("Session Test Class");
-  await page.getByRole("button", { name: "Continue" }).click();
-
-  // Step 4: biggest challenge (optional — skip it).
-  await expect(page.getByText("What's your biggest academic challenge?")).toBeVisible();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
-  await page.getByRole("button", { name: "Go to my plan" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
 
   // Create an assignment, then start a session on it from the Assignments
@@ -196,18 +194,17 @@ test("study session: abandon with an optional reason", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByLabel("What should we call you?").fill("Abandon Tester");
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByPlaceholder("e.g. AP Chemistry").fill("Abandon Test Class");
+  await page.getByPlaceholder("e.g. AP Chemistry").press("Enter");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByText("Weekday afternoons").click();
   await page.getByText("Weekend afternoons").click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByPlaceholder("e.g. AP Chemistry").fill("Abandon Test Class");
-  await page.getByRole("button", { name: "Continue" }).click();
-
-  // Step 4: biggest challenge (optional — skip it).
-  await expect(page.getByText("What's your biggest academic challenge?")).toBeVisible();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
-  await page.getByRole("button", { name: "Go to my plan" }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
 
   await page.getByRole("link", { name: "Assignments", exact: true }).click();
   await page.getByRole("link", { name: "Exams", exact: true }).click();
@@ -248,16 +245,16 @@ test("onboarding offers Canvas, rejects an unsafe address, and can be skipped", 
 
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByLabel("What should we call you?").fill("Canvas Tester");
+  await page.getByRole("radio", { name: "Undergraduate", exact: true }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  // The work step offers Canvas.
+  await page.getByRole("checkbox", { name: /My school uses Canvas/ }).check();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByText("Weekday evenings").click();
   await page.getByRole("button", { name: "45 min" }).click();
   await expect(page.getByRole("button", { name: "45 min" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
-
-  await page.getByRole("button", { name: "Connect Canvas" }).click();
   await expect(page).toHaveURL(/\/integrations\/canvas\?from=onboarding/);
   await expect(page.getByRole("heading", { name: "Canvas", exact: true })).toBeVisible();
 
