@@ -22,18 +22,25 @@ import { cn } from "@/lib/utils";
 import { BlockDialog } from "./block-dialog";
 import type { AgendaBlock, AgendaDay, DayOption } from "./types";
 
+/** A thin bar showing how full the day is; it turns amber at 90%. */
 function DayMeter({ planned, available }: { planned: number; available: number }) {
   const total = Math.max(planned, available);
   if (total === 0) return null;
-  const pct = Math.min(100, Math.round((planned / total) * 100));
+  const percent = Math.min(100, Math.round((planned / total) * 100));
   return (
     <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
       <div
-        className={cn("h-full rounded-full", pct >= 90 ? "bg-warning" : "bg-brand")}
-        style={{ width: `${pct}%` }}
+        className={cn("h-full rounded-full", percent >= 90 ? "bg-warning" : "bg-brand")}
+        style={{ width: `${percent}%` }}
       />
     </div>
   );
+}
+
+function emptyDayMessage(day: AgendaDay): string {
+  if (day.availableMinutes > 0) return "Open. Nothing needs this time yet.";
+  if (day.isToday) return "No study time left today.";
+  return "No study time set for this day.";
 }
 
 function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOption[] }) {
@@ -43,30 +50,40 @@ function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOp
 
   function lock() {
     startTransition(async () => {
-      const r = await pinBlock({
+      const result = await pinBlock({
         kind: block.kind,
         itemId: block.itemId,
         date: block.date,
         startMinute: block.startMinute,
         durationMinutes: Math.max(15, block.minutes),
       });
-      if ("error" in r) toast.error(r.error);
-      else toast.success("Locked. This block stays put when your plan changes.");
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Locked. This block stays put when your plan changes.");
+      }
     });
   }
+
   function unlock() {
-    if (!block.blockId) return;
+    const blockId = block.blockId;
+    if (!blockId) return;
     startTransition(async () => {
-      const r = await unpinBlock(block.blockId!);
-      if ("error" in r) toast.error(r.error);
-      else toast.success("Unlocked. Rushd will place this automatically again.");
+      const result = await unpinBlock(blockId);
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Unlocked. Rushd will place this automatically again.");
+      }
     });
   }
+
   function complete() {
     startTransition(async () => {
-      const r = await setAssignmentStatus(block.itemId, "COMPLETED");
-      if ("error" in r) toast.error(r.error);
-      else {
+      const result = await setAssignmentStatus(block.itemId, "COMPLETED");
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
         setDone(true);
         toast.success("Done. Your plan just got lighter.");
       }
@@ -109,9 +126,9 @@ function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOp
           <PopoverContent className="w-64">
             <p className="text-xs font-medium text-muted-foreground">{REASON_LABELS[block.reasonCode]}</p>
             <ul className="mt-2 space-y-1">
-              {block.reasons.map((r) => (
-                <li key={r} className="text-sm">
-                  {r}
+              {block.reasons.map((reason) => (
+                <li key={reason} className="text-sm">
+                  {reason}
                 </li>
               ))}
               {block.pinned && <li className="text-sm">You placed this block yourself.</li>}
@@ -156,15 +173,16 @@ function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOp
 }
 
 export function ScheduleAgenda({ days, dayOptions }: { days: AgendaDay[]; dayOptions: DayOption[] }) {
-  const reduce = useReducedMotion();
+  const reduceMotion = useReducedMotion();
   return (
     <ol className="space-y-6">
-      {days.map((day, i) => (
+      {days.map((day, index) => (
         <motion.li
           key={day.date}
-          initial={reduce ? false : { opacity: 0, y: 10 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: reduce ? 0 : Math.min(i, 6) * 0.04, ease: [0.16, 1, 0.3, 1] }}
+          // Days fade in one after another (capped so later days don't wait long).
+          transition={{ duration: 0.4, delay: reduceMotion ? 0 : Math.min(index, 6) * 0.04, ease: [0.16, 1, 0.3, 1] }}
           className="grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6"
           aria-label={`${day.label}, ${day.dateLabel}`}
         >
@@ -173,19 +191,19 @@ export function ScheduleAgenda({ days, dayOptions }: { days: AgendaDay[]; dayOpt
               <p className={cn("font-semibold", day.isToday && "text-brand-ink")}>{day.label}</p>
               <p className="text-xs text-muted-foreground">{day.dateLabel}</p>
             </div>
-            {day.availableMinutes > 0 || day.plannedMinutes > 0 ? (
+            {(day.availableMinutes > 0 || day.plannedMinutes > 0) && (
               <>
                 <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
                   {formatDuration(day.plannedMinutes)} / {formatDuration(Math.max(day.availableMinutes, day.plannedMinutes))}
                 </p>
                 <DayMeter planned={day.plannedMinutes} available={day.availableMinutes} />
               </>
-            ) : null}
+            )}
           </div>
           {day.blocks.length > 0 ? (
             <ul className="space-y-2">
-              {day.blocks.map((b) => (
-                <BlockRow key={b.key} block={b} dayOptions={dayOptions} />
+              {day.blocks.map((block) => (
+                <BlockRow key={block.key} block={block} dayOptions={dayOptions} />
               ))}
             </ul>
           ) : (
@@ -195,11 +213,7 @@ export function ScheduleAgenda({ days, dayOptions }: { days: AgendaDay[]; dayOpt
                 day.availableMinutes > 0 && "rounded-lg border border-dashed border-border px-4 py-3 md:pt-3",
               )}
             >
-              {day.availableMinutes > 0
-                ? "Open. Nothing needs this time yet."
-                : day.isToday
-                  ? "No study time left today."
-                  : "No study time set for this day."}
+              {emptyDayMessage(day)}
             </p>
           )}
         </motion.li>

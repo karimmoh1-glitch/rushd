@@ -19,7 +19,7 @@ const RISK_CLASS: Record<WeekForecast["risk"], string> = {
 };
 
 export function ForecastSection({ weeks }: { weeks: WeekForecast[] }) {
-  const overloaded = weeks.find((w) => w.risk === "high");
+  const overloaded = weeks.find((week) => week.risk === "high");
 
   return (
     <section>

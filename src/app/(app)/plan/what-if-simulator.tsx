@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/lib/format";
 import { logWhatIfSimulatorUsed } from "@/server/actions/feature-events";
 import { HelpfulWidget } from "@/components/helpful-widget";
-// Imports directly from ./forecast rather than the @/lib/planning barrel —
-// that barrel also re-exports build-work-items.ts, which pulls in
-// "server-only" and would poison this client component's bundle.
+// Import from ./forecast directly: the @/lib/planning barrel pulls in
+// server-only code that can't go into a client bundle.
 import { riskFor, type RiskLevel } from "@/lib/planning/forecast";
 
 const RISK_LABEL: Record<RiskLevel, string> = {
@@ -25,13 +24,8 @@ const RISK_TONE: Record<RiskLevel, string> = {
   unknown: "text-muted-foreground",
 };
 
-/**
- * A real simulation, not a guess: re-runs the exact same estimated/available
- * comparison the Forecast section uses (src/lib/planning/forecast.ts's
- * riskFor), just with today's planned minutes subtracted from this week's
- * available time — the honest arithmetic consequence of not studying today.
- * Pure client-side math on server-computed numbers; no extra request, no AI.
- */
+/** Re-runs the Forecast's risk check (riskFor) with today's planned minutes taken
+ * out of this week's available time. Plain math in the browser; no request, no AI. */
 export function WhatIfSimulator({
   todayMinutes,
   thisWeekEstimated,
@@ -48,9 +42,15 @@ export function WhatIfSimulator({
   const currentRisk = riskFor(thisWeekEstimated, thisWeekAvailable);
   const simulatedAvailable = Math.max(0, thisWeekAvailable - todayMinutes);
   const simulatedRisk = riskFor(thisWeekEstimated, simulatedAvailable);
-  const riskWorsens =
-    (currentRisk === "low" && simulatedRisk !== "low") ||
-    (currentRisk === "medium" && simulatedRisk === "high");
+  let riskWorsens = false;
+  if (currentRisk === "low" && simulatedRisk !== "low") riskWorsens = true;
+  if (currentRisk === "medium" && simulatedRisk === "high") riskWorsens = true;
+
+  function toggle() {
+    // Count the feature as used the first time it's opened.
+    if (!shown) void logWhatIfSimulatorUsed();
+    setShown((isShown) => !isShown);
+  }
 
   return (
     <div className="rounded-lg border border-border p-4">
@@ -59,14 +59,7 @@ export function WhatIfSimulator({
           <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
           What if I skip today?
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            if (!shown) void logWhatIfSimulatorUsed();
-            setShown((s) => !s);
-          }}
-        >
+        <Button variant="outline" size="sm" onClick={toggle}>
           {shown ? "Hide" : "See what happens"}
         </Button>
       </div>

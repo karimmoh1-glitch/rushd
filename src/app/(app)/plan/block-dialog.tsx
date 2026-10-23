@@ -25,9 +25,20 @@ function toTimeValue(minute: number): string {
 }
 
 function fromTimeValue(value: string): number | null {
-  const m = value.match(/^(\d{2}):(\d{2})$/);
-  if (!m) return null;
-  return Number(m[1]) * 60 + Number(m[2]);
+  const match = value.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+/** The length option nearest to the block's current length (the first one wins a tie). */
+function closestDuration(minutes: number): number {
+  let closest = DURATIONS[0];
+  for (const option of DURATIONS) {
+    if (Math.abs(option - minutes) < Math.abs(closest - minutes)) {
+      closest = option;
+    }
+  }
+  return closest;
 }
 
 /** Move and/or resize a block. Saving pins it: the planner will keep it
@@ -45,14 +56,12 @@ export function BlockDialog({
 }) {
   const [date, setDate] = useState(block.date);
   const [time, setTime] = useState(toTimeValue(block.startMinute));
-  const [duration, setDuration] = useState(
-    DURATIONS.includes(block.minutes) ? block.minutes : DURATIONS.reduce((a, b) => (Math.abs(b - block.minutes) < Math.abs(a - block.minutes) ? b : a)),
-  );
+  const [duration, setDuration] = useState(closestDuration(block.minutes));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSave(event: React.FormEvent) {
+    event.preventDefault();
     const startMinute = fromTimeValue(time);
     if (startMinute === null) {
       setError("Choose a start time.");
@@ -60,7 +69,7 @@ export function BlockDialog({
     }
     setError(null);
     startTransition(async () => {
-      const r = await pinBlock({
+      const result = await pinBlock({
         kind: block.kind,
         itemId: block.itemId,
         date,
@@ -68,8 +77,8 @@ export function BlockDialog({
         durationMinutes: duration,
         blockId: block.pinned ? block.blockId : undefined,
       });
-      if ("error" in r) {
-        setError(r.error);
+      if ("error" in result) {
+        setError(result.error);
         return;
       }
       toast.success("Block placed. Rushd will plan around it.");
@@ -91,14 +100,14 @@ export function BlockDialog({
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="col-span-2 space-y-2">
               <Label htmlFor="block-day">Day</Label>
-              <Select value={date} onValueChange={(v) => v && setDate(v)}>
+              <Select value={date} onValueChange={(value) => value && setDate(value)}>
                 <SelectTrigger id="block-day" className="w-full">
-                  <SelectValue>{(v: string) => dayOptions.find((d) => d.date === v)?.label ?? v}</SelectValue>
+                  <SelectValue>{(value: string) => dayOptions.find((option) => option.date === value)?.label ?? value}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {dayOptions.map((d) => (
-                    <SelectItem key={d.date} value={d.date}>
-                      {d.label}
+                  {dayOptions.map((option) => (
+                    <SelectItem key={option.date} value={option.date}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -106,18 +115,18 @@ export function BlockDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="block-time">Starts</Label>
-              <Input id="block-time" type="time" step={300} value={time} onChange={(e) => setTime(e.target.value)} className="w-full" required />
+              <Input id="block-time" type="time" step={300} value={time} onChange={(event) => setTime(event.target.value)} className="w-full" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="block-length">Length</Label>
-              <Select value={String(duration)} onValueChange={(v) => v && setDuration(Number(v))}>
+              <Select value={String(duration)} onValueChange={(value) => value && setDuration(Number(value))}>
                 <SelectTrigger id="block-length" className="w-full">
-                  <SelectValue>{(v: string) => formatDuration(Number(v))}</SelectValue>
+                  <SelectValue>{(value: string) => formatDuration(Number(value))}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {DURATIONS.map((d) => (
-                    <SelectItem key={d} value={String(d)}>
-                      {formatDuration(d)}
+                  {DURATIONS.map((minutes) => (
+                    <SelectItem key={minutes} value={String(minutes)}>
+                      {formatDuration(minutes)}
                     </SelectItem>
                   ))}
                 </SelectContent>
