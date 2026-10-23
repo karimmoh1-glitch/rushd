@@ -19,10 +19,9 @@ export interface PlanningContext extends PlanInput {
 export type UserPlan = PlanResult & { timeZone: string };
 
 /**
- * Everything the deterministic engine needs for one student, read from the
- * database: open assignments (excluding archived classes and work Canvas no
- * longer lists), upcoming exams, weekly availability, scheduling
- * preferences, the student's timezone, and any blocks they pinned by hand.
+ * Reads everything the planner needs for one student: open assignments (not
+ * in archived classes, not removed from Canvas), upcoming exams, weekly
+ * availability, preferences, timezone, and pinned blocks.
  */
 export async function loadPlanningContext(
   userId: string,
@@ -85,18 +84,38 @@ export async function loadPlanningContext(
       durationMinutes: true,
     },
   });
-  const pinnedBlocks: PinnedBlock[] = blocks.flatMap((b) => {
-    const kind = b.assignmentId ? "assignment" : b.examId ? "exam" : null;
-    const itemId = b.assignmentId ?? b.examId;
-    return kind && itemId
-      ? [{ id: b.id, kind, itemId, date: b.localDate, startMinute: b.startMinute, durationMinutes: b.durationMinutes }]
-      : [];
-  });
+  const pinnedBlocks: PinnedBlock[] = [];
+  for (const block of blocks) {
+    let kind: PinnedBlock["kind"];
+    let itemId: string;
+    if (block.assignmentId) {
+      kind = "assignment";
+      itemId = block.assignmentId;
+    } else if (block.examId) {
+      kind = "exam";
+      itemId = block.examId;
+    } else {
+      continue; // The block isn't linked to any work.
+    }
+    pinnedBlocks.push({
+      id: block.id,
+      kind,
+      itemId,
+      date: block.localDate,
+      startMinute: block.startMinute,
+      durationMinutes: block.durationMinutes,
+    });
+  }
 
   const workItems = buildWorkItems(assignments, exams, estimationProfile);
-  const sourceById = new Map(assignments.map((a) => [a.id, a.source]));
+  const sourceByAssignmentId = new Map<string, (typeof assignments)[number]["source"]>();
+  for (const assignment of assignments) {
+    sourceByAssignmentId.set(assignment.id, assignment.source);
+  }
   for (const item of workItems) {
-    if (item.kind === "assignment") item.source = sourceById.get(item.id);
+    if (item.kind === "assignment") {
+      item.source = sourceByAssignmentId.get(item.id);
+    }
   }
 
   return {
@@ -115,10 +134,8 @@ export async function loadPlanningContext(
 }
 
 /**
- * The single source of truth for "what does this user's plan look like right
- * now" — used live by the dashboard and plan page, and by the plan-snapshot
- * persistence (src/server/actions/plans.ts). Returns the student's timezone
- * alongside the plan so pages render days/times in it.
+ * The one place that answers "what does this student's plan look like now".
+ * Also returns their timezone so pages show days and times in it.
  */
 export async function generatePlanForUser(
   userId: string,
