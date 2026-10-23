@@ -4,11 +4,15 @@ import { Fragment, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowUp, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ArrowUp, ExternalLink, FileText, Plus, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { deleteAllTutorConversations, deleteTutorConversation } from "@/server/actions/course";
 import { stripMarkers } from "@/lib/tutor/citations";
+import { contextChips } from "@/lib/tutor/context";
+import type { TutorCard } from "@/lib/tutor/cards";
+import { TutorCards } from "./tutor-cards";
+import { TutorFallback, type FallbackData } from "./tutor-fallback";
 import { cn } from "@/lib/utils";
 import { PathLoader } from "@/components/brand/path-loader";
 
@@ -24,6 +28,7 @@ export interface ConversationSummary {
 interface Source {
   n: number;
   id: string;
+  classId?: string | null;
   title: string;
   kind: string;
   className: string;
@@ -35,6 +40,21 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources: Source[];
+  cards: TutorCard[];
+}
+
+export interface CourseSummary {
+  classId: string;
+  levelLabel: string | null;
+  topicCount: number;
+  syllabusUploaded: boolean;
+  materialCount: number;
+}
+
+export interface FocusPrefill {
+  focusTopicId: string | null;
+  focusQuestionId: string | null;
+  label: string | null;
 }
 
 type Mode = "explain" | "quiz" | "plan";
@@ -138,6 +158,12 @@ function Sources({ sources }: { sources: Source[] }) {
           <span className="font-mono">[{source.n}]</span>
           <span className="text-foreground">{source.title}</span>
           <span>· {KIND_LABEL[source.kind] ?? source.kind} · {source.className}</span>
+          {source.classId && (
+            <Link href={`/courses/${source.classId}/material/${source.id}`} className="inline-flex min-h-6 items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
+              <FileText className="h-3 w-3" aria-hidden="true" />
+              Open
+            </Link>
+          )}
           {source.url && (
             <a href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
               Canvas <ExternalLink className="h-3 w-3" aria-label="(opens in a new tab)" />
@@ -161,6 +187,11 @@ const GENERAL_SUGGESTIONS = [
   "Quiz me on this week's material.",
   "What's due soon, and what should I start first?",
 ];
+const COURSE_SUGGESTIONS = [
+  "Which topic should I work on first, and why?",
+  "Ask me a question from my practice bank on my weakest topic.",
+  "Make a revision plan for my next exam.",
+];
 
 /** A saved conversation keeps its mode; a new one about an assignment starts in "Plan it". */
 function startingMode(
@@ -172,7 +203,15 @@ function startingMode(
   return "explain";
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({
+  message,
+  conversationId,
+  answeredChecks,
+}: {
+  message: ChatMessage;
+  conversationId: string | null;
+  answeredChecks: Set<string>;
+}) {
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-lg bg-muted px-4 py-2.5 text-[15px]">
@@ -183,6 +222,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   return (
     <div className="max-w-prose">
       <RichText text={message.content} sources={message.sources} />
+      <TutorCards cards={message.cards} conversationId={conversationId} messageId={message.id} answeredChecks={answeredChecks} />
       <Sources sources={message.sources} />
     </div>
   );
@@ -197,8 +237,17 @@ export function TutorWorkspace({
   assignments,
   prefill,
   initialDraft = "",
+  summaries,
+  fallback,
+  focus,
+  activeFocusLabel,
 }: {
   initialDraft?: string;
+  summaries: CourseSummary[];
+  fallback: FallbackData;
+  focus: FocusPrefill;
+  /** For a saved conversation that was opened about a topic or mistake. */
+  activeFocusLabel: string | null;
   enabled: boolean;
   conversations: ConversationSummary[];
   active: ConversationSummary | null;
@@ -216,6 +265,9 @@ export function TutorWorkspace({
   const [draft, setDraft] = useState(initialDraft);
   const [streaming, setStreaming] = useState<{ text: string; status: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showFallback, setShowFallback] = useState(false);
+  // The topic or mistake the student came from; dropped if they pick another course.
+  const [focusState, setFocusState] = useState<FocusPrefill>(focus);
   const [deleting, startDelete] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
   // The course and assignment are fixed once a conversation starts.
@@ -230,9 +282,10 @@ export function TutorWorkspace({
     const text = draft.trim();
     if (!text || streaming) return;
     setError(null);
+    setShowFallback(false);
     setDraft("");
     // Show the student's message right away; it is removed again if sending fails.
-    const optimistic: ChatMessage = { id: `local-${Date.now()}`, role: "user", content: text, sources: [] };
+    const optimistic: ChatMessage = { id: `local-${Date.now()}`, role: "user", content: text, sources: [], cards: [] };
     setMessages((current) => [...current, optimistic]);
     setStreaming({ text: "", status: "Thinking…" });
     scrollToEnd();
@@ -241,10 +294,19 @@ export function TutorWorkspace({
       const response = await fetch("/api/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, message: text, classId, assignmentId, mode }),
+        body: JSON.stringify({
+          conversationId,
+          message: text,
+          classId,
+          assignmentId,
+          mode,
+          focusTopicId: conversationId ? null : focusState.focusTopicId,
+          focusQuestionId: conversationId ? null : focusState.focusQuestionId,
+        }),
       });
       if (!response.ok || !response.body) {
         const body = await response.json().catch(() => ({}));
+        if (body.fallback) setShowFallback(true);
         throw new Error(body.error ?? "The tutor couldn't answer right now.");
       }
 
@@ -280,10 +342,12 @@ export function TutorWorkspace({
               role: "assistant",
               content: streamEvent.message.content,
               sources: streamEvent.message.sources,
+              cards: streamEvent.message.cards ?? [],
             };
             setMessages((current) => [...current, reply]);
             finished = true;
           } else if (streamEvent.type === "error") {
+            if (streamEvent.fallback) setShowFallback(true);
             throw new Error(streamEvent.error);
           }
         }
@@ -328,6 +392,7 @@ export function TutorWorkspace({
   function handleClassChange(event: React.ChangeEvent<HTMLSelectElement>) {
     setClassId(event.target.value || null);
     setAssignmentId(null);
+    setFocusState({ focusTopicId: null, focusQuestionId: null, label: null });
   }
 
   // Picking an assignment also picks its course.
@@ -349,7 +414,22 @@ export function TutorWorkspace({
   const classAssignments = assignments.filter((assignment) => !classId || assignment.classId === classId);
   const activeClass = classes.find((c) => c.id === classId);
   const activeAssignment = assignments.find((assignment) => assignment.id === assignmentId);
-  const suggestions = activeAssignment ? assignmentSuggestions(activeAssignment.title) : GENERAL_SUGGESTIONS;
+  let suggestions = GENERAL_SUGGESTIONS;
+  if (activeAssignment) suggestions = assignmentSuggestions(activeAssignment.title);
+  else if (activeClass) suggestions = COURSE_SUGGESTIONS;
+  const summary = summaries.find((s) => s.classId === classId);
+  const chips = contextChips({
+    courseName: activeClass?.name ?? null,
+    levelLabel: summary?.levelLabel ?? null,
+    topicCount: summary?.topicCount ?? 0,
+    syllabusUploaded: summary?.syllabusUploaded ?? false,
+    materialCount: summary?.materialCount ?? 0,
+    focusLabel: locked ? activeFocusLabel : focusState.label,
+  });
+  const answeredChecks = new Set<string>();
+  for (const message of messages) {
+    for (const card of message.cards) if (card.type === "graded") answeredChecks.add(card.checkId);
+  }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[15rem_1fr]">
@@ -396,26 +476,28 @@ export function TutorWorkspace({
       <section className="flex min-h-[70vh] flex-col" aria-label="Tutor conversation">
         <header className="space-y-3 border-b border-border pb-4">
           <div>
-            <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Tutor</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Grounded in your synced Canvas courses, with sources. It explains and gives feedback; it won&apos;t do graded
-              work for you, and it can&apos;t change anything in Canvas.
+            <h1 className="font-display text-[1.75rem] leading-tight tracking-tight">Tutor</h1>
+            <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+              Knows the course you pick: your topics, practice results, mistakes, exams and synced materials, and says
+              when something isn&apos;t on file. It explains, asks, and gives hints first; it won&apos;t do graded work for
+              you.
             </p>
           </div>
           {locked ? (
-            <p className="text-sm">
-              <span className="text-muted-foreground">About: </span>
-              {activeClass?.name ?? "All courses"}
-              {activeAssignment && ` · ${activeAssignment.title}`}
-            </p>
+            activeAssignment ? (
+              <p className="text-sm">
+                <span className="text-muted-foreground">About: </span>
+                {activeAssignment.title}
+              </p>
+            ) : null
           ) : (
-            <div className="flex flex-wrap gap-3">
-              <label className="space-y-1 text-xs text-muted-foreground">
+            <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
+              <label className="min-w-0 space-y-1 text-xs text-muted-foreground">
                 Course
                 <select
                   value={classId ?? ""}
                   onChange={handleClassChange}
-                  className="block h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                  className="block h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground sm:w-auto sm:max-w-64"
                 >
                   <option value="">All courses</option>
                   {classes.map((c) => (
@@ -423,22 +505,38 @@ export function TutorWorkspace({
                   ))}
                 </select>
               </label>
-              <label className="space-y-1 text-xs text-muted-foreground">
+              {enabled && <label className="min-w-0 space-y-1 text-xs text-muted-foreground">
                 Assignment
                 <select
                   value={assignmentId ?? ""}
                   onChange={handleAssignmentChange}
-                  className="block h-9 max-w-64 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                  className="block h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground sm:w-auto sm:max-w-64"
                 >
                   <option value="">None</option>
                   {classAssignments.map((assignment) => (
                     <option key={assignment.id} value={assignment.id}>{assignment.title}</option>
                   ))}
                 </select>
-              </label>
+              </label>}
             </div>
           )}
-          <fieldset className="flex flex-wrap gap-1.5">
+          <p className="flex flex-wrap items-center gap-1.5 text-xs" aria-label={`Using: ${chips.join(", ")}`}>
+            <span className="text-muted-foreground" aria-hidden="true">Using</span>
+            {chips.map((chip, i) => (
+              <span
+                key={chip}
+                aria-hidden="true"
+                className={cn(
+                  "inline-flex h-6 items-center rounded-full px-2.5 ring-1 ring-inset",
+                  i === 0 ? "bg-foreground/[0.06] font-medium text-foreground ring-foreground/15" : "text-muted-foreground ring-border",
+                  /not uploaded|no topics|no course/.test(chip) && "border border-dashed border-border-strong ring-0",
+                )}
+              >
+                {chip}
+              </span>
+            ))}
+          </p>
+          {enabled && <fieldset className="flex flex-wrap gap-1.5">
             <legend className="sr-only">Mode</legend>
             {MODES.map((option) => (
               <button
@@ -448,14 +546,14 @@ export function TutorWorkspace({
                 title={option.hint}
                 onClick={() => setMode(option.id)}
                 className={cn(
-                  "rounded-md border px-3 py-1.5 text-sm transition-colors",
+                  "min-h-9 rounded-md border px-3 py-1.5 text-sm transition-colors",
                   mode === option.id ? "border-foreground/30 bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground",
                 )}
               >
                 {option.label}
               </button>
             ))}
-          </fieldset>
+          </fieldset>}
         </header>
 
         <div className="flex-1 space-y-6 py-6" aria-live="polite">
@@ -473,8 +571,16 @@ export function TutorWorkspace({
               </ul>
             </div>
           )}
+          {!enabled && (
+            <TutorFallback
+              data={fallback}
+              classId={classId}
+              title="The tutor isn't available right now"
+              reason="AI tutoring is switched off on this server. Everything below works without it, from your own topics, questions and answers."
+            />
+          )}
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble key={message.id} message={message} conversationId={conversationId} answeredChecks={answeredChecks} />
           ))}
           {streaming && (
             <div className="max-w-prose">
@@ -495,6 +601,17 @@ export function TutorWorkspace({
             {error}
           </p>
         )}
+        {error && showFallback && (
+          <div className="mb-3">
+            <TutorFallback
+              compact
+              data={fallback}
+              classId={classId}
+              title="Meanwhile, without the tutor"
+              reason="These work without AI, from your own topics, questions and answers."
+            />
+          </div>
+        )}
         {enabled ? (
           <form onSubmit={send} className="sticky bottom-20 flex items-end gap-2 rounded-xl border border-border bg-background p-2 md:bottom-4">
             <label htmlFor="tutor-input" className="sr-only">Message the tutor</label>
@@ -512,12 +629,7 @@ export function TutorWorkspace({
               <ArrowUp className="h-4 w-4" aria-hidden="true" />
             </Button>
           </form>
-        ) : (
-          <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-            The tutor isn&apos;t available on this server yet. Your synced course content is still browsable from each
-            course page.
-          </p>
-        )}
+        ) : null}
       </section>
     </div>
   );

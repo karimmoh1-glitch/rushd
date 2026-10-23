@@ -145,6 +145,10 @@ test("design tour", async ({ browser }) => {
   await shoot(page, "d-course-topics");
   await page.goto(calcUrl);
   await shoot(page, "d-course-page-learning");
+  // The tutor opened about one course: context chips and, with AI off, the no-AI path.
+  const calcTutor = `/tutor?classId=${new URL(calcUrl).pathname.split("/").pop()}`;
+  await page.goto(calcTutor);
+  await shoot(page, "d-tutor-course");
 
   for (const [path, name] of [
     ["/assignments", "d-assignments"],
@@ -187,6 +191,7 @@ test("design tour", async ({ browser }) => {
     [`${calcUrl}/topics`, "m-course-topics"],
     [`${calcUrl}/practice`, "m-course-practice"],
     [`${calcUrl}/mistakes`, "m-course-mistakes"],
+    [calcTutor, "m-tutor-course"],
     ["/mastery", "m-mastery"],
   ] as const) {
     await page.goto(path);

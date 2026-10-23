@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Link2, Pencil, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowDown, ArrowUp, Link2, MessageCircleQuestion, Pencil, Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -254,12 +255,14 @@ function TopicItem({
   isFirst,
   isLast,
   onEdit,
+  tutorEnabled,
 }: {
   courseId: string;
   topic: TopicRow;
   isFirst: boolean;
   isLast: boolean;
   onEdit: () => void;
+  tutorEnabled: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -306,14 +309,34 @@ function TopicItem({
           </Button>
         </div>
       </div>
-      <div className="mt-2">
+      <div className="mt-2 flex flex-wrap items-center gap-1">
         <StartPracticeButton classId={courseId} topicId={topic.id} label="Practice" size="sm" variant="ghost" className="-ml-2.5" />
+        {tutorEnabled && (
+          <Link
+            href={`/tutor?topic=${topic.id}`}
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "min-h-9 sm:min-h-0")}
+            aria-label={`Ask the tutor about ${topic.title}`}
+          >
+            <MessageCircleQuestion aria-hidden="true" />
+            Ask the tutor
+          </Link>
+        )}
       </div>
     </li>
   );
 }
 
-export function TopicsEditor({ courseId, topics, proposed }: { courseId: string; topics: TopicRow[]; proposed: TopicRow[] }) {
+export function TopicsEditor({
+  courseId,
+  topics,
+  proposed,
+  tutorEnabled = false,
+}: {
+  courseId: string;
+  topics: TopicRow[];
+  proposed: TopicRow[];
+  tutorEnabled?: boolean;
+}) {
   const [editing, setEditing] = useState<TopicRow | null>(null);
   const roots = topics.filter((t) => !t.parentId);
   function siblingsOf(topic: TopicRow) {
@@ -350,6 +373,7 @@ export function TopicsEditor({ courseId, topics, proposed }: { courseId: string;
                   isFirst={siblings[0]?.id === topic.id}
                   isLast={siblings[siblings.length - 1]?.id === topic.id}
                   onEdit={() => setEditing(topic)}
+                  tutorEnabled={tutorEnabled}
                 />
               );
             })}
