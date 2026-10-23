@@ -136,6 +136,74 @@ conversation, by that class; reads by id re-check ownership.
   Usage events record token counts only. Students can delete one or all
   conversations.
 
+### Course-aware tutoring (October 2026)
+The tutor now knows the course the conversation is about. Code:
+`src/lib/tutor/context.ts` (pure assembly and budget), `course-context.ts`
+(database loader), `checks.ts`, `revision.ts` (pure), `offers.ts`, `cards.ts`.
+
+- **Course context** (`assembleCourseContext`, unit-tested): course identity
+  as the student entered it (name, level, code, institution, instructor),
+  level-appropriate teaching guidance, confirmed topics with mastery v2 status,
+  estimate and confidence plus learning-core's prerequisite remediation,
+  recent mistakes (question, reference answer, what the student wrote),
+  upcoming exams (60 days) and assignments (14 days), and up to four course
+  materials retrieved for the question (citable like tool results). It always
+  lists what is **not** known: no syllabus uploaded, grading policy and
+  weights, instructor, official learning objectives, institution, level,
+  template-only topics, no synced materials. Budget: 8,000 characters
+  (~2,000 tokens); identity and unknowns first, then the focus mistake/topic,
+  assessments, topics, mistakes, materials; anything cut is counted in a
+  "left out" note. History sent to the model is capped at 20 messages and
+  24,000 characters.
+- **Fencing**: all student- or course-supplied text in the context is stripped
+  of markup; mistakes sit in `<student_work>` and materials in
+  `<course_material>`, and the system prompt treats both as data.
+- **Course tools** (offered only when the conversation has a course):
+  `recommend_prerequisite`, `ask_check_question`, `give_hint`,
+  `grade_check_answer`, `create_revision_plan`, `offer_practice_generation`.
+  Every id is re-checked against the session user, the conversation and its
+  course.
+- **Evidence only from graded answers**: a check is a question from the
+  student's own practice bank, opened as a one-question practice session
+  (`mode: "tutor"`). `grade_check_answer` records it through learning-core's
+  `recordAttempt` with `source: "tutor"` only if the check was asked in an
+  earlier message, is still open, and is graded at most once per student
+  message; the graded answer is the student's message as the server received
+  it, never text from the model. Hints taken (button or tool) lower the
+  credit as in practice. Chat volume never records anything. The model's
+  verdict is an AI judgment against the stored reference answer; it is
+  labeled "Marked by the tutor".
+- **Revision plans** are deterministic (`buildRevisionPlan`): weakest topics
+  first and again on a later day, a final mixed review, sessions placed in
+  the student's study hours around blocks already pinned, inside the
+  planner's 28-day window. Nothing is scheduled until the student presses
+  "Add N sessions to my plan", which calls the planner's own `pinBlock`.
+- **Practice generation** is offered as a card; pressing "Generate" calls
+  learning-core's `generateQuestions` (metered as `practice_questions`,
+  labeled AI-generated and unverified). Generation never runs inside a tutor
+  turn, so it can't collide with the turn's own reservation.
+- **Limits**: message 4,000 characters; 6 messages/minute and 30/hour per
+  student on top of plan quotas, daily limits, concurrency and the global
+  budget in `usage.ts`; at most 6 tool rounds.
+- **Fallback**: with no key, the kill switch (`AI_KILL_SWITCH=on`) or the
+  admin switch off, `/tutor` shows "The tutor isn't available right now" and
+  the no-AI path (due topic reviews, practice with your own questions,
+  mistakes) and the API returns 503 `{ fallback: true }`. A provider failure
+  mid-turn ends the stream with an `error` event carrying `fallback: true`, and
+  the page shows the same links. "Ask the tutor" links on topics and mistakes
+  only appear while the tutor is available.
+- **Events** (ids and counts only, never message content):
+  `tutor_session_started` (classId or null, entry: course / topic / mistake /
+  assignment / none), `tutor_hint_requested` (hint number, via),
+  `tutor_revision_plan_created` (sessions, daysLeft, topics),
+  `tutor_revision_blocks_added` (added, skipped),
+  `tutor_practice_generated` (count), and `tutor_message` (rounds, sources,
+  cards, refused, contextTokens). Server logs record error types only.
+- **Not verified with a live model**: all tests use a scripted model. Prompt
+  behavior (diagnostic questions, hints first, naming misconceptions,
+  grading quality) must be checked with real conversations before relying on
+  it.
+
 ### Draft feedback (`/assignments/:id`)
 `src/lib/review/draft-review.ts` requires a rubric published in Canvas — no
 rubric, no score. Structured output (zod schema) proposes a per-criterion

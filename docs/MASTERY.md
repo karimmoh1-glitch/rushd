@@ -120,6 +120,17 @@ and explanations), languages (vocabulary and translation prompts), computer
 science (code and trace questions). Anything else uses a general workflow, and
 the practice page says so.
 
+## Tutor evidence
+
+The tutor can ask a question from the student's practice bank as a "check"
+(a one-question practice session). Its answer counts like a practice answer,
+with `source = "tutor"`, only when the student answers in a later message and
+the tutor marks it correct, partly right or incorrect against the question's
+stored answer. Hints taken on a check reduce credit as usual. Unlike practice,
+the mark is the tutor's judgment rather than the student's own; treat it like
+photo-check evidence (an AI judgment) when validating. Conversation alone never
+changes a mastery estimate. See docs/AI_ARCHITECTURE.md (course-aware tutoring).
+
 ## Events
 
 Counts and statuses only, never content: `practice_session_started`
