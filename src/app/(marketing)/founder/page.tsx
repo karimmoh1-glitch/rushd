@@ -95,8 +95,8 @@ export default function FounderPage() {
           <h2 id="contact" className="text-xl font-semibold tracking-tight">Get in touch</h2>
           <ul className="mt-3 space-y-2">
             <li><span className="font-medium">Students:</span> try Rushd and send feedback from the app; it goes straight to Karim.</li>
-            <li><span className="font-medium">Educators and schools:</span> interested in a pilot? <Link href="/schools" className="text-primary underline-offset-4 hover:underline">Tell us about your school</Link>.</li>
-            <li><span className="font-medium">Everyone else:</span> <Link href="/contact" className="text-primary underline-offset-4 hover:underline">contact Rushd</Link>.</li>
+            <li><span className="font-medium">Educators and schools:</span> interested in a pilot? <Link href="/schools" className="font-medium text-foreground underline underline-offset-4">Tell us about your school</Link>.</li>
+            <li><span className="font-medium">Everyone else:</span> <Link href="/contact" className="font-medium text-foreground underline underline-offset-4">contact Rushd</Link>.</li>
           </ul>
           {founder.links.length > 0 && (
             <p className="mt-4 flex flex-wrap gap-4 text-sm">
