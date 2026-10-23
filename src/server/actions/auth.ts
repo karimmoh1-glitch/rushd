@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
@@ -9,6 +9,7 @@ import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { SignupSchema, LoginSchema } from "@/lib/validation/auth";
 import { logEvent } from "@/lib/analytics/log-event";
 import { attachReferral, REF_COOKIE } from "@/lib/referral/referral";
+import { getClientIp } from "@/server/actions/client-ip";
 
 export type AuthFormState =
   | {
@@ -17,22 +18,35 @@ export type AuthFormState =
     }
   | undefined;
 
-let dummy: Promise<string> | undefined;
+// A throwaway hash, made once, for logins to accounts that don't exist.
+let dummyHashPromise: Promise<string> | undefined;
 function dummyHash() {
-  dummy ??= hashPassword("not-a-real-password-for-timing-only");
-  return dummy;
+  if (dummyHashPromise === undefined) {
+    dummyHashPromise = hashPassword("not-a-real-password-for-timing-only");
+  }
+  return dummyHashPromise;
 }
 
-async function clientKey() {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+// Extra details for the "signup" event, or undefined when there are none.
+function signupEventDetails(inviteCode: string | undefined, referred: boolean) {
+  if (!inviteCode && !referred) {
+    return undefined;
+  }
+  const details: { inviteCode?: string; referred?: boolean } = {};
+  if (inviteCode) {
+    details.inviteCode = inviteCode;
+  }
+  if (referred) {
+    details.referred = true;
+  }
+  return details;
 }
 
 export async function signup(
   _prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
-  const rate = await checkRateLimit(`signup:${await clientKey()}`);
+  const rate = await checkRateLimit(`signup:${await getClientIp()}`);
   if (!rate.allowed) {
     return { message: "Too many attempts. Try again in a few minutes." };
   }
@@ -52,9 +66,8 @@ export async function signup(
 
   const { email, password, inviteCode } = parsed.data;
 
-  // Invite codes are always attributable when supplied (for pilot cohort
-  // tracking), but only *required* to sign up when REQUIRE_INVITE_CODE is
-  // set — see .env.example. Keeps public signup open by default.
+  // An invite code is always recorded when given, but only required when
+  // REQUIRE_INVITE_CODE is set (see .env.example).
   let invite: { id: string; maxUses: number | null; _count: { users: number } } | null = null;
   if (inviteCode) {
     invite = await db.inviteCode.findUnique({
@@ -98,7 +111,7 @@ export async function signup(
   }
 
   await createSession(user.id);
-  await logEvent(user.id, "signup", invite || refCode ? { ...(invite ? { inviteCode } : {}), ...(refCode ? { referred: true } : {}) } : undefined);
+  await logEvent(user.id, "signup", signupEventDetails(invite ? inviteCode : undefined, Boolean(refCode)));
 
   redirect("/onboarding");
 }
@@ -117,7 +130,7 @@ export async function login(
 
   const { email, password } = parsed.data;
 
-  const rate = await checkRateLimit(`login:${await clientKey()}:${email}`);
+  const rate = await checkRateLimit(`login:${await getClientIp()}:${email}`);
   if (!rate.allowed) {
     return { message: "Too many attempts. Try again in a few minutes." };
   }
