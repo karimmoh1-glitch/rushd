@@ -1,65 +1,79 @@
 import { SCORING_WEIGHTS } from "./constants";
 import { calendarDaysBetween } from "@/lib/time/zone";
-import type { WorkItem, ScoredItem, ReasonCode } from "./types";
+import type { WorkItem, ScoredItem, ReasonCode, ScoreBreakdown } from "./types";
 
-/** Whole calendar days between two instants, read in the student's
- * timezone (the runtime's zone when none is given), ignoring time-of-day.
- * Negative means `date` is in the past relative to `now`. */
+/** Urgency at or above this means the item is due within about 3 days. */
+const DUE_SOON_URGENCY = 60;
+
+/** Whole calendar days from `now` until `date`, read in the student's
+ * timezone. Negative means `date` is already in the past. */
 export function calendarDaysUntil(date: Date, now: Date, timeZone?: string | null): number {
   return calendarDaysBetween(date, now, timeZone);
 }
 
 export function scoreItem(item: WorkItem, now: Date, timeZone?: string | null): ScoredItem {
-  const w = SCORING_WEIGHTS;
-  const daysUntil = calendarDaysUntil(item.dueAt, now, timeZone);
-  const preciselyOverdue = item.dueAt.getTime() < now.getTime();
+  const weights = SCORING_WEIGHTS;
+  const daysUntilDue = calendarDaysUntil(item.dueAt, now, timeZone);
+  const isOverdue = item.dueAt.getTime() < now.getTime();
 
-  const urgency = Math.max(0, w.urgencyMax - Math.max(0, daysUntil) * w.urgencyPerDay);
+  // Urgency starts at the max and drops a fixed amount for each day left.
+  const daysLeft = Math.max(0, daysUntilDue);
+  const urgency = Math.max(0, weights.urgencyMax - daysLeft * weights.urgencyPerDay);
 
+  // Importance: the item's own priority, plus its class's priority at half weight.
   const importance =
-    w.priorityWeight[item.priority] +
-    w.priorityWeight[item.classPriority] * w.classPriorityMultiplier;
+    weights.priorityWeight[item.priority] +
+    weights.priorityWeight[item.classPriority] * weights.classPriorityMultiplier;
 
-  const overdue = preciselyOverdue
-    ? Math.min(
-        w.overdueCap,
-        w.overdueBase + Math.max(0, -daysUntil) * w.overduePerDay,
-      )
-    : 0;
+  let overdue = 0;
+  if (isOverdue) {
+    const daysLate = Math.max(0, -daysUntilDue);
+    overdue = Math.min(weights.overdueCap, weights.overdueBase + daysLate * weights.overduePerDay);
+  }
 
-  const examProximity =
-    item.kind === "exam" && daysUntil >= 0 && daysUntil <= w.examProximityWindowDays
-      ? (w.examProximityWindowDays - daysUntil) * w.examProximityPerDay
-      : 0;
+  let examProximity = 0;
+  if (item.kind === "exam" && daysUntilDue >= 0 && daysUntilDue <= weights.examProximityWindowDays) {
+    examProximity = (weights.examProximityWindowDays - daysUntilDue) * weights.examProximityPerDay;
+  }
 
-  const effortTiebreak = Math.max(
-    0,
-    Math.min(
-      w.effortTiebreakMax,
-      w.effortTiebreakMax - item.remainingMinutes / w.effortTiebreakDivisor,
-    ),
-  );
+  // Shorter tasks get a small bonus, kept between 0 and the max.
+  const effortPoints = weights.effortTiebreakMax - item.remainingMinutes / weights.effortTiebreakDivisor;
+  const effortTiebreak = Math.max(0, Math.min(weights.effortTiebreakMax, effortPoints));
 
   const score =
-    urgency + importance + overdue + examProximity + effortTiebreak * w.effortTiebreakWeight;
+    urgency + importance + overdue + examProximity + effortTiebreak * weights.effortTiebreakWeight;
 
-  const reasonCode: ReasonCode =
-    overdue > 0
-      ? "OVERDUE"
-      : examProximity > 0
-        ? "EXAM_PROXIMITY"
-        : urgency >= 60
-          ? "DUE_SOON"
-          : importance >= w.priorityWeight.HIGH
-            ? "HIGH_PRIORITY"
-            : "STANDARD";
+  const breakdown: ScoreBreakdown = { urgency, importance, overdue, examProximity, effortTiebreak };
 
   return {
     item,
     score,
-    reasonCode,
-    breakdown: { urgency, importance, overdue, examProximity, effortTiebreak },
+    reasonCode: pickReasonCode(breakdown),
+    breakdown,
   };
+}
+
+/** The main reason an item ranks where it does, checked from strongest to weakest. */
+function pickReasonCode(breakdown: ScoreBreakdown): ReasonCode {
+  if (breakdown.overdue > 0) return "OVERDUE";
+  if (breakdown.examProximity > 0) return "EXAM_PROXIMITY";
+  if (breakdown.urgency >= DUE_SOON_URGENCY) return "DUE_SOON";
+  if (breakdown.importance >= SCORING_WEIGHTS.priorityWeight.HIGH) return "HIGH_PRIORITY";
+  return "STANDARD";
+}
+
+/** Sorts highest score first. Ties break on due date, then id, so the
+ * ranking (and the whole schedule) doesn't depend on database row order. */
+function compareByRank(a: ScoredItem, b: ScoredItem): number {
+  if (a.score > b.score) return -1;
+  if (a.score < b.score) return 1;
+
+  const aDue = a.item.dueAt.getTime();
+  const bDue = b.item.dueAt.getTime();
+  if (aDue < bDue) return -1;
+  if (aDue > bDue) return 1;
+
+  return a.item.id.localeCompare(b.item.id);
 }
 
 export function scoreAndRank(
@@ -67,14 +81,10 @@ export function scoreAndRank(
   now: Date,
   timeZone?: string | null,
 ): ScoredItem[] {
-  // Ties break on due date then id so the ranking — and therefore the whole
-  // schedule — is stable regardless of the order rows come back from the DB.
-  return items
-    .map((item) => scoreItem(item, now, timeZone))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        a.item.dueAt.getTime() - b.item.dueAt.getTime() ||
-        a.item.id.localeCompare(b.item.id),
-    );
+  const scored: ScoredItem[] = [];
+  for (const item of items) {
+    scored.push(scoreItem(item, now, timeZone));
+  }
+  scored.sort(compareByRank);
+  return scored;
 }

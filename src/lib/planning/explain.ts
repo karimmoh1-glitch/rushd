@@ -1,39 +1,54 @@
 import { calendarDaysUntil } from "./score";
 import type { ScoredItem } from "./types";
 
-/** How much more effort an item needs, relative to the rest of the open
- * workload, before it's worth mentioning as "more work than the others."
- * 1.3 means "at least 30% above the average of everything else open." */
+/** An item "needs more time" when it's at least 30% above the average of the other open work. */
 const EFFORT_STANDOUT_RATIO = 1.3;
-/** Below this, an item's own effort is trivial enough that comparing it to
- * the average would be noise (e.g. a 10-minute reading vs a 12-minute one). */
+/** Items shorter than this are never called out; comparing tiny tasks is just noise. */
 const EFFORT_STANDOUT_FLOOR_MINUTES = 20;
 
-/** True if `item` requires meaningfully more time than the rest of the
- * currently-open workload — computed from the same remainingMinutes the
- * scheduler actually uses, not a guess. */
+/** True if `scored` needs clearly more time than the rest of the open work. */
 function isEffortStandout(scored: ScoredItem, allScored: ScoredItem[]): boolean {
-  const others = allScored.filter((s) => s.item.id !== scored.item.id);
-  if (others.length === 0) return false;
-  const avg = others.reduce((sum, s) => sum + s.item.remainingMinutes, 0) / others.length;
-  return (
-    scored.item.remainingMinutes >= EFFORT_STANDOUT_FLOOR_MINUTES &&
-    scored.item.remainingMinutes >= avg * EFFORT_STANDOUT_RATIO
-  );
+  let otherCount = 0;
+  let otherMinutes = 0;
+  for (const other of allScored) {
+    if (other.item.id === scored.item.id) continue;
+    otherCount++;
+    otherMinutes += other.item.remainingMinutes;
+  }
+  if (otherCount === 0) return false;
+
+  const averageMinutes = otherMinutes / otherCount;
+  const minutes = scored.item.remainingMinutes;
+  return minutes >= EFFORT_STANDOUT_FLOOR_MINUTES && minutes >= averageMinutes * EFFORT_STANDOUT_RATIO;
+}
+
+/** The sentence about when the item is due, or null if it's more than a week away. */
+function deadlineReason(scored: ScoredItem, daysUntilDue: number): string | null {
+  const isExam = scored.item.kind === "exam";
+
+  if (scored.breakdown.overdue > 0) {
+    const daysLate = Math.max(0, -daysUntilDue);
+    if (daysLate <= 0) return "Overdue.";
+    if (daysLate === 1) return "Overdue by 1 day.";
+    return `Overdue by ${daysLate} days.`;
+  }
+  if (daysUntilDue <= 0) {
+    return isExam ? "Exam is today." : "Due today.";
+  }
+  if (daysUntilDue === 1) {
+    return isExam ? "Exam is tomorrow." : "Due tomorrow.";
+  }
+  if (daysUntilDue <= 7) {
+    return isExam ? `Exam in ${daysUntilDue} days.` : `Due in ${daysUntilDue} days.`;
+  }
+  return null;
 }
 
 /**
- * Turns a scored item's actual breakdown into plain-language reasons —
- * not an AI-generated rationalization. The real reason the deterministic
- * scorer ranked something where it did is already known exactly (it's
- * arithmetic), so this reads the math instead of asking a model to guess
- * at its own explanation. See docs/PLANNING_ENGINE.md and the "Why?"
- * requirement: every important recommendation should be explainable, and
- * the most trustworthy explanation is the true one.
- *
- * `allScored`, when provided, unlocks one additional reason: whether this
- * item needs meaningfully more time than the rest of the open workload —
- * a real comparison, computed from the same numbers the scheduler used.
+ * Turns a scored item's real score breakdown into plain-language reasons.
+ * The ranking is plain arithmetic, so we read the true reason from the math
+ * instead of asking an AI to guess. Passing `allScored` also allows the
+ * "needs more time than your other work" reason.
  */
 export function explainScore(
   scored: ScoredItem,
@@ -41,35 +56,22 @@ export function explainScore(
   allScored?: ScoredItem[],
   timeZone?: string | null,
 ): string[] {
-  const { item, breakdown } = scored;
-  const daysUntil = calendarDaysUntil(item.dueAt, now, timeZone);
+  const item = scored.item;
+  const daysUntilDue = calendarDaysUntil(item.dueAt, now, timeZone);
   const reasons: string[] = [];
 
-  if (breakdown.overdue > 0) {
-    const daysLate = Math.max(0, -daysUntil);
-    reasons.push(
-      daysLate <= 0
-        ? "Overdue."
-        : `Overdue by ${daysLate} day${daysLate === 1 ? "" : "s"}.`,
-    );
-  } else if (daysUntil <= 0) {
-    reasons.push(item.kind === "exam" ? "Exam is today." : "Due today.");
-  } else if (daysUntil === 1) {
-    reasons.push(item.kind === "exam" ? "Exam is tomorrow." : "Due tomorrow.");
-  } else if (daysUntil <= 7) {
-    reasons.push(
-      item.kind === "exam" ? `Exam in ${daysUntil} days.` : `Due in ${daysUntil} days.`,
-    );
+  const deadline = deadlineReason(scored, daysUntilDue);
+  if (deadline !== null) {
+    reasons.push(deadline);
   }
 
-  if (breakdown.examProximity > 0) {
+  if (scored.breakdown.examProximity > 0) {
     reasons.push("The exam is close enough that prep time matters now.");
   }
 
   if (item.priority === "HIGH") {
     reasons.push("You marked this high priority.");
-  }
-  if (item.classPriority === "HIGH" && item.priority !== "HIGH") {
+  } else if (item.classPriority === "HIGH") {
     reasons.push(`${item.className} is a high-priority class for you.`);
   }
 
