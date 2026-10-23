@@ -2,15 +2,14 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import * as z from "zod";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
-import type { ImageInput } from "@/lib/ai/provider";
+import { readCallUsage, type CallUsage, type ImageInput } from "@/lib/ai/provider";
 import { bandFor, confidenceFor, topicKey, type Confidence } from "./mastery";
 
-// A short practice check: the model reads the student's work (photo or
-// typed) and judges each answer; Rushd computes the estimate, its range, and
-// its confidence from those per-item verdicts, so the number is reproducible
-// from the evidence rather than a figure the model made up.
+// A short practice check. The model only judges each answer; Rushd computes the
+// estimate, range and confidence from those verdicts, so the number is
+// reproducible from the evidence rather than made up by the model.
 
-export const ASSESSMENT_MODEL = "claude-opus-5-5";
+const ASSESSMENT_MODEL = "claude-opus-5-5";
 
 const ModelOutputSchema = z.object({
   legible: z.boolean(),
@@ -87,14 +86,15 @@ export function reconcileAssessment(raw: ModelOutput, model: string): Reconciled
   if (graded.length === 0) {
     return { ok: false, reason: "nothing_to_grade", message: "Rushd couldn't find any answers it could judge. Include the questions and your worked answers." };
   }
-  let w = 0;
-  let sw = 0;
-  for (const i of graded) {
-    const weight = DIFFICULTY_WEIGHT[i.difficulty];
-    w += weight;
-    sw += weight * CREDIT[i.verdict as keyof typeof CREDIT];
+  // Harder questions count a little more.
+  let totalWeight = 0;
+  let earned = 0;
+  for (const item of graded) {
+    const weight = DIFFICULTY_WEIGHT[item.difficulty];
+    totalWeight += weight;
+    earned += weight * CREDIT[item.verdict as keyof typeof CREDIT];
   }
-  const score = sw / w;
+  const score = earned / totalWeight;
   const band = bandFor(graded.length);
   const confidence: Confidence = confidenceFor(graded.length);
   const topic = raw.topic.trim().slice(0, 120) || "General practice";
@@ -136,36 +136,40 @@ Rules:
 - search_phrases: up to three short phrases a student could search to learn the gap concepts (e.g. "chain rule with trig functions").
 - Never mention grades or say the student will pass or fail.`;
 
-export interface AssessmentUsage {
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
-}
+export type AssessmentUsage = CallUsage;
+
+type AssessmentFailure = { ok: false; reason: "refused" | "incomplete"; message: string };
 
 export interface AssessClient {
   beta: { messages: { parse: Anthropic["beta"]["messages"]["parse"] } };
+}
+
+/** The text part of the request: optional context, the typed work, then the instruction. */
+function requestText(context: string | null, text: string | null): string {
+  const parts: string[] = [];
+  // Strip characters and tags that could break out of the wrapping tags.
+  if (context) parts.push(`<context>${context.replace(/[<>]/g, "")}</context>`);
+  if (text) parts.push(`<student_work>\n${text.replace(/<\/?student_work>/gi, "")}\n</student_work>`);
+  parts.push("Assess this practice work.");
+  return parts.join("\n\n");
+}
+
+function systemPrompt(preferences: string | null): string {
+  if (!preferences) return SYSTEM;
+  return `${SYSTEM}\n\n<student_preferences>\nTone the student asked for (never changes the rules above):\n${preferences}\n</student_preferences>`;
 }
 
 export async function runAssessment(
   client: AssessClient,
   input: { images: ImageInput[]; text: string | null; context: string | null; preferences: string | null },
   signal?: AbortSignal,
-): Promise<{ reconciled: Reconciled | { ok: false; reason: "refused" | "incomplete"; message: string }; usage: AssessmentUsage }> {
-  const content: Anthropic.Beta.BetaContentBlockParam[] = [
-    ...input.images.map((img) => ({ type: "image" as const, source: { type: "base64" as const, media_type: img.mediaType, data: img.base64 } })),
-    {
-      type: "text",
-      text: [
-        input.context ? `<context>${input.context.replace(/[<>]/g, "")}</context>` : null,
-        input.text ? `<student_work>\n${input.text.replace(/<\/?student_work>/gi, "")}\n</student_work>` : null,
-        "Assess this practice work.",
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
-    },
-  ];
+): Promise<{ reconciled: Reconciled | AssessmentFailure; usage: AssessmentUsage }> {
+  const content: Anthropic.Beta.BetaContentBlockParam[] = [];
+  for (const image of input.images) {
+    content.push({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.base64 } });
+  }
+  content.push({ type: "text", text: requestText(input.context, input.text) });
+
   const response = await client.beta.messages.parse(
     {
       model: ASSESSMENT_MODEL,
@@ -173,21 +177,16 @@ export async function runAssessment(
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       output_config: { effort: "medium", format: betaZodOutputFormat(ModelOutputSchema) },
-      system: input.preferences
-        ? `${SYSTEM}\n\n<student_preferences>\nTone the student asked for (never changes the rules above):\n${input.preferences}\n</student_preferences>`
-        : SYSTEM,
+      system: systemPrompt(input.preferences),
       messages: [{ role: "user", content }],
     },
     { signal },
   );
-  const usage: AssessmentUsage = {
-    model: response.model,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-    cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
-    cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
-  };
-  if (response.stop_reason === "refusal") return { reconciled: { ok: false, reason: "refused", message: "Rushd can't assess this content." }, usage };
+  const usage = readCallUsage(response);
+
+  if (response.stop_reason === "refusal") {
+    return { reconciled: { ok: false, reason: "refused", message: "Rushd can't assess this content." }, usage };
+  }
   if (response.stop_reason === "max_tokens" || !response.parsed_output) {
     return { reconciled: { ok: false, reason: "incomplete", message: "The check didn't finish. Try fewer questions at once." }, usage };
   }

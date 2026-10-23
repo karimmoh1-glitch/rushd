@@ -11,19 +11,19 @@ export interface CitedSource {
 
 const MARKER = /\[\[source:([A-Za-z0-9_-]{1,64})\]\]/g;
 
-/**
- * Replaces the model's [[source:ID]] markers with numbered references, but
- * only for ids the tutor actually retrieved this turn (looked up in the
- * registry, i.e. real database rows). Unknown ids are dropped silently, so a
- * hallucinated citation can never turn into a link or a title.
- */
+// The start of a marker cut off at the end of streaming text: "[", "[[", "[[sou", "[[source:ab", ...
+const UNFINISHED_MARKER = /\[\[?(?:s(?:o(?:u(?:r(?:c(?:e(?::[^\]]*)?)?)?)?)?)?)?$/;
+
+/** Replaces [[source:ID]] markers with numbered references, but only for ids the
+ * tutor really retrieved this turn. Unknown ids are dropped, so a made-up
+ * citation can never become a link. */
 export function resolveCitations(
   text: string,
   lookup: (id: string) => RetrievedSource | undefined,
 ): { text: string; sources: CitedSource[] } {
   const sources: CitedSource[] = [];
   const numberFor = new Map<string, number>();
-  const out = text.replace(MARKER, (_m, id: string) => {
+  const replaced = text.replace(MARKER, (_marker, id: string) => {
     const source = lookup(id);
     if (!source) return "";
     let n = numberFor.get(id);
@@ -34,11 +34,14 @@ export function resolveCitations(
     }
     return `[${n}]`;
   });
-  return { text: out.replace(/[ \t]+([.,;:!?])/g, "$1").replace(/[ \t]{2,}/g, " ").trim(), sources };
+
+  // Tidy the spaces left behind where markers were removed.
+  const noSpaceBeforePunctuation = replaced.replace(/[ \t]+([.,;:!?])/g, "$1");
+  const singleSpaced = noSpaceBeforePunctuation.replace(/[ \t]{2,}/g, " ");
+  return { text: singleSpaced.trim(), sources };
 }
 
-/** Hides citation markers while a reply is still streaming. */
+/** Hides citation markers, including a half-arrived one, while a reply is still streaming. */
 export function stripMarkers(text: string): string {
-  // A marker arrives a few characters at a time; hide any unfinished prefix.
-  return text.replace(MARKER, "").replace(/\[\[?(?:s(?:o(?:u(?:r(?:c(?:e(?::[^\]]*)?)?)?)?)?)?)?$/, "");
+  return text.replace(MARKER, "").replace(UNFINISHED_MARKER, "");
 }

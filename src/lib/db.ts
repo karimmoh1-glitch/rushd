@@ -3,12 +3,10 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
 
-// Cloudflare Workers can't open raw TCP sockets, so this uses Neon's
-// WebSocket-based driver everywhere db.ts is imported (dev, tests, and
-// production alike) rather than branching per environment — plain `pg`
-// cannot even be bundled for the Cloudflare build (fails at bundle time on
-// its optional "pg-cloudflare" dependency), so there's no viable dual-path
-// here. See docs/ARCHITECTURE.md.
+// Neon's WebSocket driver is used everywhere: Cloudflare Workers can't open raw
+// TCP sockets, and plain `pg` can't even be bundled for that build.
+
+// In development, keep one client across hot reloads instead of opening a new pool each time.
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

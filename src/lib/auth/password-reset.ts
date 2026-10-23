@@ -5,6 +5,7 @@ import { hashPassword } from "@/lib/auth/password";
 
 export const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+/** Only this SHA-256 digest is stored, so a database leak doesn't leak usable tokens. */
 function digest(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -28,6 +29,7 @@ export type ResetOutcome = { ok: true; userId: string } | { ok: false; reason: "
  * token used and bumps the session version, so every existing session (the
  * possibly-compromised ones included) is signed out. */
 export async function redeemResetToken(token: string, newPassword: string, now = new Date()): Promise<ResetOutcome> {
+  // 32 random bytes in base64url are always 43 characters.
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return { ok: false, reason: "invalid" };
   const record = await db.passwordResetToken.findUnique({
     where: { tokenHash: digest(token) },

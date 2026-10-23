@@ -4,15 +4,27 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { planForPrice } from "./stripe";
 
-// Applies verified Stripe events to the Subscription mirror. Idempotent: the
-// event id is recorded in the same transaction as the change, so a redelivered
-// event is skipped. Entitlements are only ever read from this table.
+// Applies verified Stripe events to our Subscription table, which is the only
+// place entitlements are read from. The event id is saved in the same
+// transaction as the change, so a redelivered event is skipped.
 
 type Outcome = "applied" | "duplicate" | "ignored";
 
+/** The latest period end across the subscription's items. */
 function periodEnd(sub: Stripe.Subscription): Date | null {
-  const ends = sub.items.data.map((i) => i.current_period_end).filter((n): n is number => typeof n === "number");
-  return ends.length ? new Date(Math.max(...ends) * 1000) : null;
+  let latest: number | null = null;
+  for (const item of sub.items.data) {
+    const end = item.current_period_end;
+    if (typeof end !== "number") continue;
+    if (latest === null || end > latest) latest = end;
+  }
+  if (latest === null) return null;
+  return new Date(latest * 1000);
+}
+
+async function userExists(userId: string, tx: Prisma.TransactionClient): Promise<boolean> {
+  const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true } });
+  return user !== null;
 }
 
 function customerId(c: string | Stripe.Customer | Stripe.DeletedCustomer | null): string | null {
@@ -22,10 +34,11 @@ function customerId(c: string | Stripe.Customer | Stripe.DeletedCustomer | null)
 
 async function userIdForSubscription(sub: Stripe.Subscription, tx: Prisma.TransactionClient): Promise<string | null> {
   const fromMetadata = sub.metadata?.userId;
-  if (fromMetadata && (await tx.user.findUnique({ where: { id: fromMetadata }, select: { id: true } }))) return fromMetadata;
-  const cust = customerId(sub.customer);
-  if (!cust) return null;
-  const row = await tx.subscription.findUnique({ where: { stripeCustomerId: cust }, select: { userId: true } });
+  if (fromMetadata && (await userExists(fromMetadata, tx))) return fromMetadata;
+  // Otherwise find the user through the Stripe customer we linked at checkout.
+  const customer = customerId(sub.customer);
+  if (!customer) return null;
+  const row = await tx.subscription.findUnique({ where: { stripeCustomerId: customer }, select: { userId: true } });
   return row?.userId ?? null;
 }
 
@@ -57,19 +70,21 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<Outcome> {
         case "customer.subscription.paused":
         case "customer.subscription.resumed": {
           const applied = await applySubscription(event.data.object as Stripe.Subscription, tx);
-          return applied ? "applied" : "ignored";
+          if (applied) return "applied";
+          return "ignored";
         }
         case "checkout.session.completed": {
           // Links the Stripe customer to the user; the subscription events
           // that follow carry the plan.
           const session = event.data.object as Stripe.Checkout.Session;
           const userId = session.client_reference_id;
-          const cust = customerId(session.customer);
-          if (!userId || !cust || !(await tx.user.findUnique({ where: { id: userId }, select: { id: true } }))) return "ignored";
+          const customer = customerId(session.customer);
+          if (!userId || !customer) return "ignored";
+          if (!(await userExists(userId, tx))) return "ignored";
           await tx.subscription.upsert({
             where: { userId },
-            update: { stripeCustomerId: cust },
-            create: { userId, stripeCustomerId: cust, plan: "FREE", status: "incomplete" },
+            update: { stripeCustomerId: customer },
+            create: { userId, stripeCustomerId: customer, plan: "FREE", status: "incomplete" },
           });
           return "applied";
         }
@@ -78,6 +93,7 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<Outcome> {
       }
     });
   } catch (error) {
+    // P2002 = unique constraint: this event id was already processed.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return "duplicate";
     throw error;
   }

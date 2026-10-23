@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { readSessionFromCookies } from "@/lib/auth/session";
 
-// Verifies the session cookie's signature only — no database round trip, so
-// it cannot see revocation. Use getCurrentUser for anything that matters.
-export const verifySession = cache(async () => {
+// Checks the cookie's signature only (no database), so it can't see revoked
+// sessions. Use getCurrentUser for anything that matters.
+const verifySession = cache(async () => {
   const session = await readSessionFromCookies();
   if (!session?.userId) return null;
   return { userId: session.userId, sessionVersion: session.sv ?? 0 };
@@ -36,9 +36,7 @@ export const getCurrentUser = cache(async () => {
   return user;
 });
 
-// Call from a Server Component or Server Action that must not proceed
-// without an authenticated user. Redirects rather than throwing so pages can
-// use it directly.
+// For pages and actions that need a signed-in user. Redirects instead of throwing.
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

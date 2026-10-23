@@ -1,13 +1,5 @@
 import * as z from "zod";
-
-function isValidTimeZone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { isValidTimeZone } from "@/lib/validation/time-zone";
 
 export const ACADEMIC_CHALLENGES = [
   "TOO_MANY_ASSIGNMENTS",

@@ -1,9 +1,7 @@
 import * as z from "zod";
 
-// How a student wants Rushd's AI to teach them. Stored on Profile; turned
-// into a short block of text for the tutor and feedback prompts. The free-form
-// instructions are the student's own words and always sit below the system
-// rules, never above them.
+// How a student wants Rushd's AI to teach them, turned into a short text block
+// for the prompts. The student's own words always sit below the system rules.
 
 export const MAX_INSTRUCTIONS = 1000;
 
@@ -25,7 +23,8 @@ export function readPreferences(value: unknown): TutorPreferences {
   return parsed.success ? parsed.data : DEFAULT_PREFERENCES;
 }
 
-const LINES: { [K in keyof TutorPreferences]?: Partial<Record<string, string>> } = {
+// The prompt line for each non-default choice, in the order they are sent.
+const LINES: Record<string, Record<string, string>> = {
   depth: { brief: "Keep explanations to the essentials.", detailed: "Explain thoroughly, including the why behind each step." },
   length: { short: "Keep replies short (a few sentences or a short list).", long: "Longer replies are fine when they help." },
   approach: {
@@ -48,13 +47,21 @@ export function sanitizeInstructions(text: string): string {
 /** The compact form sent to the model; null when everything is default. */
 export function compactPreferences(prefs: TutorPreferences, instructions: string | null | undefined): string | null {
   const lines: string[] = [];
-  for (const key of Object.keys(LINES) as (keyof TutorPreferences)[]) {
-    const line = LINES[key]?.[String(prefs[key])];
+  const choices: Record<string, string> = {
+    depth: prefs.depth,
+    length: prefs.length,
+    approach: prefs.approach,
+    difficulty: prefs.difficulty,
+    tone: prefs.tone,
+  };
+  for (const key of Object.keys(LINES)) {
+    const line = LINES[key][choices[key]];
     if (line) lines.push(`- ${line}`);
   }
   if (prefs.diagnosticFirst) lines.push("- Before explaining a topic, ask one short diagnostic question to find where they are.");
   if (prefs.challengeMe) lines.push("- Don't just agree: point out flaws in their reasoning and push back when they're wrong.");
   const own = sanitizeInstructions(instructions ?? "");
   if (own) lines.push(`- In their own words: "${own.replace(/"/g, "'")}"`);
-  return lines.length ? lines.join("\n") : null;
+  if (lines.length === 0) return null;
+  return lines.join("\n");
 }

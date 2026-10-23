@@ -4,7 +4,7 @@ import { anthropic } from "@/lib/ai/client";
 import { resolveCitations, type CitedSource } from "./citations";
 import { SourceRegistry, TUTOR_TOOLS, runTutorTool, type TutorScope } from "./tools";
 
-export const TUTOR_MODEL = "claude-opus-5-5";
+const TUTOR_MODEL = "claude-opus-5-5";
 const MAX_TOOL_ROUNDS = 6;
 // Per-round output ceiling; with MAX_TOOL_ROUNDS this bounds a turn's cost.
 const MAX_TOKENS = 4000;
@@ -36,18 +36,25 @@ export interface TutorContext {
   todayLabel: string;
 }
 
-export function contextBlock(ctx: TutorContext & { preferences?: string | null }): string {
-  return [
-    `Today is ${ctx.todayLabel}.`,
-    ctx.className ? `This conversation is about the course "${ctx.className}"; course tools are scoped to it.` : "This conversation covers all of the student's courses.",
-    ctx.assignmentTitle ? `It is about the assignment "${ctx.assignmentTitle}" (get_assignment with null fetches it).` : null,
-    MODE_RULES[ctx.mode],
-    ctx.preferences
-      ? `<student_preferences>\nHow this student asked you to teach. Follow these where they don't conflict with the rules above; if they do, the rules win.\n${ctx.preferences}\n</student_preferences>`
-      : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+/** The per-conversation part of the system prompt. */
+function contextBlock(ctx: TutorContext & { preferences?: string | null }): string {
+  const lines: string[] = [];
+  lines.push(`Today is ${ctx.todayLabel}.`);
+  if (ctx.className) {
+    lines.push(`This conversation is about the course "${ctx.className}"; course tools are scoped to it.`);
+  } else {
+    lines.push("This conversation covers all of the student's courses.");
+  }
+  if (ctx.assignmentTitle) {
+    lines.push(`It is about the assignment "${ctx.assignmentTitle}" (get_assignment with null fetches it).`);
+  }
+  lines.push(MODE_RULES[ctx.mode]);
+  if (ctx.preferences) {
+    lines.push(
+      `<student_preferences>\nHow this student asked you to teach. Follow these where they don't conflict with the rules above; if they do, the rules win.\n${ctx.preferences}\n</student_preferences>`,
+    );
+  }
+  return lines.join("\n");
 }
 
 export type TutorEvent =
@@ -93,12 +100,40 @@ const STATUS: Record<string, string> = {
   get_learning_profile: "Checking your practice results…",
 };
 
-/**
- * One tutor turn: a manual tool loop (so authorization stays in our code),
- * streaming text to `onEvent`. History is plain text from earlier turns;
- * within the turn the full assistant content (thinking, tool calls) is
- * passed back unchanged, as the API requires.
- */
+/** Adds one round's reported token usage to the turn's meter. */
+function addRoundUsage(meter: TurnMeter, message: Anthropic.Beta.BetaMessage, round: number) {
+  meter.rounds = round + 1;
+  meter.model = message.model || meter.model;
+  meter.inputTokens += message.usage.input_tokens;
+  meter.cacheReadTokens += message.usage.cache_read_input_tokens ?? 0;
+  meter.cacheWriteTokens += message.usage.cache_creation_input_tokens ?? 0;
+  meter.outputTokens += message.usage.output_tokens;
+}
+
+/** Runs each tool call in order. A failing tool becomes an error result, never a failed turn. */
+async function runToolCalls(
+  toolUses: Anthropic.Beta.BetaToolUseBlock[],
+  scope: TutorScope,
+  registry: SourceRegistry,
+  onEvent: (event: TutorEvent) => void,
+): Promise<Anthropic.Beta.BetaToolResultBlockParam[]> {
+  const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+  for (const call of toolUses) {
+    onEvent({ type: "status", text: STATUS[call.name] ?? "Working…" });
+    try {
+      const outcome = await runTutorTool(call.name, call.input, scope, registry);
+      results.push({ type: "tool_result", tool_use_id: call.id, content: outcome.content, is_error: outcome.isError });
+    } catch (error) {
+      console.error("[tutor] tool failed", call.name, (error as Error)?.name ?? typeof error);
+      results.push({ type: "tool_result", tool_use_id: call.id, content: "The tool failed. Answer without it and say so.", is_error: true });
+    }
+  }
+  return results;
+}
+
+// One tutor turn. The tool loop runs here, not in the SDK, so authorization stays
+// in our code. Within the turn, assistant content goes back unchanged, as the API requires.
+
 export async function runTutorTurn({
   client,
   scope,
@@ -119,15 +154,17 @@ export async function runTutorTurn({
   meter?: TurnMeter;
 }): Promise<TutorResult> {
   const registry = new SourceRegistry();
-  const messages: Anthropic.Beta.BetaMessageParam[] = [
-    ...history.map((m) => ({ role: m.role, content: m.content })),
-    { role: "user", content: userText },
-  ];
+  const messages: Anthropic.Beta.BetaMessageParam[] = [];
+  for (const m of history) messages.push({ role: m.role, content: m.content });
+  messages.push({ role: "user", content: userText });
+
   let text = "";
   let refused = false;
-  let rounds = 0;
 
-  for (; rounds < MAX_TOOL_ROUNDS + 1; rounds++) {
+  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+    // On the last allowed round, no more tool calls: the model must answer.
+    const isLastRound = round >= MAX_TOOL_ROUNDS;
+    const lastRoundOptions = isLastRound ? { tool_choice: { type: "none" as const } } : {};
     const stream = client.beta.messages.stream(
       {
         model: TUTOR_MODEL,
@@ -140,8 +177,7 @@ export async function runTutorTurn({
           { type: "text", text: contextBlock(context) },
         ],
         tools: TUTOR_TOOLS,
-        // On the last allowed round, no more tool calls: the model answers.
-        ...(rounds >= MAX_TOOL_ROUNDS ? { tool_choice: { type: "none" as const } } : {}),
+        ...lastRoundOptions,
         messages,
       },
       { signal },
@@ -151,33 +187,23 @@ export async function runTutorTurn({
       onEvent({ type: "text", delta });
     });
     const message = await stream.finalMessage();
-    meter.rounds = rounds + 1;
-    meter.model = message.model || meter.model;
-    meter.inputTokens += message.usage.input_tokens;
-    meter.cacheReadTokens += message.usage.cache_read_input_tokens ?? 0;
-    meter.cacheWriteTokens += message.usage.cache_creation_input_tokens ?? 0;
-    meter.outputTokens += message.usage.output_tokens;
+    addRoundUsage(meter, message, round);
 
     if (message.stop_reason === "refusal") {
       refused = true;
       break;
     }
-    const toolUses = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+
+    const toolUses: Anthropic.Beta.BetaToolUseBlock[] = [];
+    for (const block of message.content) {
+      if (block.type === "tool_use") toolUses.push(block);
+    }
     if (message.stop_reason !== "tool_use" || toolUses.length === 0) break;
 
     messages.push({ role: "assistant", content: message.content });
-    const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
-    for (const call of toolUses) {
-      onEvent({ type: "status", text: STATUS[call.name] ?? "Working…" });
-      try {
-        const outcome = await runTutorTool(call.name, call.input, scope, registry);
-        results.push({ type: "tool_result", tool_use_id: call.id, content: outcome.content, is_error: outcome.isError });
-      } catch (error) {
-        console.error("[tutor] tool failed", call.name, (error as Error)?.name ?? typeof error);
-        results.push({ type: "tool_result", tool_use_id: call.id, content: "The tool failed. Answer without it and say so.", is_error: true });
-      }
-    }
+    const results = await runToolCalls(toolUses, scope, registry, onEvent);
     messages.push({ role: "user", content: results });
+
     // Separate the narration before a tool call from the answer after it.
     if (text && !text.endsWith("\n")) {
       text += "\n\n";

@@ -2,8 +2,7 @@ import "server-only";
 import { anthropicProvider } from "./anthropic-provider";
 import type { AIProvider } from "./provider";
 
-/** The active AIProvider. Swapping providers means changing this one line
- * (and adding the new implementation file) — see docs/AI_ARCHITECTURE.md. */
+// The active AI provider. To switch providers, add a new implementation and change this line.
 export const aiProvider: AIProvider = anthropicProvider;
 
 export type { AIProvider, CallUsage, ExtractedAssignment, ImageInput, Confidence } from "./provider";

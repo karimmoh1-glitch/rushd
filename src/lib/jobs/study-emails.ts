@@ -8,12 +8,12 @@ import { dayOfWeekForKey, localDateKey, resolveTimeZone, zonedParts } from "@/li
 import { getStreak } from "@/lib/streak/load";
 import { emailConfigured, sendEmail, type EmailMessage } from "@/lib/email/send";
 import { unsubscribeUrl } from "@/lib/email/unsubscribe";
-import { streakNudgeEmail, weeklyDigestEmail } from "@/lib/email/templates";
+import { streakNudgeEmail, weeklyDigestEmail, type DigestItem } from "@/lib/email/templates";
 
-// Study emails for students who have them on. The Sunday email goes out when
-// it is Sunday where the student lives; the streak nudge only in their
-// late afternoon or evening, at most once a day, and only for streaks of 3+ days. Both stop the
-// moment the student turns emails off (Settings or the unsubscribe link).
+// Study emails for students who turned them on. The Sunday digest goes out when
+// it's Sunday where the student lives; the streak nudge only in their late
+// afternoon or evening, at most once a day, for streaks of 3+ days. Both stop
+// as soon as the student turns emails off (Settings or the unsubscribe link).
 
 export interface EmailJobDeps {
   send?: (msg: EmailMessage) => Promise<boolean>;
@@ -30,11 +30,10 @@ export interface EmailJobReport {
 }
 
 const BATCH = 300;
-/** Local hours (inclusive) when a streak nudge may go out. */
+/** Local hours (inclusive) when a streak nudge may go out. The evening cron runs
+ * every 6 hours (05, 11, 17, 23 UTC), so every time zone gets a run in this window. */
 const EVENING_START = 15;
 const EVENING_END = 21;
-// The evening cron runs every 6 hours (05, 11, 17, 23 UTC), so every time zone
-// has a run inside this 7-hour local window.
 const DAY = 86_400_000;
 
 function appUrl() {
@@ -43,31 +42,22 @@ function appUrl() {
 
 type Candidate = { userId: string; displayName: string; timezone: string; lastDigestAt: Date | null; lastNudgeAt: Date | null; user: { email: string } };
 
-/** Every opted-in student matching `where`, a page at a time in a stable
- * order, so nobody is starved by students skipped for their time zone. */
-async function* candidates(where: object, userIds?: string[]): AsyncGenerator<Candidate[]> {
-  let cursor: string | undefined;
-  for (;;) {
-    const page = await db.profile.findMany({
-      where: {
-        AND: [
-          { emailReminders: true, user: { onboardingCompletedAt: { not: null } }, ...where },
-          userIds ? { userId: { in: userIds } } : {},
-          // Keyset paging: unaffected by rows that leave the filter mid-run.
-          cursor ? { userId: { gt: cursor } } : {},
-        ],
-      },
-      select: { userId: true, displayName: true, timezone: true, lastDigestAt: true, lastNudgeAt: true, user: { select: { email: true } } },
-      orderBy: { userId: "asc" },
-      take: BATCH,
-    });
-    if (page.length === 0) return;
-    yield page;
-    if (page.length < BATCH) return;
-    cursor = page[page.length - 1].userId;
-  }
+/** One page of opted-in students matching `where`, after `cursor`, in userId order.
+ * Keyset paging (userId > cursor) isn't thrown off by rows leaving the filter mid-run. */
+async function loadCandidatePage(where: object, userIds: string[] | undefined, cursor: string | undefined): Promise<Candidate[]> {
+  const testFilter = userIds ? { userId: { in: userIds } } : {};
+  const afterCursor = cursor ? { userId: { gt: cursor } } : {};
+  return db.profile.findMany({
+    where: {
+      AND: [{ emailReminders: true, user: { onboardingCompletedAt: { not: null } }, ...where }, testFilter, afterCursor],
+    },
+    select: { userId: true, displayName: true, timezone: true, lastDigestAt: true, lastNudgeAt: true, user: { select: { email: true } } },
+    orderBy: { userId: "asc" },
+    take: BATCH,
+  });
 }
 
+/** Undoes a claim after a failed send, so the student is retried next run. */
 async function release(userId: string, data: { lastDigestAt?: Date | null; lastNudgeAt?: Date | null }) {
   await db.profile.update({ where: { userId }, data }).catch(() => {});
 }
@@ -75,11 +65,44 @@ async function release(userId: string, data: { lastDigestAt?: Date | null; lastN
 /** Claims a send before it happens (so a cron that fires twice can't email
  * twice); the claim is undone if the send fails. */
 async function claim(userId: string, field: "lastDigestAt" | "lastNudgeAt", olderThan: Date, now: Date): Promise<boolean> {
-  const r = await db.profile.updateMany({
+  const result = await db.profile.updateMany({
     where: { userId, OR: [{ [field]: null }, { [field]: { lt: olderThan } }] },
     data: { [field]: now },
   });
-  return r.count === 1;
+  return result.count === 1;
+}
+
+/** Builds and sends one student's digest. Returns whether the send worked. */
+async function sendDigestTo(student: Candidate, timeZone: string, now: Date, send: (msg: EmailMessage) => Promise<boolean>): Promise<boolean> {
+  const plan = await generatePlanForUser(student.userId, now);
+  const weekEnd = now.getTime() + 7 * DAY;
+
+  const items: DigestItem[] = [];
+  for (const scored of plan.scored) {
+    if (items.length === 5) break;
+    if (scored.item.dueAt.getTime() > weekEnd) continue;
+    items.push({
+      title: scored.item.title,
+      className: scored.item.className,
+      pulse: pulseOf(scored.score),
+      due: formatDueDate(scored.item.dueAt, timeZone, now),
+    });
+  }
+
+  let plannedMinutes = 0;
+  for (const session of plan.sessions) plannedMinutes += session.scheduledMinutes;
+
+  const streak = await getStreak(student.userId, timeZone, now);
+  const unsub = unsubscribeUrl(appUrl(), student.userId);
+  const mail = weeklyDigestEmail({
+    name: student.displayName || null,
+    items,
+    plannedMinutes,
+    streak: streak.current,
+    appUrl: appUrl(),
+    unsubscribeUrl: unsub,
+  });
+  return send({ to: student.user.email, ...mail, unsubscribeUrl: unsub });
 }
 
 export async function sendWeeklyDigests(budgetMs: number, deps: EmailJobDeps = {}): Promise<EmailJobReport> {
@@ -89,38 +112,40 @@ export async function sendWeeklyDigests(budgetMs: number, deps: EmailJobDeps = {
   const now = deps.now ?? new Date();
   const deadline = Date.now() + budgetMs;
   const olderThan = new Date(now.getTime() - 6 * DAY);
-  outer: for await (const page of candidates({ OR: [{ lastDigestAt: null }, { lastDigestAt: { lt: olderThan } }] }, deps.userIds)) {
-    for (const p of page) {
+  const notSentRecently = { OR: [{ lastDigestAt: null }, { lastDigestAt: { lt: olderThan } }] };
+
+  let cursor: string | undefined = undefined;
+  while (true) {
+    const page = await loadCandidatePage(notSentRecently, deps.userIds, cursor);
+    if (page.length === 0) break;
+
+    for (const student of page) {
       if (Date.now() > deadline) {
         report.outOfTime = true;
-        break outer;
+        return report;
       }
-      const tz = resolveTimeZone(p.timezone);
-      if (dayOfWeekForKey(localDateKey(now, tz)) !== 0) {
+      const timeZone = resolveTimeZone(student.timezone);
+      const isSundayThere = dayOfWeekForKey(localDateKey(now, timeZone)) === 0;
+      if (!isSundayThere) {
         report.skipped++;
         continue;
       }
-      if (!(await claim(p.userId, "lastDigestAt", olderThan, now))) continue;
+      if (!(await claim(student.userId, "lastDigestAt", olderThan, now))) continue;
+
       try {
-        const plan = await generatePlanForUser(p.userId, now);
-        const weekEnd = now.getTime() + 7 * DAY;
-        const items = plan.scored
-          .filter((s) => s.item.dueAt.getTime() <= weekEnd)
-          .slice(0, 5)
-          .map((s) => ({ title: s.item.title, className: s.item.className, pulse: pulseOf(s.score), due: formatDueDate(s.item.dueAt, tz, now) }));
-        const plannedMinutes = plan.sessions.reduce((sum, s) => sum + s.scheduledMinutes, 0);
-        const streak = await getStreak(p.userId, tz, now);
-        const unsub = unsubscribeUrl(appUrl(), p.userId);
-        const mail = weeklyDigestEmail({ name: p.displayName || null, items, plannedMinutes, streak: streak.current, appUrl: appUrl(), unsubscribeUrl: unsub });
-        if (await send({ to: p.user.email, ...mail, unsubscribeUrl: unsub })) report.sent++;
-        else await release(p.userId, { lastDigestAt: p.lastDigestAt });
+        const sent = await sendDigestTo(student, timeZone, now, send);
+        if (sent) report.sent++;
+        else await release(student.userId, { lastDigestAt: student.lastDigestAt });
       } catch (error) {
         // One student's problem never stops the others; they're retried next run.
         console.error("[email] digest failed", (error as Error)?.name ?? typeof error);
         report.failed++;
-        await release(p.userId, { lastDigestAt: p.lastDigestAt });
+        await release(student.userId, { lastDigestAt: student.lastDigestAt });
       }
     }
+
+    if (page.length < BATCH) break;
+    cursor = page[page.length - 1].userId;
   }
   return report;
 }
@@ -132,36 +157,49 @@ export async function sendStreakNudges(budgetMs: number, deps: EmailJobDeps = {}
   const now = deps.now ?? new Date();
   const deadline = Date.now() + budgetMs;
   const olderThan = new Date(now.getTime() - 20 * 60 * 60 * 1000);
-  outer: for await (const page of candidates({ OR: [{ lastNudgeAt: null }, { lastNudgeAt: { lt: olderThan } }] }, deps.userIds)) {
-    for (const p of page) {
+  const notNudgedRecently = { OR: [{ lastNudgeAt: null }, { lastNudgeAt: { lt: olderThan } }] };
+
+  let cursor: string | undefined = undefined;
+  while (true) {
+    const page = await loadCandidatePage(notNudgedRecently, deps.userIds, cursor);
+    if (page.length === 0) break;
+
+    for (const student of page) {
       if (Date.now() > deadline) {
         report.outOfTime = true;
-        break outer;
+        return report;
       }
-      const tz = resolveTimeZone(p.timezone);
-      const hour = zonedParts(now, tz).hour;
+      const timeZone = resolveTimeZone(student.timezone);
+      const hour = zonedParts(now, timeZone).hour;
       if (hour < EVENING_START || hour > EVENING_END) {
         report.skipped++;
         continue;
       }
-      const streak = await getStreak(p.userId, tz, now).catch(() => null);
+      const streak = await getStreak(student.userId, timeZone, now).catch(() => null);
       if (!streak || streak.current < 3 || streak.todayDone) {
         report.skipped++;
         continue;
       }
-      if (!(await claim(p.userId, "lastNudgeAt", olderThan, now))) continue;
+      if (!(await claim(student.userId, "lastNudgeAt", olderThan, now))) continue;
+
       try {
-        const plan = await generatePlanForUser(p.userId, now);
-        const unsub = unsubscribeUrl(appUrl(), p.userId);
-        const mail = streakNudgeEmail({ streak: streak.current, next: plan.scored[0]?.item.title ?? null, appUrl: appUrl(), unsubscribeUrl: unsub });
-        if (await send({ to: p.user.email, ...mail, unsubscribeUrl: unsub })) report.sent++;
-        else await release(p.userId, { lastNudgeAt: p.lastNudgeAt });
+        const plan = await generatePlanForUser(student.userId, now);
+        const unsub = unsubscribeUrl(appUrl(), student.userId);
+        const nextTitle = plan.scored[0]?.item.title ?? null;
+        const mail = streakNudgeEmail({ streak: streak.current, next: nextTitle, appUrl: appUrl(), unsubscribeUrl: unsub });
+        const sent = await send({ to: student.user.email, ...mail, unsubscribeUrl: unsub });
+        if (sent) report.sent++;
+        else await release(student.userId, { lastNudgeAt: student.lastNudgeAt });
       } catch (error) {
+        // One student's problem never stops the others; they're retried next run.
         console.error("[email] nudge failed", (error as Error)?.name ?? typeof error);
         report.failed++;
-        await release(p.userId, { lastNudgeAt: p.lastNudgeAt });
+        await release(student.userId, { lastNudgeAt: student.lastNudgeAt });
       }
     }
+
+    if (page.length < BATCH) break;
+    cursor = page[page.length - 1].userId;
   }
   return report;
 }

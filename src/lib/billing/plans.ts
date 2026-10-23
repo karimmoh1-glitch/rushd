@@ -1,7 +1,6 @@
-// Plans and their allowances — the single place prices and quotas live.
-// Counts are the student-facing allowances; `monthlyCostCapUsd` is a hard
-// ceiling on estimated provider cost per student per month (disclosed in the
-// billing terms), so heavy use can never cost more than the plan earns.
+// Plans and allowances: the one place prices and quotas live. `monthlyCostCapUsd`
+// is a hard cap on AI cost per student per month (disclosed in the billing
+// terms), so heavy use never costs more than the plan earns.
 
 export type PlanId = "FREE" | "PLUS" | "PRO";
 export type AiFeature = "tutor_message" | "photo_assessment" | "draft_review" | "quick_add" | "screenshot_import";
@@ -82,5 +81,8 @@ export const FEATURE_LABEL: Record<AiFeature, string> = {
 /** Features with a per-plan monthly count. The two small extraction
  * features count only toward the daily request and cost limits. */
 export function monthlyAllowance(plan: Plan, feature: AiFeature): number | null {
-  return feature in plan.monthly ? plan.monthly[feature as keyof Plan["monthly"]] : null;
+  if (feature === "tutor_message" || feature === "photo_assessment" || feature === "draft_review") {
+    return plan.monthly[feature];
+  }
+  return null;
 }

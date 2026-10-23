@@ -15,22 +15,34 @@ export const BONUS_COST_PER_MESSAGE_USD = 0.1;
 
 const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 
+/** 8 random characters from ALPHABET (no look-alikes such as 0/o or 1/l). */
 function newCode(): string {
-  const bytes = randomBytes(8);
-  return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
+  let code = "";
+  for (const byte of randomBytes(8)) code += ALPHABET[byte % ALPHABET.length];
+  return code;
+}
+
+async function readReferralCode(userId: string): Promise<string | null> {
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { referralCode: true } });
+  return user.referralCode;
 }
 
 export async function getOrCreateReferralCode(userId: string): Promise<string> {
-  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { referralCode: true } });
-  if (user.referralCode) return user.referralCode;
+  const existing = await readReferralCode(userId);
+  if (existing) return existing;
+
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       const code = newCode();
+      // Only set it if still empty, so a parallel request can't overwrite another code.
       const updated = await db.user.updateMany({ where: { id: userId, referralCode: null }, data: { referralCode: code } });
       if (updated.count === 1) return code;
-      return (await db.user.findUniqueOrThrow({ where: { id: userId }, select: { referralCode: true } })).referralCode!;
+      // Another request set a code first: use that one.
+      return (await readReferralCode(userId))!;
     } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) throw error;
+      // P2002 = the random code is already taken by someone else; try a new one.
+      const isTaken = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+      if (!isTaken) throw error;
     }
   }
   throw new Error("Couldn't create an invite code.");

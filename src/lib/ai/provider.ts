@@ -19,18 +19,11 @@ export interface ExtractedAssignment {
 }
 
 export interface ImageInput {
-  /** Base64-encoded image bytes — never written to disk, see docs/AI_ARCHITECTURE.md. */
+  /** Base64-encoded image bytes. Never written to disk. */
   base64: string;
   mediaType: "image/png" | "image/jpeg" | "image/webp";
 }
 
-/**
- * Every AI-backed feature calls through this interface rather than an SDK
- * directly, so a provider swap later touches one file
- * (src/lib/ai/anthropic-provider.ts), not every call site. Every method
- * returns null on any failure — the caller always has a deterministic
- * fallback path. See docs/AI_ARCHITECTURE.md.
- */
 /** Provider-reported usage for one call, for cost metering (src/lib/ai/usage.ts). */
 export interface CallUsage {
   model: string;
@@ -40,6 +33,30 @@ export interface CallUsage {
   cacheWriteTokens: number;
 }
 
+/** The token counts an Anthropic API response reports. */
+interface ResponseWithUsage {
+  model: string;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_input_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
+  };
+}
+
+/** Reads the usage numbers out of an Anthropic API response. */
+export function readCallUsage(response: ResponseWithUsage): CallUsage {
+  return {
+    model: response.model,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
+  };
+}
+
+// Features call the AI through this interface, not the SDK, so a provider swap
+// touches one file. Every method returns null on failure; callers have a fallback.
 export interface AIProvider {
   parseQuickAdd(
     text: string,

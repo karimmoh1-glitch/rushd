@@ -2,21 +2,21 @@ import "server-only";
 import Stripe from "stripe";
 import type { PlanId } from "./plans";
 
-// Billing is off unless the server has a Stripe secret key, a webhook secret,
-// and price ids for the paid plans. Use test-mode keys (sk_test_...) until
-// live billing has been reviewed; nothing here switches modes by itself.
+// Billing is off unless the Stripe key, webhook secret and both price ids are set.
+// Use test-mode keys (sk_test_...) until live billing is reviewed; nothing here switches modes.
 
 let client: Stripe | null = null;
 
 export function billingConfigured(): boolean {
-  return Boolean(
-    process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.STRIPE_PRICE_PLUS && process.env.STRIPE_PRICE_PRO,
-  );
+  const env = process.env;
+  return Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET && env.STRIPE_PRICE_PLUS && env.STRIPE_PRICE_PRO);
 }
 
 export function billingMode(): "off" | "test" | "live" {
   if (!billingConfigured()) return "off";
-  return process.env.STRIPE_SECRET_KEY!.startsWith("sk_live_") ? "live" : "test";
+  const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
+  if (secretKey.startsWith("sk_live_")) return "live";
+  return "test";
 }
 
 export function stripe(): Stripe {

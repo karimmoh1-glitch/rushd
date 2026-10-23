@@ -5,14 +5,13 @@ import { PLANS, monthlyAllowance, type AiFeature, type Plan, type PlanId } from 
 import { costMicros, toMicros, type TokenUsage } from "./pricing";
 import { BONUS_COST_PER_MESSAGE_USD, BONUS_MESSAGES, referralBonus } from "@/lib/referral/referral";
 
-// Server-side AI metering. Every AI call goes reserve → provider → settle (or
-// fail). Reservation happens inside one transaction holding a Postgres
-// advisory lock, so concurrent requests can't both slip under a limit. A
-// reservation counts its estimated cost until it settles with the cost
-// computed from the provider's reported token usage.
+// Server-side AI metering. Every AI call goes reserve -> provider -> settle (or fail).
+// Reserving runs in one transaction under a Postgres advisory lock, so two
+// concurrent requests can't both slip under a limit. A reservation counts its
+// estimated cost until it settles with the real cost.
 
 /** Upper-bound cost assumed for a request before it runs. */
-export const FEATURE_ESTIMATE_USD: Record<AiFeature, number> = {
+const FEATURE_ESTIMATE_USD: Record<AiFeature, number> = {
   tutor_message: 0.2,
   photo_assessment: 0.15,
   draft_review: 0.2,
@@ -41,16 +40,18 @@ const MESSAGES: Record<RejectReason, string> = {
 export function monthStart(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
+
 function dayStart(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
-type Tx = Prisma.TransactionClient;
-type Reader = Tx | typeof db;
+/** Either the main client or a transaction client. */
+type Reader = Prisma.TransactionClient | typeof db;
 
 export async function getPlanId(userId: string, client: Reader = db): Promise<PlanId> {
   const sub = await client.subscription.findUnique({ where: { userId }, select: { plan: true, status: true } });
-  return sub && ACTIVE_STATUSES.includes(sub.status) ? sub.plan : "FREE";
+  if (sub && ACTIVE_STATUSES.includes(sub.status)) return sub.plan;
+  return "FREE";
 }
 
 export interface AiSettings {
@@ -58,16 +59,27 @@ export interface AiSettings {
   monthlyBudgetUsd: number;
 }
 
+/** The stored budget wins, then the AI_MONTHLY_BUDGET_USD env var, then the default. */
+function chooseMonthlyBudget(stored: unknown): number {
+  if (typeof stored === "number" && stored >= 0) return stored;
+  const envBudget = Number(process.env.AI_MONTHLY_BUDGET_USD);
+  if (Number.isFinite(envBudget) && envBudget >= 0) return envBudget;
+  return DEFAULT_GLOBAL_BUDGET_USD;
+}
+
 export async function getAiSettings(client: Reader = db): Promise<AiSettings> {
   const rows = await client.appSetting.findMany({ where: { key: { in: ["ai.enabled", "ai.monthlyBudgetUsd"] } } });
-  const byKey = new Map(rows.map((r) => [r.key, r.value]));
-  const envBudget = Number(process.env.AI_MONTHLY_BUDGET_USD);
-  const stored = byKey.get("ai.monthlyBudgetUsd");
+  let storedEnabled: unknown = undefined;
+  let storedBudget: unknown = undefined;
+  for (const row of rows) {
+    if (row.key === "ai.enabled") storedEnabled = row.value;
+    if (row.key === "ai.monthlyBudgetUsd") storedBudget = row.value;
+  }
+  // The environment kill switch wins over anything stored in the database.
+  const killSwitchOn = process.env.AI_KILL_SWITCH === "on";
   return {
-    // The environment kill switch wins over anything stored in the database.
-    enabled: process.env.AI_KILL_SWITCH !== "on" && byKey.get("ai.enabled") !== false,
-    monthlyBudgetUsd:
-      typeof stored === "number" && stored >= 0 ? stored : Number.isFinite(envBudget) && envBudget >= 0 ? envBudget : DEFAULT_GLOBAL_BUDGET_USD,
+    enabled: !killSwitchOn && storedEnabled !== false,
+    monthlyBudgetUsd: chooseMonthlyBudget(storedBudget),
   };
 }
 
@@ -81,51 +93,92 @@ async function spendSince(client: Reader, since: Date, userId?: string): Promise
   return Number(rows[0]?.micros ?? 0);
 }
 
-export async function reserveAi(userId: string, feature: AiFeature, now: Date = new Date()): Promise<Reservation> {
+function reject(reason: RejectReason): Reservation {
+  return { ok: false, reason, message: MESSAGES[reason] };
+}
+
+/** The tutor quota message also points to the invite bonus. */
+function tutorQuotaRejection(): Reservation {
+  return {
+    ok: false,
+    reason: "monthly_quota",
+    message: `${MESSAGES.monthly_quota} Invite a friend from Settings and you both get ${BONUS_MESSAGES} more tutor messages every month.`,
+  };
+}
+
+/** The plan's monthly count for a feature, plus invite bonus messages for the tutor. Null = no monthly count. */
+function allowanceWithBonus(plan: Plan, feature: AiFeature, bonus: number): number | null {
+  const baseAllowance = monthlyAllowance(plan, feature);
+  if (baseAllowance === null) return null;
+  if (feature === "tutor_message") return baseAllowance + bonus;
+  return baseAllowance;
+}
+
+/** The plan's monthly cost cap, raised so invite bonus messages are usable. */
+function costCapMicros(plan: Plan, bonus: number): number {
+  return toMicros(plan.monthlyCostCapUsd + bonus * BONUS_COST_PER_MESSAGE_USD);
+}
+
+/** Runs every limit check and, if all pass, records a reservation. Must run inside the locked transaction. */
+async function checkLimitsAndReserve(tx: Prisma.TransactionClient, userId: string, feature: AiFeature, now: Date): Promise<Reservation> {
   const estimate = toMicros(FEATURE_ESTIMATE_USD[feature]);
+
+  const settings = await getAiSettings(tx);
+  if (!settings.enabled) return reject("disabled");
+
+  const since = monthStart(now);
+  const globalSpent = await spendSince(tx, since);
+  if (globalSpent + estimate > toMicros(settings.monthlyBudgetUsd)) return reject("global_budget");
+
+  const plan = PLANS[await getPlanId(userId, tx)];
+  const countedStatuses = { in: ["reserved", "completed"] };
+  // Invite bonus: extra tutor messages, with the cost room to use them.
+  const bonus = await referralBonus(userId, tx);
+
+  const allowance = allowanceWithBonus(plan, feature, bonus);
+  if (allowance !== null) {
+    const usedThisMonth = await tx.aiUsage.count({
+      where: { userId, status: countedStatuses, feature, createdAt: { gte: since } },
+    });
+    if (usedThisMonth >= allowance) {
+      if (feature === "tutor_message") return tutorQuotaRejection();
+      return reject("monthly_quota");
+    }
+  }
+
+  const userSpent = await spendSince(tx, since, userId);
+  if (userSpent + estimate > costCapMicros(plan, bonus)) return reject("monthly_cost");
+
+  const usedToday = await tx.aiUsage.count({
+    where: { userId, status: countedStatuses, createdAt: { gte: dayStart(now) } },
+  });
+  if (usedToday >= plan.dailyRequests) return reject("daily_limit");
+
+  const inFlightSince = new Date(now.getTime() - IN_FLIGHT_MS);
+  const inFlight = await tx.aiUsage.count({
+    where: { userId, status: "reserved", createdAt: { gte: inFlightSince } },
+  });
+  if (inFlight >= plan.maxConcurrent) return reject("concurrency");
+
+  const row = await tx.aiUsage.create({
+    data: { userId, feature, model: "pending", status: "reserved", estimatedCostMicros: estimate, createdAt: now },
+    select: { id: true },
+  });
+  return { ok: true, usageId: row.id, plan };
+}
+
+export async function reserveAi(userId: string, feature: AiFeature, now: Date = new Date()): Promise<Reservation> {
   const outcome = await db.$transaction(
-    async (tx): Promise<Reservation> => {
+    async (tx) => {
       // One lock for all reservations: they're short, and it makes the
       // global budget check exact as well as the per-user ones.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('rushd:ai-reserve'))`;
-      const settings = await getAiSettings(tx);
-      const reject = (reason: RejectReason): Reservation => ({ ok: false, reason, message: MESSAGES[reason] });
-      if (!settings.enabled) return reject("disabled");
-
-      const since = monthStart(now);
-      if ((await spendSince(tx, since)) + estimate > toMicros(settings.monthlyBudgetUsd)) return reject("global_budget");
-
-      const plan = PLANS[await getPlanId(userId, tx)];
-      const counted = { userId, status: { in: ["reserved", "completed"] } };
-      // Invite bonus: extra tutor messages, with the cost room to use them.
-      const bonus = await referralBonus(userId, tx);
-      const baseAllowance = monthlyAllowance(plan, feature);
-      const allowance = baseAllowance === null ? null : baseAllowance + (feature === "tutor_message" ? bonus : 0);
-      if (allowance !== null) {
-        const used = await tx.aiUsage.count({ where: { ...counted, feature, createdAt: { gte: since } } });
-        if (used >= allowance) {
-          if (feature !== "tutor_message") return reject("monthly_quota");
-          return { ok: false, reason: "monthly_quota", message: `${MESSAGES.monthly_quota} Invite a friend from Settings and you both get ${BONUS_MESSAGES} more tutor messages every month.` };
-        }
-      }
-      const costCap = toMicros(plan.monthlyCostCapUsd + bonus * BONUS_COST_PER_MESSAGE_USD);
-      if ((await spendSince(tx, since, userId)) + estimate > costCap) return reject("monthly_cost");
-      const today = await tx.aiUsage.count({ where: { ...counted, createdAt: { gte: dayStart(now) } } });
-      if (today >= plan.dailyRequests) return reject("daily_limit");
-      const inFlight = await tx.aiUsage.count({
-        where: { userId, status: "reserved", createdAt: { gte: new Date(now.getTime() - IN_FLIGHT_MS) } },
-      });
-      if (inFlight >= plan.maxConcurrent) return reject("concurrency");
-
-      const row = await tx.aiUsage.create({
-        data: { userId, feature, model: "pending", status: "reserved", estimatedCostMicros: estimate, createdAt: now },
-        select: { id: true },
-      });
-      return { ok: true, usageId: row.id, plan };
+      return checkLimitsAndReserve(tx, userId, feature, now);
     },
     { timeout: 15_000 },
   );
   if (!outcome.ok) {
+    // Best effort: a failed log must not hide the rejection from the student.
     await db.aiRejection.create({ data: { userId, feature, reason: outcome.reason } }).catch(() => {});
   }
   return outcome;
@@ -184,15 +237,21 @@ export async function getUsageSummary(userId: string, now: Date = new Date()): P
     spendSince(db, since, userId),
     referralBonus(userId),
   ]);
-  const used = new Map(counts.map((c) => [c.feature, c._count._all]));
+  const usedByFeature = new Map<string, number>();
+  for (const row of counts) usedByFeature.set(row.feature, row._count._all);
+
+  const features: UsageSummary["features"] = [];
+  const monthlyFeatures = Object.keys(plan.monthly) as (keyof Plan["monthly"])[];
+  for (const feature of monthlyFeatures) {
+    let limit = plan.monthly[feature];
+    if (feature === "tutor_message") limit += bonus;
+    features.push({ feature, used: usedByFeature.get(feature) ?? 0, limit });
+  }
+
   return {
     plan,
-    features: (Object.keys(plan.monthly) as (keyof Plan["monthly"])[]).map((feature) => ({
-      feature,
-      used: used.get(feature) ?? 0,
-      limit: plan.monthly[feature] + (feature === "tutor_message" ? bonus : 0),
-    })),
-    costUsedFraction: Math.min(1, spent / toMicros(plan.monthlyCostCapUsd + bonus * BONUS_COST_PER_MESSAGE_USD)),
+    features,
+    costUsedFraction: Math.min(1, spent / costCapMicros(plan, bonus)),
     periodStart: since,
   };
 }

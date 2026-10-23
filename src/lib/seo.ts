@@ -2,8 +2,8 @@
 // a plain fact about the product or its founder; nothing is a rating, review,
 // or claim that hasn't been verified.
 
-export const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://therushd.com";
-export const FOUNDER_NAME = "Karim Mohamed";
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://therushd.com";
+const FOUNDER_NAME = "Karim Mohamed";
 
 export function organizationJsonLd() {
   return {

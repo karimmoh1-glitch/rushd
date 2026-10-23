@@ -2,12 +2,10 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { env, aiEnabled } from "@/lib/env";
 import { QuickAddDraftSchema, ExtractedAssignmentListSchema } from "./schemas";
-import type { AIProvider, CallUsage, ExtractedAssignment, ImageInput } from "./provider";
+import { readCallUsage, type AIProvider, type CallUsage, type ExtractedAssignment, type ImageInput } from "./provider";
 import type { ClassRef } from "./fallback-parse";
 
-// Small, fast, cheap model for both tasks here — structured extraction,
-// not a conversation. See docs/ARCHITECTURE.md: "AI is a supporting
-// capability, not the product."
+// A small, fast, cheap model: both tasks here are structured extraction, not conversation.
 const MODEL = "claude-haiku-4-5-20251001";
 
 const QUICK_ADD_TOOL: Anthropic.Tool = {
@@ -73,20 +71,26 @@ const EXTRACT_IMAGE_TOOL: Anthropic.Tool = {
   },
 };
 
-function usageOf(response: Anthropic.Message): CallUsage {
-  return {
-    model: response.model,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-    cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
-    cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
-  };
+/** The input of the first tool call in a response, or null if there is none. */
+function findToolInput(response: Anthropic.Message): unknown {
+  for (const block of response.content) {
+    if (block.type === "tool_use") return block.input;
+  }
+  return null;
 }
 
+// Uses the SDK's default timeout and retries (unlike the tutor's client in client.ts).
 let client: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!client) client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   return client;
+}
+
+function toImageBlock(image: ImageInput): Anthropic.ImageBlockParam {
+  return {
+    type: "image",
+    source: { type: "base64", media_type: image.mediaType, data: image.base64 },
+  };
 }
 
 export const anthropicProvider: AIProvider = {
@@ -107,13 +111,14 @@ export const anthropicProvider: AIProvider = {
         tool_choice: { type: "tool", name: "extract_quick_add" },
         messages: [{ role: "user", content: text }],
       });
-      onUsage?.(usageOf(response));
+      onUsage?.(readCallUsage(response));
 
-      const toolUse = response.content.find((block) => block.type === "tool_use");
-      if (!toolUse || toolUse.type !== "tool_use") return null;
+      const toolInput = findToolInput(response);
+      if (toolInput === null) return null;
 
-      const parsed = QuickAddDraftSchema.safeParse(toolUse.input);
-      return parsed.success ? parsed.data : null;
+      const parsed = QuickAddDraftSchema.safeParse(toolInput);
+      if (!parsed.success) return null;
+      return parsed.data;
     } catch (error) {
       console.error("[ai] quick-add parse failed, falling back", (error as Error)?.name ?? typeof error);
       return null;
@@ -149,24 +154,18 @@ export const anthropicProvider: AIProvider = {
         messages: [
           {
             role: "user",
-            content: images.map((img) => ({
-              type: "image" as const,
-              source: {
-                type: "base64" as const,
-                media_type: img.mediaType,
-                data: img.base64,
-              },
-            })),
+            content: images.map(toImageBlock),
           },
         ],
       });
-      onUsage?.(usageOf(response));
+      onUsage?.(readCallUsage(response));
 
-      const toolUse = response.content.find((block) => block.type === "tool_use");
-      if (!toolUse || toolUse.type !== "tool_use") return null;
+      const toolInput = findToolInput(response);
+      if (toolInput === null) return null;
 
-      const parsed = ExtractedAssignmentListSchema.safeParse(toolUse.input);
-      return parsed.success ? parsed.data.assignments : null;
+      const parsed = ExtractedAssignmentListSchema.safeParse(toolInput);
+      if (!parsed.success) return null;
+      return parsed.data.assignments;
     } catch (error) {
       console.error("[ai] image extraction failed, falling back to manual entry", (error as Error)?.name ?? typeof error);
       return null;

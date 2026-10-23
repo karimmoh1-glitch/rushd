@@ -5,42 +5,26 @@ export const MAX_IMAGES_PER_REQUEST = 5;
 
 export type ValidatedMediaType = "image/png" | "image/jpeg" | "image/webp";
 
-/** Sniffs actual file signature bytes rather than trusting the client's
- * declared Content-Type or the filename extension — both are attacker
- * controlled. Returns null if the bytes don't match a supported format. */
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const JPEG_SIGNATURE = [0xff, 0xd8, 0xff];
+const RIFF = [0x52, 0x49, 0x46, 0x46]; // "RIFF"
+const WEBP = [0x57, 0x45, 0x42, 0x50]; // "WEBP"
+
+/** True if `bytes` contains `expected` starting at `offset`. */
+function bytesMatch(bytes: Uint8Array, offset: number, expected: number[]): boolean {
+  if (bytes.length < offset + expected.length) return false;
+  for (let i = 0; i < expected.length; i++) {
+    if (bytes[offset + i] !== expected[i]) return false;
+  }
+  return true;
+}
+
+/** Checks the file's real signature bytes, never the client's Content-Type or
+ * file name (both are attacker controlled). Null if it's not a supported image. */
 export function sniffImageType(bytes: Uint8Array): ValidatedMediaType | null {
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47 &&
-    bytes[4] === 0x0d &&
-    bytes[5] === 0x0a &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0x0a
-  ) {
-    return "image/png";
-  }
-
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return "image/jpeg";
-  }
-
-  if (
-    bytes.length >= 12 &&
-    bytes[0] === 0x52 && // R
-    bytes[1] === 0x49 && // I
-    bytes[2] === 0x46 && // F
-    bytes[3] === 0x46 && // F
-    bytes[8] === 0x57 && // W
-    bytes[9] === 0x45 && // E
-    bytes[10] === 0x42 && // B
-    bytes[11] === 0x50 // P
-  ) {
-    return "image/webp";
-  }
-
+  if (bytesMatch(bytes, 0, PNG_SIGNATURE)) return "image/png";
+  if (bytesMatch(bytes, 0, JPEG_SIGNATURE)) return "image/jpeg";
+  if (bytesMatch(bytes, 0, RIFF) && bytesMatch(bytes, 8, WEBP)) return "image/webp";
   return null;
 }
 
@@ -63,16 +47,14 @@ export async function validateImageFiles(files: File[]): Promise<ValidateImagesR
 
   const images: ValidatedImage[] = [];
   for (const file of files) {
+    const fileName = file.name || "One of your files";
     if (file.size > MAX_IMAGE_BYTES) {
-      return { ok: false, error: `${file.name || "One of your files"} is over the 8MB limit.` };
+      return { ok: false, error: `${fileName} is over the 8MB limit.` };
     }
     const buffer = new Uint8Array(await file.arrayBuffer());
     const mediaType = sniffImageType(buffer);
     if (!mediaType) {
-      return {
-        ok: false,
-        error: `${file.name || "One of your files"} isn't a recognized PNG, JPEG, or WebP image.`,
-      };
+      return { ok: false, error: `${fileName} isn't a recognized PNG, JPEG, or WebP image.` };
     }
     images.push({ base64: Buffer.from(buffer).toString("base64"), mediaType });
   }

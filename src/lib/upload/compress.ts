@@ -1,12 +1,17 @@
-// Browser-side image preparation for uploads: applies the photo's EXIF
-// orientation, scales the long edge down, and re-encodes as JPEG so phone
-// photos (often 5-12 MB) fit comfortably under the server's request limit.
-// Also strips metadata such as GPS location, since only pixels are redrawn.
+// Browser-side image prep for uploads: applies EXIF orientation, shrinks the long
+// edge, and re-encodes as JPEG so phone photos fit under the server's limit.
+// Redrawing only the pixels also strips metadata such as GPS location.
 
-export const MAX_EDGE = 2000;
-export const TARGET_BYTES = 1_500_000;
+const MAX_EDGE = 2000;
+const TARGET_BYTES = 1_500_000;
+// Try these JPEG qualities in order; the last one is used even if still large.
+const QUALITIES = [0.85, 0.75, 0.65];
 
 export class ImagePrepError extends Error {}
+
+function toJpegBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
 
 export async function compressImage(file: File, maxEdge = MAX_EDGE): Promise<File> {
   if (!file.type.startsWith("image/")) throw new ImagePrepError("That file isn't an image.");
@@ -24,15 +29,18 @@ export async function compressImage(file: File, maxEdge = MAX_EDGE): Promise<Fil
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new ImagePrepError("Couldn't prepare the image in this browser.");
+  // White background, so transparent PNGs don't turn black as JPEG.
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
-  for (const quality of [0.85, 0.75, 0.65]) {
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
-    if (blob && (blob.size <= TARGET_BYTES || quality === 0.65)) {
-      return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  const jpegName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+  for (let i = 0; i < QUALITIES.length; i++) {
+    const blob = await toJpegBlob(canvas, QUALITIES[i]);
+    const isLastTry = i === QUALITIES.length - 1;
+    if (blob && (blob.size <= TARGET_BYTES || isLastTry)) {
+      return new File([blob], jpegName, { type: "image/jpeg" });
     }
   }
   throw new ImagePrepError("Couldn't prepare the image in this browser.");

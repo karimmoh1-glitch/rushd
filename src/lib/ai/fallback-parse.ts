@@ -32,9 +32,7 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Case-insensitive: matches are often detected against a lowercased copy of
-// the text (weekday names, keywords), but must still be stripped from the
-// original-case text shown to the student.
+// Case-insensitive, because matches are often found in a lowercased copy of the text.
 function stripMatch(text: string, match: string): string {
   return text
     .replace(new RegExp(escapeRegExp(match), "i"), " ")
@@ -48,14 +46,17 @@ function endOfDay(date: Date): Date {
   return d;
 }
 
-function nextWeekday(now: Date, targetDow: number): Date {
-  const currentDow = now.getDay();
-  let diff = targetDow - currentDow;
-  if (diff < 0) diff += 7;
-  // "due Friday" said on Friday most naturally means today, not next week.
-  const result = new Date(now);
-  result.setDate(now.getDate() + diff);
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(date.getDate() + days);
   return result;
+}
+
+// "due Friday" said on a Friday means today, not next week.
+function nextWeekday(now: Date, targetDayOfWeek: number): Date {
+  let daysAhead = targetDayOfWeek - now.getDay();
+  if (daysAhead < 0) daysAhead += 7;
+  return addDays(now, daysAhead);
 }
 
 function extractDate(text: string, now: Date): { date: Date | null; remaining: string } {
@@ -65,9 +66,7 @@ function extractDate(text: string, now: Date): { date: Date | null; remaining: s
     return { date: endOfDay(now), remaining: stripMatch(text, "today") };
   }
   if (/\btomorrow\b/.test(lower)) {
-    const d = new Date(now);
-    d.setDate(now.getDate() + 1);
-    return { date: endOfDay(d), remaining: stripMatch(text, "tomorrow") };
+    return { date: endOfDay(addDays(now, 1)), remaining: stripMatch(text, "tomorrow") };
   }
 
   const explicit = text.match(EXPLICIT_DATE_RE);
@@ -87,14 +86,10 @@ function extractDate(text: string, now: Date): { date: Date | null; remaining: s
 
   const relative = lower.match(/\bin (\d{1,2}) days?\b/);
   if (relative) {
-    const d = new Date(now);
-    d.setDate(now.getDate() + Number(relative[1]));
-    return { date: endOfDay(d), remaining: stripMatch(text, relative[0]) };
+    return { date: endOfDay(addDays(now, Number(relative[1]))), remaining: stripMatch(text, relative[0]) };
   }
   if (/\bnext week\b/.test(lower)) {
-    const d = new Date(now);
-    d.setDate(now.getDate() + 7);
-    return { date: endOfDay(d), remaining: stripMatch(text, "next week") };
+    return { date: endOfDay(addDays(now, 7)), remaining: stripMatch(text, "next week") };
   }
 
   const named = text.match(MONTH_DATE_RE);
@@ -102,7 +97,11 @@ function extractDate(text: string, now: Date): { date: Date | null; remaining: s
     const month = MONTHS.indexOf(named[1].toLowerCase().slice(0, 3));
     const day = Number(named[2]);
     let candidate = new Date(now.getFullYear(), month, day, 23, 59, 0, 0);
-    if (candidate.getTime() < now.getTime() - 24 * 60 * 60 * 1000) candidate = new Date(now.getFullYear() + 1, month, day, 23, 59, 0, 0);
+    // More than a day in the past means next year's date.
+    const oneDayAgo = now.getTime() - 24 * 60 * 60 * 1000;
+    if (candidate.getTime() < oneDayAgo) {
+      candidate = new Date(now.getFullYear() + 1, month, day, 23, 59, 0, 0);
+    }
     if (candidate.getMonth() === month && candidate.getDate() === day) {
       return { date: candidate, remaining: stripMatch(text, named[0]) };
     }
@@ -114,8 +113,7 @@ function extractDate(text: string, now: Date): { date: Date | null; remaining: s
     const re = new RegExp(`\\b(${full}|${abbr})\\b`, "i");
     const match = lower.match(re);
     if (match) {
-      const date = nextWeekday(now, i);
-      return { date: endOfDay(date), remaining: stripMatch(text, match[0]) };
+      return { date: endOfDay(nextWeekday(now, i)), remaining: stripMatch(text, match[0]) };
     }
   }
 
@@ -146,8 +144,7 @@ function extractClass(
     }
   }
 
-  // Loose fallback: any word from a class name (4+ letters, so "AP"/"of"
-  // etc. don't cause false positives) appearing in the text.
+  // Loose match: any 4+ letter word of a class name (so "AP" or "of" don't match).
   for (const c of classes) {
     const words = c.name.split(/\s+/).filter((w) => w.length >= 4);
     for (const word of words) {
@@ -170,18 +167,14 @@ function cleanTitle(text: string, original: string, kind: "assignment" | "exam")
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const fallback = original.trim();
-  const finalTitle =
-    cleaned.length > 0 ? cleaned : fallback.length > 0 ? fallback : `New ${kind}`;
-  return finalTitle.charAt(0).toUpperCase() + finalTitle.slice(1);
+  let title = cleaned;
+  if (title.length === 0) title = original.trim();
+  if (title.length === 0) title = `New ${kind}`;
+  return title.charAt(0).toUpperCase() + title.slice(1);
 }
 
-/**
- * Deterministic, regex-based quick-add parser. Runs whenever AI isn't
- * configured (or the AI call fails) — see docs/ARCHITECTURE.md. Never
- * throws; always returns a usable draft, even if that just means "title is
- * the raw text and everything else is a default the student can edit."
- */
+/** Regex-based quick-add parser, used when AI is off or fails. Never throws:
+ * at worst the title is the raw text and everything else is a default. */
 export function fallbackParseQuickAdd(
   rawText: string,
   classes: ClassRef[],
@@ -189,6 +182,7 @@ export function fallbackParseQuickAdd(
 ): QuickAddDraft {
   const text = rawText.trim();
   const kind: "assignment" | "exam" = EXAM_KEYWORDS.test(text) ? "exam" : "assignment";
+  const defaultMinutes = kind === "exam" ? 120 : 30;
 
   const { date, remaining: afterDate } = extractDate(text, now);
   const { minutes, remaining: afterEffort } = extractEffort(afterDate);
@@ -201,7 +195,7 @@ export function fallbackParseQuickAdd(
     title,
     classId,
     dueAt: date ? date.toISOString() : null,
-    minutes: minutes ?? (kind === "exam" ? 120 : 30),
+    minutes: minutes ?? defaultMinutes,
     priority: "MEDIUM",
   };
 }
