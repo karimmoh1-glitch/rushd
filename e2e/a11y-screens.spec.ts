@@ -124,6 +124,10 @@ test("main screens have no axe violations in light or dark", async ({ browser })
     await page.goto("/plan");
     await check("plan two days later");
     await context.clearCookies({ name: "rushd-test-now" });
+    // The tutor about this course (with AI off: context chips and the no-AI path).
+    await page.goto(`/tutor?classId=${courseUrl.split("/").pop()}`);
+    await page.getByRole("heading", { name: "Tutor", exact: true }).waitFor();
+    await check("tutor");
     expect(results).toEqual([]);
     await context.close();
   }

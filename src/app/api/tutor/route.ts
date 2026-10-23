@@ -9,7 +9,10 @@ import { logEvent } from "@/lib/analytics/log-event";
 import { resolveTimeZone, formatDateInZone } from "@/lib/time/zone";
 import { newMeter, runTutorTurn, tutorClient, type TutorEvent, type TutorMode } from "@/lib/tutor/agent";
 import { compactPreferences, readPreferences } from "@/lib/tutor/preferences";
-import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
+import { assembleCourseContext } from "@/lib/tutor/context";
+import { loadCourseContext } from "@/lib/tutor/course-context";
+import { toTurnHistory } from "@/lib/tutor/history";
+import { failAi, getAiSettings, reserveAi, settleAi } from "@/lib/ai/usage";
 import { log } from "@/lib/log";
 import { requestIdFrom, withRequestIdHeader } from "@/lib/request-id";
 
@@ -20,12 +23,19 @@ const BodySchema = z.object({
   message: z.string().trim().min(1, "Type a question first.").max(4000, "Keep it under 4,000 characters."),
   classId: z.string().min(1).max(64).nullish(),
   assignmentId: z.string().min(1).max(64).nullish(),
+  /** "Ask the tutor about this topic / mistake": only read for a new conversation. */
+  focusTopicId: z.string().min(1).max(64).nullish(),
+  focusQuestionId: z.string().min(1).max(64).nullish(),
   mode: z.enum(["explain", "quiz", "plan"]).default("explain"),
 });
 
 const HISTORY_MESSAGES = 20;
 // Burst protection on top of the plan quotas enforced by reserveAi.
 const HOURLY_LIMIT = 30;
+const MINUTE_LIMIT = 6;
+
+/** Unavailable (no key, or AI switched off): the page shows the no-AI path. */
+const UNAVAILABLE = { error: "The tutor isn't available right now.", fallback: true };
 
 function json(status: number, body: unknown) {
   return Response.json(body, { status });
@@ -57,20 +67,15 @@ function providerError(error: unknown): string {
   return "Something went wrong. Try again.";
 }
 
-const conversationFields = { id: true, classId: true, assignmentId: true, mode: true } as const;
-type ConversationRow = { id: string; classId: string | null; assignmentId: string | null; mode: string };
-
-/** Stored messages come newest first; the model wants them oldest first. */
-function toTurnHistory(newestFirst: { role: string; content: string }[]) {
-  const history: { role: "user" | "assistant"; content: string }[] = [];
-  for (let i = newestFirst.length - 1; i >= 0; i--) {
-    const message = newestFirst[i];
-    if (message.role === "user" || message.role === "assistant") {
-      history.push({ role: message.role, content: message.content });
-    }
-  }
-  return history;
-}
+const conversationFields = { id: true, classId: true, assignmentId: true, mode: true, focusTopicId: true, focusQuestionId: true } as const;
+type ConversationRow = {
+  id: string;
+  classId: string | null;
+  assignmentId: string | null;
+  mode: string;
+  focusTopicId: string | null;
+  focusQuestionId: string | null;
+};
 
 /** Loads the class name and assignment title, only if this user owns them. */
 async function loadConversationLabels(userId: string, classId: string | null, assignmentId: string | null) {
@@ -100,8 +105,8 @@ async function handleTutorTurn(request: Request, requestId: string): Promise<Res
   if (!user) {
     return json(401, { error: "Log in to use the tutor." });
   }
-  if (!aiEnabled) {
-    return json(503, { error: "The tutor isn't available on this server yet." });
+  if (!aiEnabled || !(await getAiSettings()).enabled) {
+    return json(503, UNAVAILABLE);
   }
 
   const parsed = BodySchema.safeParse(await request.json().catch(() => null));
@@ -110,6 +115,10 @@ async function handleTutorTurn(request: Request, requestId: string): Promise<Res
   }
   const input = parsed.data;
 
+  const burst = await checkRateLimit(`tutor-minute:${user.id}`, { max: MINUTE_LIMIT, windowMs: 60 * 1000 });
+  if (!burst.allowed) {
+    return json(429, { error: "That's a lot of messages at once. Wait a minute and try again." });
+  }
   const hourly = await checkRateLimit(`tutor-hour:${user.id}`, { max: HOURLY_LIMIT, windowMs: 60 * 60 * 1000 });
   if (!hourly.allowed) {
     return json(429, { error: "That's a lot of messages in an hour. Take a short break and try again." });
@@ -148,18 +157,50 @@ async function handleTutorTurn(request: Request, requestId: string): Promise<Res
       }
       classId = ownedClass.id;
     }
+    // A focus topic or mistake must be the student's own, in the same course.
+    let focusTopicId: string | null = null;
+    let focusQuestionId: string | null = null;
+    if (input.focusQuestionId) {
+      const question = await db.practiceQuestion.findFirst({
+        where: { id: input.focusQuestionId, userId: user.id, ...(classId ? { classId } : {}) },
+        select: { id: true, classId: true },
+      });
+      if (!question) return json(404, { error: "Question not found." });
+      focusQuestionId = question.id;
+      classId = question.classId;
+    } else if (input.focusTopicId) {
+      const topic = await db.courseTopic.findFirst({
+        where: { id: input.focusTopicId, userId: user.id, status: "CONFIRMED", ...(classId ? { classId } : {}) },
+        select: { id: true, classId: true },
+      });
+      if (!topic) return json(404, { error: "Topic not found." });
+      focusTopicId = topic.id;
+      classId = topic.classId;
+    }
     conversation = await db.tutorConversation.create({
-      data: { userId: user.id, classId, assignmentId, mode: input.mode, title: input.message.slice(0, 80) },
+      data: { userId: user.id, classId, assignmentId, focusTopicId, focusQuestionId, mode: input.mode, title: input.message.slice(0, 80) },
       select: conversationFields,
     });
+    let entry = "none";
+    if (focusQuestionId) entry = "mistake";
+    else if (focusTopicId) entry = "topic";
+    else if (assignmentId) entry = "assignment";
+    else if (classId) entry = "course";
+    // Ids and counts only, never content.
+    await logEvent(user.id, "tutor_session_started", { classId, entry });
   }
 
   const reservation = await reserveAi(user.id, "tutor_message");
   if (!reservation.ok) {
+    if (reservation.reason === "disabled" || reservation.reason === "global_budget") {
+      return json(503, { ...UNAVAILABLE, error: reservation.message });
+    }
     return json(429, { error: reservation.message, reason: reservation.reason });
   }
+  const timeZone = resolveTimeZone(user.profile?.timezone);
+  const now = new Date();
 
-  const [storedMessages, labels, profile] = await Promise.all([
+  const [storedMessages, labels, profile, course] = await Promise.all([
     db.tutorMessage.findMany({
       where: { conversationId: conversation.id },
       orderBy: { createdAt: "desc" },
@@ -168,12 +209,28 @@ async function handleTutorTurn(request: Request, requestId: string): Promise<Res
     }),
     loadConversationLabels(user.id, conversation.classId, conversation.assignmentId),
     db.profile.findUnique({ where: { userId: user.id }, select: { tutorInstructions: true, tutorPreferences: true } }),
+    loadCourseContext(user.id, {
+      classId: conversation.classId,
+      focusTopicId: conversation.focusTopicId,
+      focusQuestionId: conversation.focusQuestionId,
+      question: input.message,
+      now,
+      timeZone,
+    }),
   ]);
-  const preferences = compactPreferences(readPreferences(profile?.tutorPreferences), profile?.tutorInstructions);
-  const timeZone = resolveTimeZone(user.profile?.timezone);
-  const now = new Date();
+  const studentPreferences = readPreferences(profile?.tutorPreferences);
+  const preferences = compactPreferences(studentPreferences, profile?.tutorInstructions);
+  const courseContext = assembleCourseContext(course.input);
   const conversationId = conversation.id;
-  const scope = { userId: user.id, classId: conversation.classId, assignmentId: conversation.assignmentId, timeZone, now };
+  const scope = {
+    userId: user.id,
+    classId: conversation.classId,
+    assignmentId: conversation.assignmentId,
+    timeZone,
+    now,
+    conversationId,
+    studentMessage: input.message,
+  };
 
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
@@ -193,6 +250,8 @@ async function handleTutorTurn(request: Request, requestId: string): Promise<Res
             assignmentTitle: labels.assignmentTitle,
             mode: input.mode as TutorMode,
             preferences,
+            courseContext: courseContext.text,
+            hintsFirst: studentPreferences.approach !== "worked_examples",
             todayLabel: formatDateInZone(now, timeZone, { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
           },
           history: toTurnHistory(storedMessages),
@@ -200,6 +259,7 @@ async function handleTutorTurn(request: Request, requestId: string): Promise<Res
           onEvent: send,
           signal: request.signal,
           meter,
+          preloaded: course.materials,
         });
         await settleAi(reservation.usageId, meter.model, meter);
         // Only store sources when there are some.
@@ -207,22 +267,32 @@ async function handleTutorTurn(request: Request, requestId: string): Promise<Res
         if (result.sources.length > 0) {
           sources = result.sources as unknown as Prisma.InputJsonValue;
         }
+        let cards: Prisma.InputJsonValue | undefined = undefined;
+        if (result.cards.length > 0) {
+          cards = result.cards as unknown as Prisma.InputJsonValue;
+        }
         const [, saved] = await db.$transaction([
           db.tutorMessage.create({ data: { conversationId, role: "user", content: input.message } }),
           db.tutorMessage.create({
-            data: { conversationId, role: "assistant", content: result.text, sources },
+            data: { conversationId, role: "assistant", content: result.text, sources, cards },
             select: { id: true },
           }),
           db.tutorConversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
         ]);
         // Counts only, never content.
-        await logEvent(user.id, "tutor_message", { rounds: result.usage.rounds, sources: result.sources.length, refused: result.refused });
-        send({ type: "done", conversationId, message: { id: saved.id, content: result.text, sources: result.sources } });
+        await logEvent(user.id, "tutor_message", {
+          rounds: result.usage.rounds,
+          sources: result.sources.length,
+          cards: result.cards.length,
+          refused: result.refused,
+          contextTokens: courseContext.tokens,
+        });
+        send({ type: "done", conversationId, message: { id: saved.id, content: result.text, sources: result.sources, cards: result.cards } });
       } catch (error) {
         log.error("tutor.turn_failed", { requestId, err: error });
         const billed = meter.inputTokens + meter.outputTokens > 0;
         await failAi(reservation.usageId, (error as Error)?.name ?? "error", meter.model, billed ? meter : undefined).catch(() => {});
-        send({ type: "error", error: providerError(error) });
+        send({ type: "error", error: providerError(error), fallback: true });
       } finally {
         controller.close();
       }

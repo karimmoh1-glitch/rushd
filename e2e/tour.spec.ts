@@ -94,6 +94,7 @@ test("design tour", async ({ browser }) => {
   await shoot(page, "d-course-page");
   await page.goto("/courses");
   await page.getByRole("link", { name: "AP Calculus AB" }).click();
+  await page.waitForURL(/\/courses\/[^/]+$/);
   await shoot(page, "d-course-page-term");
   const calcUrl = page.url().replace(/\/$/, "");
 
@@ -158,6 +159,10 @@ test("design tour", async ({ browser }) => {
   await shoot(page, "d-course-topics");
   await page.goto(calcUrl);
   await shoot(page, "d-course-page-learning");
+  // The tutor opened about one course: context chips and, with AI off, the no-AI path.
+  const calcTutor = `/tutor?classId=${new URL(calcUrl).pathname.split("/").pop()}`;
+  await page.goto(calcTutor);
+  await shoot(page, "d-tutor-course");
 
   // An exam for the course (with its share of the grade), then two days later
   // (the server clock moves for this browser only, see src/lib/time/now.ts):
@@ -238,6 +243,7 @@ test("design tour", async ({ browser }) => {
     [`${calcUrl}/topics`, "m-course-topics"],
     [`${calcUrl}/practice`, "m-course-practice"],
     [`${calcUrl}/mistakes`, "m-course-mistakes"],
+    [calcTutor, "m-tutor-course"],
     ["/mastery", "m-mastery"],
   ] as const) {
     await page.goto(path);

@@ -58,6 +58,7 @@ model User {
   courseModules     CourseModule[]
   courseMaterials   CourseMaterial[]
   tutorChats        TutorConversation[]
+  tutorChecks       TutorCheck[]
   draftReviews      DraftReview[]
   subscription      Subscription?
   aiUsage           AiUsage[]
@@ -751,9 +752,18 @@ model TutorConversation {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class    Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
-  messages TutorMessage[]
+  // What the conversation was opened about, when the student came from a
+  // topic or a mistake ("Ask the tutor about this mistake"). Both are
+  // re-checked against userId and classId when the conversation is created.
+  focusTopicId    String?
+  focusQuestionId String?
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class         Class?            @relation(fields: [classId], references: [id], onDelete: SetNull)
+  focusTopic    CourseTopic?      @relation("TutorFocusTopic", fields: [focusTopicId], references: [id], onDelete: SetNull)
+  focusQuestion PracticeQuestion? @relation("TutorFocusQuestion", fields: [focusQuestionId], references: [id], onDelete: SetNull)
+  messages      TutorMessage[]
+  checks        TutorCheck[]
 
   @@index([userId, updatedAt])
 }
@@ -766,11 +776,41 @@ model TutorMessage {
   // [{ id, title, kind, url }] resolved server-side from CourseMaterial rows
   // the tutor actually read this turn. Never model-generated.
   sources        Json?
+  // Structured cards the server attached to a reply (a check question, a
+  // revision plan, a practice offer). Built by server code from the student's
+  // own rows, never model-generated JSON. See src/lib/tutor/cards.ts.
+  cards          Json?
   createdAt      DateTime @default(now())
 
   conversation TutorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+}
+
+// A question from the student's own practice bank that the tutor asked in a
+// conversation. Evidence is recorded (through the practice service, source
+// "tutor") only when the student answers it in a later message and it is
+// graded; never from how much they chat. One check = one one-question
+// PracticeSession, so the evidence carries a session like any practice answer.
+model TutorCheck {
+  id             String         @id @default(cuid())
+  userId         String
+  conversationId String
+  classId        String
+  sessionId      String         @unique
+  questionId     String
+  topicId        String?
+  hintsUsed      Int            @default(0)
+  posedAt        DateTime       @default(now())
+  answeredAt     DateTime?
+  result         AttemptResult?
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation TutorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  session      PracticeSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question     PracticeQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, conversationId, posedAt])
 }
 
 // A rubric-based AI estimate of a draft. Drafts are stored so revisions can be
@@ -902,7 +942,7 @@ model MasteryEvidence {
   topicLabel   String
   score        Float // 0-1 for this piece of evidence
   weight       Float // how much evidence it carries (e.g. gradable items)
-  source       String // assessment | practice
+  source       String // assessment | practice | tutor
   assessmentId String?
   createdAt    DateTime @default(now())
 
@@ -974,6 +1014,7 @@ model CourseTopic {
   evidence      MasteryEvidence[]
   questions     PracticeQuestion[]
   sessions      PracticeSession[]
+  tutorFocus    TutorConversation[] @relation("TutorFocusTopic")
 
   @@unique([classId, key])
   @@index([userId, classId, position])
@@ -1024,11 +1065,13 @@ model PracticeQuestion {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class    Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
-  topic    CourseTopic?      @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  evidence MasteryEvidence[]
-  reports  QuestionReport[]
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class       Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
+  topic       CourseTopic?        @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  evidence    MasteryEvidence[]
+  reports     QuestionReport[]
+  tutorChecks TutorCheck[]
+  tutorFocus  TutorConversation[] @relation("TutorFocusQuestion")
 
   @@index([userId, classId, hiddenAt])
 }
@@ -1038,15 +1081,16 @@ model PracticeSession {
   userId      String
   classId     String
   topicId     String?
-  mode        String    @default("practice") // practice | review | mistakes
+  mode        String    @default("practice") // practice | review | mistakes | tutor
   questionIds String[]  @default([])
   startedAt   DateTime  @default(now())
   completedAt DateTime?
 
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class    Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
-  topic    CourseTopic?      @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  evidence MasteryEvidence[]
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class      Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  topic      CourseTopic?      @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  evidence   MasteryEvidence[]
+  tutorCheck TutorCheck?
 
   @@index([userId, classId, startedAt])
 }

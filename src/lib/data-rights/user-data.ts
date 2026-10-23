@@ -45,6 +45,7 @@ export const USER_DATA: UserDataSource[] = [
   { key: "courseMaterials", model: "courseMaterial" },
   { key: "tutorConversations", model: "tutorConversation" },
   { key: "tutorMessages", model: "tutorMessage", where: (userId) => ({ conversation: { userId } }) },
+  { key: "tutorChecks", model: "tutorCheck" },
   { key: "draftReviews", model: "draftReview" },
   { key: "assessments", model: "assessment" },
   { key: "masteryEvidence", model: "masteryEvidence" },

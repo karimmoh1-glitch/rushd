@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/dal";
+import { tutorAvailable } from "@/lib/tutor/availability";
 import { getCourseLearning } from "@/lib/learning/load";
 import { resolveTimeZone } from "@/lib/time/zone";
 import { CourseHeader, getCourseHeader } from "../course-header";
@@ -22,7 +23,7 @@ export default async function TopicsPage({ params }: { params: Promise<{ id: str
   const timeZone = resolveTimeZone(user.profile?.timezone);
   const course = await getCourseHeader(user.id, id);
   if (!course) notFound();
-  const learning = await getCourseLearning(user.id, course.id, now);
+  const [learning, tutorEnabled] = await Promise.all([getCourseLearning(user.id, course.id, now), tutorAvailable()]);
   if (!learning) notFound();
 
   const titleById = new Map([...learning.topics, ...learning.proposed].map((t) => [t.id, t.title]));
@@ -53,7 +54,7 @@ export default async function TopicsPage({ params }: { params: Promise<{ id: str
     <div className="space-y-8">
       <CourseHeader course={course} timeZone={timeZone} now={now} />
       <div style={{ ["--course" as string]: course.color }}>
-        <TopicsEditor courseId={course.id} topics={learning.topics.map(toRow)} proposed={learning.proposed.map(toRow)} />
+        <TopicsEditor courseId={course.id} topics={learning.topics.map(toRow)} proposed={learning.proposed.map(toRow)} tutorEnabled={tutorEnabled} />
       </div>
     </div>
   );

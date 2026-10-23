@@ -47,6 +47,8 @@ async function seedEverything(userId: string, otherUserId: string) {
   const question = await db.practiceQuestion.create({ data: { userId, classId: cls.id, topicId: topic.id, prompt: "Define a mole.", answer: "6.022e23 particles" } });
   await db.practiceSession.create({ data: { userId, classId: cls.id, topicId: topic.id, questionIds: [question.id] } });
   await db.questionReport.create({ data: { userId, questionId: question.id, reason: "unclear" } });
+  const tutorSession = await db.practiceSession.create({ data: { userId, classId: cls.id, mode: "tutor", questionIds: [question.id] } });
+  await db.tutorCheck.create({ data: { userId, conversationId: conversation.id, classId: cls.id, sessionId: tutorSession.id, questionId: question.id } });
   await db.mobileRefreshToken.create({
     data: { userId, tokenHash: `SECRET-REFRESH-HASH-${userId}`, familyId: "f1", sessionVersion: 0, expiresAt: new Date(Date.now() + 86_400_000) },
   });
