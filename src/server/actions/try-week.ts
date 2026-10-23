@@ -8,6 +8,7 @@ import { CLASS_COLORS } from "@/lib/class-colors";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 import { TRY_MAX_ITEMS } from "@/lib/try/parse-week";
+import { matchExistingClass } from "@/lib/try/match-class";
 import type { Prisma } from "@/generated/prisma/client";
 
 // Adds the week a visitor ranked on the homepage (kept only in their browser
@@ -59,6 +60,12 @@ async function classIdsByName(userId: string, items: TriedItem[]): Promise<Map<s
   }
   for (const name of uniqueNames) {
     if (idByName.has(name.toLowerCase())) {
+      continue;
+    }
+    // "Chemistry" (guessed from "AP Chemistry quiz") belongs to "AP Chemistry".
+    const matched = matchExistingClass(name, existing);
+    if (matched) {
+      idByName.set(name.toLowerCase(), matched);
       continue;
     }
     const color = CLASS_COLORS[colorIndex % CLASS_COLORS.length].value;
