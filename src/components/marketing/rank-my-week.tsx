@@ -11,7 +11,7 @@ import { pulseOf } from "@/lib/planning/pulse";
 import { countOnce } from "@/lib/analytics/beacon";
 import { SCORING_WEIGHTS } from "@/lib/planning/constants";
 import type { ScoreBreakdown } from "@/lib/planning/types";
-import { usePrefersReducedMotion } from "./hooks";
+import { easeOutCubic, usePrefersReducedMotion } from "./motion";
 import { pulseDotClass } from "./pulse-dot";
 
 // Type your week and the real planner ranks it by Pulse, right in the browser.
@@ -128,11 +128,6 @@ function rowBorderClass(isFirst: boolean, isSelected: boolean): string {
   if (isFirst) return "border-signal/70";
   if (isSelected) return "border-foreground/40";
   return "border-border";
-}
-
-/** Ease-out cubic: fast at the start, gentle at the end. */
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
 }
 
 // ---------- Main component ----------

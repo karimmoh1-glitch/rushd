@@ -1,3 +1,5 @@
+// Small motion helpers shared by the marketing demos.
+
 import { useEffect, useState } from "react";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
@@ -40,4 +42,9 @@ export function usePrefersReducedMotion(): boolean {
 /** A one-time check, for code that only needs to know at a single moment. */
 export function prefersReducedMotion(): boolean {
   return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
+/** Ease-out cubic: fast at the start, gentle at the end. */
+export function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
 }
