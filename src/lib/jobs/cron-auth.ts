@@ -4,7 +4,9 @@ import { timingSafeEqual } from "node:crypto";
 export function cronAuthorized(header: string | null): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret || secret.length < 16 || !header) return false;
-  const a = Buffer.from(header);
-  const b = Buffer.from(`Bearer ${secret}`);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const given = Buffer.from(header);
+  const expected = Buffer.from(`Bearer ${secret}`);
+  // Timing-safe compare, so the secret can't be guessed byte by byte.
+  if (given.length !== expected.length) return false;
+  return timingSafeEqual(given, expected);
 }
