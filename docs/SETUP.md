@@ -42,14 +42,14 @@ itself in the app and falls back gracefully until its keys are set.
 
 ## Before the next deploy
 
-The `course-details-slice` branch (commit 6286184) adds migration
-`20261023090000_course_details` (one enum, seven nullable columns on "Class").
-**Apply it to production before deploying that code**; the course pages read
-the new columns. It is additive and keeps all existing data:
+Branch `platform` adds seven additive migrations. **Apply them to production
+before deploying that code**; the pages read the new tables and columns. The
+full list, and everything else only you can do, is in
+[docs/LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md).
 
 ```bash
-node --env-file=.env scripts/apply-migrations.mjs          # dry run: lists it
-node --env-file=.env scripts/apply-migrations.mjs --apply  # applies it
+node --env-file=.env scripts/apply-migrations.mjs          # dry run: lists the 7
+node --env-file=.env scripts/apply-migrations.mjs --apply  # applies them
 ```
 
 ## Local database for development and tests

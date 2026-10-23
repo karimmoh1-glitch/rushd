@@ -93,8 +93,10 @@ test("review blocks, readiness, biggest gap, and what changed after a skip", asy
   later.setHours(10, 0, 0, 0);
   await context.addCookies([{ name: "rushd-test-now", value: later.toISOString(), url: `http://localhost:${port}` }]);
   await page.goto("/dashboard");
+  // Scoped to the page itself: under a loaded dev server, Next has (rarely) left a
+  // hidden copy of a streamed page outside <main>, which would make this ambiguous.
   await expect(
-    page.getByText(later.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), { exact: true }),
+    page.locator("#main-content").getByText(later.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), { exact: true }),
     "the dev server needs RUSHD_TEST_CLOCK=1 (playwright.config.ts sets it)",
   ).toBeVisible();
 
