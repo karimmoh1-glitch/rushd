@@ -71,13 +71,16 @@ test("every page loads without console errors, CSP violations or broken links", 
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Crawler");
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
   await page.getByRole("button", { name: "Continue" }).click();
+  const picker = page.getByRole("combobox", { name: "Search courses" });
+  await picker.pressSequentially("AP Chemistry");
+  await picker.press("Enter");
+  await page.getByRole("button", { name: "Continue" }).click(); // to the optional details
+  await page.getByRole("button", { name: "Continue" }).click(); // to work
+  await page.getByRole("button", { name: "Continue" }).click(); // to study time
   await page.getByText("Weekday evenings").click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByPlaceholder("e.g. AP Chemistry").fill("AP Chemistry");
-  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await page.getByRole("button", { name: "Go to my plan" }).click();
   await page.waitForURL(/dashboard/);
   await page.getByLabel("Your assignments and tests this week, one per line").fill(
     "AP Chemistry: titration lab report in 2 days 2h\nAP Chemistry quiz in 4 days",

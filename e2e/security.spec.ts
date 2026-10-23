@@ -33,12 +33,16 @@ test("a student downloads their own data from Settings", async ({ browser }) => 
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Exporter");
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByPlaceholder("e.g. AP Chemistry").fill("Biology");
-  await page.getByRole("button", { name: "Continue" }).click();
+  const picker = page.getByRole("combobox", { name: "Search courses" });
+  await picker.pressSequentially("Biology");
+  await picker.press("Enter");
+  await page.getByRole("button", { name: "Continue" }).click(); // to the optional details
+  await page.getByRole("button", { name: "Continue" }).click(); // to work
+  await page.getByRole("button", { name: "Continue" }).click(); // to study time
+  await page.getByText("Weekday evenings").click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await page.getByRole("button", { name: "Go to my plan" }).click();
   await page.waitForURL(/dashboard/);
 
   await page.goto("/settings");
