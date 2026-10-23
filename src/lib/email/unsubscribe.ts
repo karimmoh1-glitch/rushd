@@ -14,7 +14,9 @@ export function unsubscribeUrl(appUrl: string, userId: string): string {
 
 export function verifyUnsubscribe(userId: string | null, token: string | null): boolean {
   if (!userId || !token || !process.env.SESSION_SECRET) return false;
-  const a = Buffer.from(token);
-  const b = Buffer.from(sign(userId));
-  return a.length === b.length && timingSafeEqual(a, b);
+  const given = Buffer.from(token);
+  const expected = Buffer.from(sign(userId));
+  // Timing-safe compare, so the signature can't be guessed byte by byte.
+  if (given.length !== expected.length) return false;
+  return timingSafeEqual(given, expected);
 }

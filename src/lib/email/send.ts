@@ -25,14 +25,21 @@ export async function sendEmail(msg: EmailMessage, fetchImpl: typeof fetch = fet
     headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
   }
   try {
-    const res = await fetchImpl("https://api.resend.com/emails", {
+    const response = await fetchImpl("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text, headers }),
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM,
+        to: [msg.to],
+        subject: msg.subject,
+        html: msg.html,
+        text: msg.text,
+        headers,
+      }),
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) console.error("[email] send failed", res.status);
-    return res.ok;
+    if (!response.ok) console.error("[email] send failed", response.status);
+    return response.ok;
   } catch (error) {
     console.error("[email] send failed", (error as Error)?.name ?? typeof error);
     return false;
