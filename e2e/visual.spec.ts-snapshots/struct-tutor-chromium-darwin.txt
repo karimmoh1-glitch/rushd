@@ -1,30 +1,31 @@
-main .pb-20 md:ml-56 md:pb-0 
+main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0 
   div .mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 
-    div .grid gap-8 lg:grid-cols-[15rem_1fr] 
-      aside .space-y-3 lg:sticky lg:top-6 lg:self-start aria-label=Conversations
-        a .group/button inline-flex shrink-0 items-center rounded-full border bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 w-full justify-start href=/tutor
-          svg .lucide lucide-plus h-4 w-4 
-            path . 
-            path . 
-      section .flex min-h-[70vh] flex-col aria-label=Tutor conversation
-        header .space-y-3 border-b border-border pb-4 
-          div . 
-            h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-            p .mt-1 text-sm text-muted-foreground 
-          div .flex flex-wrap gap-3 
-            label .space-y-1 text-xs text-muted-foreground 
-              select .block h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground 
-                option . 
-                option . 
-            label .space-y-1 text-xs text-muted-foreground 
-              select .block h-9 max-w-64 rounded-md border border-input bg-background px-2 text-sm text-foreground 
-                option . 
-                option . 
-          fieldset .flex flex-wrap gap-1.5 
-            legend .sr-only 
-            button .rounded-md border px-3 py-1.5 text-sm transition-colors border-foreground/30 bg-muted text-foreground aria-pressed=true type=button
-            button .rounded-md border px-3 py-1.5 text-sm transition-colors border-border text-muted-foreground hover:text-foreground aria-pressed=false type=button
-            button .rounded-md border px-3 py-1.5 text-sm transition-colors border-border text-muted-foreground hover:text-foreground aria-pressed=false type=button
-        div .flex-1 space-y-6 py-6 
-          div . 
-        p .rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground 
+    div .page-enter 
+      div .grid gap-8 lg:grid-cols-[15rem_1fr] 
+        aside .space-y-3 lg:sticky lg:top-6 lg:self-start aria-label=Conversations
+          a .group/button inline-flex shrink-0 items-center rounded-full border bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 w-full justify-start href=/tutor
+            svg .lucide lucide-plus h-4 w-4 
+              path . 
+              path . 
+        section .flex min-h-[70vh] flex-col aria-label=Tutor conversation
+          header .space-y-3 border-b border-border pb-4 
+            div . 
+              h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
+              p .mt-1 text-sm text-muted-foreground 
+            div .flex flex-wrap gap-3 
+              label .space-y-1 text-xs text-muted-foreground 
+                select .block h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground 
+                  option . 
+                  option . 
+              label .space-y-1 text-xs text-muted-foreground 
+                select .block h-9 max-w-64 rounded-md border border-input bg-background px-2 text-sm text-foreground 
+                  option . 
+                  option . 
+            fieldset .flex flex-wrap gap-1.5 
+              legend .sr-only 
+              button .rounded-md border px-3 py-1.5 text-sm transition-colors border-foreground/30 bg-muted text-foreground aria-pressed=true type=button
+              button .rounded-md border px-3 py-1.5 text-sm transition-colors border-border text-muted-foreground hover:text-foreground aria-pressed=false type=button
+              button .rounded-md border px-3 py-1.5 text-sm transition-colors border-border text-muted-foreground hover:text-foreground aria-pressed=false type=button
+          div .flex-1 space-y-6 py-6 
+            div . 
+          p .rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground 

@@ -1,221 +1,222 @@
-main .pb-20 md:ml-56 md:pb-0 
+main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0 
   div .mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 
-    div .max-w-2xl space-y-10 
-      div . 
-        h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-      section .scroll-mt-24 space-y-4 
-        h2 .text-base font-semibold 
-        div .space-y-4 
-          div .flex flex-wrap items-center justify-between gap-3 
-            div . 
-              p .text-sm font-medium 
-              p .text-sm text-muted-foreground 
+    div .page-enter 
+      div .max-w-2xl space-y-10 
+        div . 
+          h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
+        section .scroll-mt-24 space-y-4 
+          h2 .text-base font-semibold 
+          div .space-y-4 
+            div .flex flex-wrap items-center justify-between gap-3 
+              div . 
+                p .text-sm font-medium 
+                p .text-sm text-muted-foreground 
+              div .flex gap-2 
+                a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 href=/pricing
+            ul .space-y-3 
+              li . 
+                div .flex justify-between text-sm 
+                  span . 
+                  span .tabular-nums text-muted-foreground 
+                div .mt-1 h-1.5 overflow-hidden rounded-full bg-muted 
+                  div .h-full rounded-full bg-primary/70 
+              li . 
+                div .flex justify-between text-sm 
+                  span . 
+                  span .tabular-nums text-muted-foreground 
+                div .mt-1 h-1.5 overflow-hidden rounded-full bg-muted 
+                  div .h-full rounded-full bg-primary/70 
+              li . 
+                div .flex justify-between text-sm 
+                  span . 
+                  span .tabular-nums text-muted-foreground 
+                div .mt-1 h-1.5 overflow-hidden rounded-full bg-muted 
+                  div .h-full rounded-full bg-primary/70 
+            p .text-xs text-muted-foreground 
+        section .scroll-mt-24 space-y-4 border-t border-border pt-8 
+          div . 
+            h2 .text-base font-semibold 
+            p .text-sm text-muted-foreground 
+          div .space-y-5 
+            div .space-y-1.5 
+              label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              textarea .flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 placeholder=e.g. Start with hints before giving me the solution. Challenge me instead of just agreeing.
+              div .flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground 
+                span .flex flex-wrap gap-1.5 
+                  button .rounded-md border border-border px-2 py-0.5 hover:bg-muted type=button
+                  button .rounded-md border border-border px-2 py-0.5 hover:bg-muted type=button
+                  button .rounded-md border border-border px-2 py-0.5 hover:bg-muted type=button
+                span .tabular-nums 
+            div .grid gap-4 sm:grid-cols-2 
+              fieldset .space-y-1.5 
+                legend .text-sm font-medium 
+                div .inline-flex rounded-lg border border-border p-0.5 
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+                  button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+              fieldset .space-y-1.5 
+                legend .text-sm font-medium 
+                div .inline-flex rounded-lg border border-border p-0.5 
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+                  button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+              fieldset .space-y-1.5 
+                legend .text-sm font-medium 
+                div .inline-flex rounded-lg border border-border p-0.5 
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+                  button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+              fieldset .space-y-1.5 
+                legend .text-sm font-medium 
+                div .inline-flex rounded-lg border border-border p-0.5 
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+                  button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+              fieldset .space-y-1.5 
+                legend .text-sm font-medium 
+                div .inline-flex rounded-lg border border-border p-0.5 
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+                  button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
+                  button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
+            div .space-y-2 
+              label .flex items-center gap-2 text-sm 
+                input .h-4 w-4 accent-[var(--primary)] type=checkbox
+              label .flex items-center gap-2 text-sm 
+                input .h-4 w-4 accent-[var(--primary)] type=checkbox
+            p .text-xs text-muted-foreground 
             div .flex gap-2 
-              a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 href=/pricing
-          ul .space-y-3 
-            li . 
-              div .flex justify-between text-sm 
-                span . 
-                span .tabular-nums text-muted-foreground 
-              div .mt-1 h-1.5 overflow-hidden rounded-full bg-muted 
-                div .h-full rounded-full bg-primary/70 
-            li . 
-              div .flex justify-between text-sm 
-                span . 
-                span .tabular-nums text-muted-foreground 
-              div .mt-1 h-1.5 overflow-hidden rounded-full bg-muted 
-                div .h-full rounded-full bg-primary/70 
-            li . 
-              div .flex justify-between text-sm 
-                span . 
-                span .tabular-nums text-muted-foreground 
-              div .mt-1 h-1.5 overflow-hidden rounded-full bg-muted 
-                div .h-full rounded-full bg-primary/70 
-          p .text-xs text-muted-foreground 
-      section .scroll-mt-24 space-y-4 border-t border-border pt-8 
-        div . 
+              button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+              button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+        section .space-y-4 border-t border-border pt-8 
           h2 .text-base font-semibold 
-          p .text-sm text-muted-foreground 
-        div .space-y-5 
-          div .space-y-1.5 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            textarea .flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 placeholder=e.g. Start with hints before giving me the solution. Challenge me instead of just agreeing.
-            div .flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground 
-              span .flex flex-wrap gap-1.5 
-                button .rounded-md border border-border px-2 py-0.5 hover:bg-muted type=button
-                button .rounded-md border border-border px-2 py-0.5 hover:bg-muted type=button
-                button .rounded-md border border-border px-2 py-0.5 hover:bg-muted type=button
-              span .tabular-nums 
-          div .grid gap-4 sm:grid-cols-2 
-            fieldset .space-y-1.5 
-              legend .text-sm font-medium 
-              div .inline-flex rounded-lg border border-border p-0.5 
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-                button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-            fieldset .space-y-1.5 
-              legend .text-sm font-medium 
-              div .inline-flex rounded-lg border border-border p-0.5 
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-                button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-            fieldset .space-y-1.5 
-              legend .text-sm font-medium 
-              div .inline-flex rounded-lg border border-border p-0.5 
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-                button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-            fieldset .space-y-1.5 
-              legend .text-sm font-medium 
-              div .inline-flex rounded-lg border border-border p-0.5 
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-                button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-            fieldset .space-y-1.5 
-              legend .text-sm font-medium 
-              div .inline-flex rounded-lg border border-border p-0.5 
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-                button .rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground aria-pressed=true type=button
-                button .rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground aria-pressed=false type=button
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm 
-              input .h-4 w-4 accent-[var(--primary)] type=checkbox
-            label .flex items-center gap-2 text-sm 
-              input .h-4 w-4 accent-[var(--primary)] type=checkbox
-          p .text-xs text-muted-foreground 
-          div .flex gap-2 
-            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 type=button
-            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 type=button
-      section .space-y-4 border-t border-border pt-8 
-        h2 .text-base font-semibold 
-        form .space-y-4 
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            input .h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 
-          div .grid grid-cols-2 gap-4 
+          form .space-y-4 
             div .space-y-2 
               label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-              button .flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 w-full role=combobox type=button
-                span .flex flex-1 text-left 
-                svg .lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground 
-                  path . 
-              input . 
+              input .h-9 w-full min-w-0 rounded-lg border border-input sm:h-8 bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 
+            div .grid grid-cols-2 gap-4 
+              div .space-y-2 
+                label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+                button .flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 w-full role=combobox type=button
+                  span .flex flex-1 text-left 
+                  svg .lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground 
+                    path . 
+                input . 
+              div .space-y-2 
+                label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+                button .flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 w-full role=combobox type=button
+                  span .flex flex-1 text-left 
+                  svg .lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground 
+                    path . 
+                input . 
             div .space-y-2 
               label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-              button .flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 w-full role=combobox type=button
-                span .flex flex-1 text-left 
-                svg .lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground 
-                  path . 
-              input . 
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            input .h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            textarea .flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              input .h-9 w-full min-w-0 rounded-lg border border-input sm:h-8 bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 
+            div .space-y-2 
+              label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              textarea .flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 
+            div .space-y-2 
+              label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              div .grid grid-cols-1 gap-2 sm:grid-cols-2 
+                button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=submit
+        section .scroll-mt-24 space-y-4 border-t border-border pt-8 
+          div . 
+            h2 .text-base font-semibold 
+            p .text-sm text-muted-foreground 
+          div .space-y-4 
             div .grid grid-cols-1 gap-2 sm:grid-cols-2 
-              button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              button .rounded-lg border px-3 py-2 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 type=submit
-      section .scroll-mt-24 space-y-4 border-t border-border pt-8 
-        div . 
+              button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                div .font-medium 
+                div .text-muted-foreground 
+              button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-primary bg-accent text-accent-foreground aria-pressed=true type=button
+                div .font-medium 
+                div .text-muted-foreground 
+              button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                div .font-medium 
+                div .text-muted-foreground 
+              button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                div .font-medium 
+                div .text-muted-foreground 
+              button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                div .font-medium 
+                div .text-muted-foreground 
+            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+        section .scroll-mt-24 space-y-4 border-t border-border pt-8 
+          div . 
+            h2 .text-base font-semibold 
+            p .text-sm text-muted-foreground 
+          div .space-y-6 
+            fieldset .space-y-2 
+              legend .text-sm font-medium 
+              p .text-xs text-muted-foreground 
+              div .flex flex-wrap gap-2 pt-1 
+                button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
+                button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-primary bg-primary text-primary-foreground aria-pressed=true type=button
+                button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
+            div .space-y-2 
+              label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              select .h-9 w-full max-w-xs rounded-lg border border-input bg-transparent px-3 text-sm 
+                option . 
+                option . 
+                option . 
+                option . 
+                option . 
+                option . 
+                option . 
+                option . 
+              p .text-xs text-muted-foreground 
+            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+        section .scroll-mt-24 space-y-3 border-t border-border pt-8 
           h2 .text-base font-semibold 
-          p .text-sm text-muted-foreground 
-        div .space-y-4 
-          div .grid grid-cols-1 gap-2 sm:grid-cols-2 
-            button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              div .font-medium 
-              div .text-muted-foreground 
-            button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-primary bg-accent text-accent-foreground aria-pressed=true type=button
-              div .font-medium 
-              div .text-muted-foreground 
-            button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              div .font-medium 
-              div .text-muted-foreground 
-            button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              div .font-medium 
-              div .text-muted-foreground 
-            button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              div .font-medium 
-              div .text-muted-foreground 
-          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 type=button
-      section .scroll-mt-24 space-y-4 border-t border-border pt-8 
-        div . 
-          h2 .text-base font-semibold 
-          p .text-sm text-muted-foreground 
-        div .space-y-6 
-          fieldset .space-y-2 
-            legend .text-sm font-medium 
-            p .text-xs text-muted-foreground 
-            div .flex flex-wrap gap-2 pt-1 
-              button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
-              button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-primary bg-primary text-primary-foreground aria-pressed=true type=button
-              button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            select .h-9 w-full max-w-xs rounded-lg border border-input bg-transparent px-3 text-sm 
-              option . 
-              option . 
-              option . 
-              option . 
-              option . 
-              option . 
-              option . 
-              option . 
-            p .text-xs text-muted-foreground 
-          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 type=button
-      section .scroll-mt-24 space-y-3 border-t border-border pt-8 
-        h2 .text-base font-semibold 
-        div .flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 
-          div . 
-            p .font-medium 
-            p .text-sm text-muted-foreground 
-          a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 href=/integrations/canvas
-        div .flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 
-          div . 
-            p .font-medium 
-            p .text-sm text-muted-foreground 
-          a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 href=/integrations/teams
-        div .flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 
-          div . 
-            p .font-medium 
-            p .text-sm text-muted-foreground 
-          a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 href=/integrations/canvas-calendar
-      section .space-y-4 border-t border-border pt-8 
-        h2 .text-base font-semibold 
-        p .text-sm text-muted-foreground 
-        div .scroll-mt-24 
           div .flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 
             div . 
               p .font-medium 
               p .text-sm text-muted-foreground 
-            button .relative h-6 w-11 shrink-0 rounded-full border border-border transition-colors aria-checked:border-transparent aria-checked:bg-primary disabled:opacity-60 role=switch aria-checked=false type=button
-              span .absolute top-0.5 h-[18px] w-[18px] rounded-full transition-transform translate-x-0.5 bg-foreground/60 
-        form .max-w-sm space-y-4 
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            input .h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 type=password
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            input .h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 type=password
-            p .text-sm text-muted-foreground 
-          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 type=submit
-        form .flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 
-          input . type=hidden name=$ACTION_ID_#c#a#c#cab#b#a#b#c#d#a#fc#b#bbbeeca
-          div . 
-            p .text-sm font-medium 
-            p .text-sm text-muted-foreground 
-          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 type=submit
-      section .space-y-2 border-t border-border pt-8 
-        h2 .text-base font-semibold 
-        p .text-sm text-muted-foreground 
-          a .underline underline-offset-4 href=/privacy
-      section .space-y-4 border-t border-destructive/30 pt-8 
-        h2 .text-base font-semibold text-destructive 
-        button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:ring-3 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 type=button
+            a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 href=/integrations/canvas
+          div .flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 
+            div . 
+              p .font-medium 
+              p .text-sm text-muted-foreground 
+            a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 href=/integrations/teams
+          div .flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 
+            div . 
+              p .font-medium 
+              p .text-sm text-muted-foreground 
+            a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 href=/integrations/canvas-calendar
+        section .space-y-4 border-t border-border pt-8 
+          h2 .text-base font-semibold 
+          p .text-sm text-muted-foreground 
+          div .scroll-mt-24 
+            div .flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4 
+              div . 
+                p .font-medium 
+                p .text-sm text-muted-foreground 
+              button .relative h-6 w-11 shrink-0 rounded-full border border-border transition-colors aria-checked:border-transparent aria-checked:bg-primary disabled:opacity-60 role=switch aria-checked=false type=button
+                span .absolute top-0.5 h-[18px] w-[18px] rounded-full transition-transform translate-x-0.5 bg-foreground/60 
+          form .max-w-sm space-y-4 
+            div .space-y-2 
+              label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              input .h-9 w-full min-w-0 rounded-lg border border-input sm:h-8 bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 type=password
+            div .space-y-2 
+              label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              input .h-9 w-full min-w-0 rounded-lg border border-input sm:h-8 bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 type=password
+              p .text-sm text-muted-foreground 
+            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=submit
+          form .flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 
+            input . type=hidden name=$ACTION_ID_#c#a#c#cab#b#a#b#c#d#a#fc#b#bbbeeca
+            div . 
+              p .text-sm font-medium 
+              p .text-sm text-muted-foreground 
+            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=submit
+        section .space-y-2 border-t border-border pt-8 
+          h2 .text-base font-semibold 
+          p .text-sm text-muted-foreground 
+            a .underline underline-offset-4 href=/privacy
+        section .space-y-4 border-t border-destructive/30 pt-8 
+          h2 .text-base font-semibold text-destructive 
+          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:ring-3 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button

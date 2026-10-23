@@ -113,6 +113,10 @@ test("design tour", async ({ browser }) => {
     await page.goto(path);
     await shoot(page, name);
   }
+  await page.goto("/courses");
+  await page.locator("#main-content").getByRole("button", { name: "Add course" }).click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/m-course-sheet.png` });
   await context.close();
 
   const guest = await (await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "dark" })).newPage();

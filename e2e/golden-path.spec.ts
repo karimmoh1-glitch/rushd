@@ -178,7 +178,7 @@ test("study session: start, persists across navigation, completes with an edited
 
   // Summary shows estimated vs. actual, and the bar is gone.
   await expect(page.getByRole("heading", { name: "Done" })).toBeVisible();
-  await expect(page.getByText("58 min")).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("58 min", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(page.getByRole("button", { name: "Complete", exact: true })).toHaveCount(0);
 });
