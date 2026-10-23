@@ -8,7 +8,7 @@ import { configureNeon } from "./db";
 // The dev server reports loopback addresses in x-forwarded-for; a11y.spec.ts
 // signs up from 127.0.0.2 so a full run stays under the per-IP signup limit.
 const CLIENTS = ["local", "::1", "127.0.0.1", "::ffff:127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4"];
-const KEYS = ["signup", "school-inquiry", "pv", "reset"].flatMap((p) => CLIENTS.map((c) => `${p}:${c}`));
+const KEYS = ["signup", "school-inquiry", "pv", "reset", "api-token", "api-refresh", "api-ip"].flatMap((p) => CLIENTS.map((c) => `${p}:${c}`));
 
 export default async function setup() {
   if (!process.env.DATABASE_URL) return;
