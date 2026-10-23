@@ -12,7 +12,7 @@ import { AvailabilityForm } from "./availability-form";
 import { PasswordForm } from "./password-form";
 import { DeleteAccount } from "./delete-account";
 import { PlanningForm } from "./planning-form";
-import { PlanUsage } from "./plan-usage";
+import { PlanUsage, type SubscriptionSummary } from "./plan-usage";
 import { TutorPreferencesForm } from "./tutor-preferences-form";
 import { getUsageSummary } from "@/lib/ai/usage";
 import { billingMode } from "@/lib/billing/stripe";
@@ -24,6 +24,51 @@ import { signOutEverywhere } from "@/server/actions/settings";
 export const metadata: Metadata = {
   title: "Settings",
 };
+
+function describeCanvas(canvas: { status: string; baseUrl: string; lastSyncAt: Date | null } | null): string {
+  if (!canvas) return "Import assignments and due dates from your school's Canvas.";
+  if (canvas.status === "NEEDS_REAUTH") return "Needs reconnecting: Canvas stopped accepting the saved token.";
+  const notSynced = canvas.lastSyncAt ? "" : ", not synced yet";
+  return `Connected to ${new URL(canvas.baseUrl).hostname}${notSynced}.`;
+}
+
+function describeTeams(teams: { status: string; accountName: string | null; lastSyncAt: Date | null } | null): string {
+  if (!teams) return "Import assignments and due dates from Teams for Education.";
+  if (teams.status === "NEEDS_REAUTH") return "Needs reconnecting: Microsoft stopped accepting the connection.";
+  const account = teams.accountName ? ` as ${teams.accountName}` : "";
+  const notSynced = teams.lastSyncAt ? "" : ", not synced yet";
+  return `Connected${account}${notSynced}.`;
+}
+
+function describeFeed(feed: { status: string; host: string } | null): string {
+  if (!feed) return "For schools that turn off Canvas tokens. No token needed.";
+  if (feed.status === "ERROR") return "The last read failed. Open it to see why.";
+  return `Reading assignments from ${feed.host}.`;
+}
+
+function IntegrationRow({
+  title,
+  description,
+  href,
+  connected,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  connected: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
+      <div>
+        <p className="font-medium">{title}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <Link href={href} className={buttonVariants({ variant: "outline" })}>
+        {connected ? "Manage" : "Connect"}
+      </Link>
+    </div>
+  );
+}
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -64,6 +109,25 @@ export default async function SettingsPage() {
   const invites = await referralStats(user.id);
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://therushd.com").replace(/\/$/, "");
 
+  // Only the fields the plan card needs, with the renewal date in the student's timezone.
+  let subscriptionSummary: SubscriptionSummary | null = null;
+  if (subscription) {
+    let currentPeriodEnd: string | null = null;
+    if (subscription.currentPeriodEnd) {
+      currentPeriodEnd = formatDateInZone(subscription.currentPeriodEnd, profile?.timezone, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+    subscriptionSummary = {
+      status: subscription.status,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      hasCustomer: Boolean(subscription.stripeCustomerId),
+      currentPeriodEnd,
+    };
+  }
+
   return (
     <div className="max-w-2xl space-y-10">
       <div>
@@ -75,18 +139,7 @@ export default async function SettingsPage() {
         <PlanUsage
           usage={usage}
           billing={billingMode()}
-          subscription={
-            subscription
-              ? {
-                  status: subscription.status,
-                  cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-                  hasCustomer: Boolean(subscription.stripeCustomerId),
-                  currentPeriodEnd: subscription.currentPeriodEnd
-                    ? formatDateInZone(subscription.currentPeriodEnd, profile?.timezone, { month: "short", day: "numeric", year: "numeric" })
-                    : null,
-                }
-              : null
-          }
+          subscription={subscriptionSummary}
         />
       </section>
 
@@ -153,54 +206,24 @@ export default async function SettingsPage() {
 
       <section id="integrations" className="scroll-mt-24 space-y-3 border-t border-border pt-8">
         <h2 className="text-base font-semibold">Integrations</h2>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
-          <div>
-            <p className="font-medium">Canvas LMS</p>
-            <p className="text-sm text-muted-foreground">
-              {canvas
-                ? canvas.status === "NEEDS_REAUTH"
-                  ? "Needs reconnecting: Canvas stopped accepting the saved token."
-                  : `Connected to ${new URL(canvas.baseUrl).hostname}${canvas.lastSyncAt ? "" : ", not synced yet"}.`
-                : "Import assignments and due dates from your school's Canvas."}
-            </p>
-          </div>
-          <Link
-            href="/integrations/canvas"
-            className={buttonVariants({ variant: "outline" })}
-          >
-            {canvas ? "Manage" : "Connect"}
-          </Link>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
-          <div>
-            <p className="font-medium">Microsoft Teams</p>
-            <p className="text-sm text-muted-foreground">
-              {teams
-                ? teams.status === "NEEDS_REAUTH"
-                  ? "Needs reconnecting: Microsoft stopped accepting the connection."
-                  : `Connected${teams.accountName ? ` as ${teams.accountName}` : ""}${teams.lastSyncAt ? "" : ", not synced yet"}.`
-                : "Import assignments and due dates from Teams for Education."}
-            </p>
-          </div>
-          <Link href="/integrations/teams" className={buttonVariants({ variant: "outline" })}>
-            {teams ? "Manage" : "Connect"}
-          </Link>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
-          <div>
-            <p className="font-medium">Canvas calendar feed</p>
-            <p className="text-sm text-muted-foreground">
-              {feed
-                ? feed.status === "ERROR"
-                  ? "The last read failed. Open it to see why."
-                  : `Reading assignments from ${feed.host}.`
-                : "For schools that turn off Canvas tokens. No token needed."}
-            </p>
-          </div>
-          <Link href="/integrations/canvas-calendar" className={buttonVariants({ variant: "outline" })}>
-            {feed ? "Manage" : "Connect"}
-          </Link>
-        </div>
+        <IntegrationRow
+          title="Canvas LMS"
+          description={describeCanvas(canvas)}
+          href="/integrations/canvas"
+          connected={Boolean(canvas)}
+        />
+        <IntegrationRow
+          title="Microsoft Teams"
+          description={describeTeams(teams)}
+          href="/integrations/teams"
+          connected={Boolean(teams)}
+        />
+        <IntegrationRow
+          title="Canvas calendar feed"
+          description={describeFeed(feed)}
+          href="/integrations/canvas-calendar"
+          connected={Boolean(feed)}
+        />
       </section>
 
       <section className="space-y-4 border-t border-border pt-8">

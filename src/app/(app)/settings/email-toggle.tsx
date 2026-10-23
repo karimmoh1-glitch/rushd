@@ -5,8 +5,18 @@ import { toast } from "sonner";
 import { setEmailReminders } from "@/server/actions/settings";
 
 export function EmailToggle({ on, available }: { on: boolean; available: boolean }) {
-  const [value, setValue] = useOptimistic(on);
-  const [pending, start] = useTransition();
+  // Flip the switch right away; it settles back to `on` if the save fails.
+  const [enabled, setEnabled] = useOptimistic(on);
+  const [pending, startTransition] = useTransition();
+
+  function handleClick() {
+    startTransition(async () => {
+      setEnabled(!enabled);
+      const result = await setEmailReminders(!enabled);
+      if ("error" in result) toast.error(result.error);
+    });
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
       <div>
@@ -19,19 +29,13 @@ export function EmailToggle({ on, available }: { on: boolean; available: boolean
       <button
         type="button"
         role="switch"
-        aria-checked={value}
+        aria-checked={enabled}
         aria-labelledby="email-reminders-label"
         disabled={pending}
-        onClick={() =>
-          start(async () => {
-            setValue(!value);
-            const r = await setEmailReminders(!value);
-            if ("error" in r) toast.error(r.error);
-          })
-        }
+        onClick={handleClick}
         className="relative h-6 w-11 shrink-0 rounded-full border border-border transition-colors aria-checked:border-transparent aria-checked:bg-primary disabled:opacity-60"
       >
-        <span className={`absolute top-0.5 h-[18px] w-[18px] rounded-full transition-transform ${value ? "translate-x-[22px] bg-primary-foreground" : "translate-x-0.5 bg-foreground/60"}`} />
+        <span className={`absolute top-0.5 h-[18px] w-[18px] rounded-full transition-transform ${enabled ? "translate-x-[22px] bg-primary-foreground" : "translate-x-0.5 bg-foreground/60"}`} />
       </button>
     </div>
   );

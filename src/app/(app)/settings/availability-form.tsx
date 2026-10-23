@@ -17,12 +17,12 @@ function initialSelectedPresets(current: Window[]): Set<string> {
   const selected = new Set<string>();
   for (const preset of AVAILABILITY_PRESETS) {
     const expected = presetToWindows(preset.id);
-    const matches = expected.every((ew) =>
+    const matches = expected.every((expectedWindow) =>
       current.some(
-        (cw) =>
-          cw.dayOfWeek === ew.dayOfWeek &&
-          cw.startMinute === ew.startMinute &&
-          cw.endMinute === ew.endMinute,
+        (savedWindow) =>
+          savedWindow.dayOfWeek === expectedWindow.dayOfWeek &&
+          savedWindow.startMinute === expectedWindow.startMinute &&
+          savedWindow.endMinute === expectedWindow.endMinute,
       ),
     );
     if (matches) selected.add(preset.id);
