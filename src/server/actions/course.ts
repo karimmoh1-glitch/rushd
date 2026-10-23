@@ -14,6 +14,7 @@ import { getAssignmentMaterial } from "@/lib/course/retrieval";
 import { MAX_DRAFT_CHARS, MIN_DRAFT_CHARS, reviewDraft } from "@/lib/review/draft-review";
 import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
 import { compactPreferences, readPreferences } from "@/lib/tutor/preferences";
+import { log } from "@/lib/log";
 
 type SimpleResult = { success: true } | { error: string };
 type ValueResult<T> = { success: true; value: T } | { error: string };
@@ -97,7 +98,7 @@ export async function createDraftReview(input: z.input<typeof ReviewInput>): Pro
     revalidatePath(`/assignments/${assignment.id}`);
     return { success: true, value: { id: saved.id } };
   } catch (error) {
-    console.error("[review] failed", (error as Error)?.name ?? typeof error);
+    log.error("review.failed", { err: error });
     await failAi(reservation.usageId, (error as Error)?.name ?? "error").catch(() => {});
     return { error: "The review couldn't be completed right now. Try again shortly." };
   }

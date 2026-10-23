@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { log } from "@/lib/log";
 
 // Cookieless page counts for public pages: day + path + count, nothing about
 // the visitor. Best-effort; never blocks a page.
@@ -34,7 +35,7 @@ export async function countPageView(path: string): Promise<void> {
       INSERT INTO "PageView" ("day", "path", "count") VALUES (${day}::date, ${path}, 1)
       ON CONFLICT ("day", "path") DO UPDATE SET "count" = "PageView"."count" + 1`;
   } catch (error) {
-    console.error("[analytics] page view failed", (error as Error)?.name ?? typeof error);
+    log.error("analytics.page_view_failed", { err: error });
   }
 }
 

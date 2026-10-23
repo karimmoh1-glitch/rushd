@@ -10,6 +10,8 @@ import { resolveTimeZone, formatDateInZone } from "@/lib/time/zone";
 import { newMeter, runTutorTurn, tutorClient, type TutorEvent, type TutorMode } from "@/lib/tutor/agent";
 import { compactPreferences, readPreferences } from "@/lib/tutor/preferences";
 import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
+import { log } from "@/lib/log";
+import { requestIdFrom, withRequestIdHeader } from "@/lib/request-id";
 
 export const maxDuration = 60;
 
@@ -86,6 +88,11 @@ async function loadConversationLabels(userId: string, classId: string | null, as
 }
 
 export async function POST(request: Request) {
+  const requestId = requestIdFrom(request.headers);
+  return withRequestIdHeader(await handleTutorTurn(request, requestId), requestId);
+}
+
+async function handleTutorTurn(request: Request, requestId: string): Promise<Response> {
   if (!sameOrigin(request)) {
     return json(403, { error: "Forbidden." });
   }
@@ -212,7 +219,7 @@ export async function POST(request: Request) {
         await logEvent(user.id, "tutor_message", { rounds: result.usage.rounds, sources: result.sources.length, refused: result.refused });
         send({ type: "done", conversationId, message: { id: saved.id, content: result.text, sources: result.sources } });
       } catch (error) {
-        console.error("[tutor] turn failed", (error as Error)?.name ?? typeof error);
+        log.error("tutor.turn_failed", { requestId, err: error });
         const billed = meter.inputTokens + meter.outputTokens > 0;
         await failAi(reservation.usageId, (error as Error)?.name ?? "error", meter.model, billed ? meter : undefined).catch(() => {});
         send({ type: "error", error: providerError(error) });

@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "@/lib/ai/client";
 import { resolveCitations, type CitedSource } from "./citations";
 import { SourceRegistry, TUTOR_TOOLS, runTutorTool, type TutorScope } from "./tools";
+import { log } from "@/lib/log";
 
 const TUTOR_MODEL = "claude-opus-5-5";
 const MAX_TOOL_ROUNDS = 6;
@@ -124,7 +125,7 @@ async function runToolCalls(
       const outcome = await runTutorTool(call.name, call.input, scope, registry);
       results.push({ type: "tool_result", tool_use_id: call.id, content: outcome.content, is_error: outcome.isError });
     } catch (error) {
-      console.error("[tutor] tool failed", call.name, (error as Error)?.name ?? typeof error);
+      log.error("tutor.tool_failed", { err: error, tool: call.name });
       results.push({ type: "tool_result", tool_use_id: call.id, content: "The tool failed. Answer without it and say so.", is_error: true });
     }
   }

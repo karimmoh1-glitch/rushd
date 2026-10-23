@@ -4,6 +4,7 @@ import { CANVAS_CLASS_COLORS } from "@/lib/canvas/colors";
 import { decryptToken, encryptToken, isVaultConfigured, VaultError } from "@/lib/canvas/token-vault";
 import { exchangeCode, refreshTokens, TeamsAuthError, teamsConfigured } from "./oauth";
 import { GraphError, getMe, listAssignments, listClasses, type GraphAssignment } from "./graph";
+import { log } from "@/lib/log";
 
 // Microsoft Teams for Education, read-only. Security: userId always comes from
 // the session and every query is scoped to it. The refresh token is only
@@ -34,7 +35,7 @@ function fail(error: unknown): { ok: false; error: string; code?: string } {
     return { ok: false, error: "Teams integration isn't available on this server yet.", code: error.code };
   }
   // Only log the error's type, never the object.
-  console.error("[teams] unexpected error", (error as Error)?.name ?? typeof error);
+  log.error("teams.unexpected_error", { err: error });
   return { ok: false, error: "Something went wrong talking to Microsoft Teams. Try again." };
 }
 

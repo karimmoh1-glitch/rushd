@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { CODE_RE, REF_COOKIE } from "@/lib/referral/referral";
 import { countPageView } from "@/lib/analytics/page-view";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { getClientIp } from "@/server/actions/client-ip";
 
 const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60;
 
@@ -23,9 +25,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
     return response;
   }
 
-  // Count a visit only the first time this browser arrives with this invite.
+  // Count a visit only the first time this browser arrives with this invite,
+  // and at most a few per address, so the count can't be inflated by a script.
   if (savedInviteCode(request) !== code) {
-    await countPageView("#ref-visit");
+    const rate = await checkRateLimit(`ref-visit:${await getClientIp()}`, { max: 10, windowMs: 60 * 60 * 1000 });
+    if (rate.allowed) await countPageView("#ref-visit");
   }
   response.cookies.set(REF_COOKIE, code, {
     httpOnly: true,

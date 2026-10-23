@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
 import { DEFAULT_HORIZON_DAYS } from "@/lib/planning/constants";
 import { logEvent } from "@/lib/analytics/log-event";
+import { log } from "@/lib/log";
 
 /**
  * Saves a history snapshot of the current plan, for analytics only (the
@@ -48,6 +49,6 @@ export async function regeneratePlanSnapshot(userId: string): Promise<void> {
       workItemCount: result.scored.length,
     });
   } catch (error) {
-    console.error("[plans] failed to persist plan snapshot", error);
+    log.error("plans.snapshot_failed", { err: error });
   }
 }

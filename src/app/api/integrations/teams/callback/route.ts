@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { connectTeams } from "@/lib/teams/service";
 import { logEvent } from "@/lib/analytics/log-event";
 import { TEAMS_OAUTH_COOKIE, TEAMS_OAUTH_COOKIE_PATH } from "../oauth-cookie";
+import { log } from "@/lib/log";
+import { requestIdFrom, withRequestIdHeader } from "@/lib/request-id";
 
 const SavedOAuth = z.object({ state: z.string().min(16), verifier: z.string().min(32), uid: z.string() });
 
@@ -21,8 +23,16 @@ function microsoftErrorQuery(error: string, description: string): string {
 /** Microsoft redirects here. Verifies state and the signed-in user, then
  * exchanges the code. Never echoes the code or tokens anywhere. */
 export async function GET(request: Request) {
+  const requestId = requestIdFrom(request.headers);
+  return withRequestIdHeader(await handleCallback(request, requestId), requestId);
+}
+
+async function handleCallback(request: Request, requestId: string): Promise<Response> {
   const url = new URL(request.url);
   function backToTeamsPage(query: string) {
+    if (query.startsWith("error=")) {
+      log.warn("teams.oauth_callback_rejected", { requestId, reason: query.slice(6) });
+    }
     return Response.redirect(`${url.origin}/integrations/teams?${query}`, 303);
   }
 

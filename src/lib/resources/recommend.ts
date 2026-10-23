@@ -1,5 +1,6 @@
 import "server-only";
 import * as z from "zod";
+import { log } from "@/lib/log";
 
 // Learning resources for a concept, in two clearly labeled kinds:
 //  - "video": a YouTube video from an allow-listed channel, confirmed to exist
@@ -147,7 +148,7 @@ export async function recommendResources(concepts: string[], fetchImpl: typeof f
       try {
         out.push(...(await verifiedVideos(concept, key, fetchImpl)));
       } catch (error) {
-        console.error("[resources] youtube lookup failed", (error as Error)?.name ?? typeof error);
+        log.error("resources.youtube_lookup_failed", { err: error });
       }
     }
     out.push(...searchLinks(concept));

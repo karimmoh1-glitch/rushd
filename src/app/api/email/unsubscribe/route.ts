@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 import { verifyUnsubscribe } from "@/lib/email/unsubscribe";
+import { log } from "@/lib/log";
+import { requestIdFrom } from "@/lib/request-id";
 
 // GET shows a confirm button (link scanners prefetch GETs, so they must not
 // unsubscribe anyone); POST turns study emails off. Mail clients' one-click
@@ -32,6 +34,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const { userId, token } = linkParams(request);
   if (!verifyUnsubscribe(userId, token)) {
+    log.warn("email.unsubscribe_invalid_link", { requestId: requestIdFrom(request.headers) });
     return page("<p>This link isn't valid.</p>", 400);
   }
   // verifyUnsubscribe passing means userId is present.
