@@ -11,7 +11,7 @@ const buttonVariants = cva(
         default: "bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85",
         // The one next action (Start session, Add and rank): Rushd's saffron.
         signal:
-          "bg-signal text-[oklch(0.2_0.02_70)] shadow-[inset_0_1px_0_0_oklch(1_0_0/0.35),0_1px_2px_0_oklch(0_0_0/0.2)] hover:bg-[color-mix(in_oklch,var(--signal),white_12%)]",
+          "bg-signal text-[oklch(0.2_0.02_70)] shadow-[inset_0_1px_0_0_oklch(1_0_0/0.35),0_1px_2px_0_oklch(0_0_0/0.2)] hover:bg-[color-mix(in_oklch,var(--signal),white_12%)] disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-[inset_0_0_0_1px_var(--border)]",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

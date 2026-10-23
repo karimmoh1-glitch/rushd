@@ -8,6 +8,10 @@ import { AssignmentRow, type AssignmentRowData } from "./assignment-row";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
 import { pulseOf } from "@/lib/planning/pulse";
 import { AddAssignmentButton } from "./add-assignment-button";
+import { WorkGroupHeading, WorkHeader } from "./work-header";
+import { PathEmpty } from "@/components/brand/path-empty";
+import { buttonVariants } from "@/components/ui/button";
+import { dueStatus, formatDuration } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Assignments",
@@ -50,44 +54,57 @@ function toRowData(assignment: AssignmentRecord, pulse: number | null): Assignme
   };
 }
 
+/** "5 open · 1 overdue · 2 due within two days · 6h 15m of work", only the parts that apply. */
+function openSummary(open: AssignmentRecord[], timeZone: string): string {
+  const now = new Date();
+  const overdue = open.filter((a) => dueStatus(a.dueAt, timeZone, now) === "overdue").length;
+  const soon = open.filter((a) => ["today", "soon"].includes(dueStatus(a.dueAt, timeZone, now))).length;
+  const minutes = open.reduce((total, a) => total + a.estimatedMinutes, 0);
+  const parts = [`${open.length} open`];
+  if (overdue) parts.push(`${overdue} overdue`);
+  if (soon) parts.push(`${soon} due within two days`);
+  parts.push(`${formatDuration(minutes)} of work`);
+  return parts.join(" · ");
+}
+
+function EmptyCard({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-xl border border-dashed border-border-strong px-5 sm:px-8">{children}</div>;
+}
+
 function NoClassesYet() {
   return (
-    <div className="rounded-lg border border-dashed border-border py-16 text-center">
-      <p className="text-muted-foreground">Add a course first.</p>
-      <Link
-        href="/courses"
-        className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4"
-      >
-        Go to Classes
-      </Link>
-    </div>
+    <EmptyCard>
+      <PathEmpty title="Add a course first.">
+        Assignments belong to a course, so Rushd knows what each one is for.
+        <div className="mt-4">
+          <Link href="/courses" className={buttonVariants()}>
+            Go to Courses
+          </Link>
+        </div>
+      </PathEmpty>
+    </EmptyCard>
   );
 }
 
-function NoAssignmentsYet() {
+function NoAssignmentsYet({ classes }: { classes: { id: string; name: string; color: string }[] }) {
   return (
-    <div className="rounded-lg border border-dashed border-border py-16 text-center">
-      <p className="font-medium">Your workload starts here.</p>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+    <EmptyCard>
+      <PathEmpty title="Your workload starts here.">
         Connect Canvas to import every assignment and due date automatically{aiEnabled ? ", or upload a screenshot of your calendar" : ", or add one by hand"}.
-      </p>
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
-        <Link
-          href="/integrations/canvas"
-          className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Connect Canvas
-        </Link>
-        {aiEnabled && (
-          <Link
-            href="/import"
-            className="inline-block rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            Upload screenshot
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href="/integrations/canvas" className={buttonVariants()}>
+            Connect Canvas
           </Link>
-        )}
-      </div>
-    </div>
+          {aiEnabled ? (
+            <Link href="/import" className={buttonVariants({ variant: "outline" })}>
+              Upload screenshot
+            </Link>
+          ) : (
+            <AddAssignmentButton classes={classes} variant="outline" label="Add one by hand" />
+          )}
+        </div>
+      </PathEmpty>
+    </EmptyCard>
   );
 }
 
@@ -143,10 +160,10 @@ export default async function AssignmentsPage() {
   if (classes.length === 0) {
     mainContent = <NoClassesYet />;
   } else if (assignments.length === 0) {
-    mainContent = <NoAssignmentsYet />;
+    mainContent = <NoAssignmentsYet classes={classes} />;
   } else {
     mainContent = (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {active.map((assignment) => (
           <AssignmentRow key={assignment.id} classes={classes} data={toRow(assignment)} timeZone={timeZone} />
         ))}
@@ -156,31 +173,30 @@ export default async function AssignmentsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Assignments</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ranked by Pulse: how strongly each one needs you right now. Open one for its instructions, rubric, and draft feedback.
-          </p>
-          <nav aria-label="Work" className="mt-3 flex gap-4 text-sm">
-            <span aria-current="page" className="font-medium">Assignments</span>
-            <Link href="/exams" className="text-muted-foreground hover:text-foreground">Exams</Link>
-            {aiEnabled && <Link href="/import" className="text-muted-foreground hover:text-foreground">Import from a screenshot</Link>}
-          </nav>
-        </div>
-        <AddAssignmentButton classes={classes} />
-      </div>
+      <WorkHeader
+        current="assignments"
+        title="Assignments"
+        description="Ranked by Pulse: how strongly each one needs you right now. Open one for its instructions, rubric, and draft feedback."
+        action={<AddAssignmentButton classes={classes} />}
+        summary={active.length > 0 ? openSummary(active, timeZone) : undefined}
+        showImport={aiEnabled}
+      />
 
       {mainContent}
 
       {removed.length > 0 && (
         <div>
-          <h2 className="mb-1 text-sm font-medium text-muted-foreground">No longer in Canvas</h2>
-          <p className="mb-3 text-xs text-muted-foreground">
-            Canvas stopped listing these (deleted, unpublished, or the due date was removed). They&apos;re
-            kept here but left out of your plan. Delete them if you don&apos;t need them.
-          </p>
-          <div className="space-y-3">
+          <WorkGroupHeading
+            note={
+              <>
+                Canvas stopped listing these (deleted, unpublished, or the due date was removed). They&apos;re
+                kept here but left out of your plan. Delete them if you don&apos;t need them.
+              </>
+            }
+          >
+            No longer in Canvas
+          </WorkGroupHeading>
+          <div className="space-y-2">
             {removed.map((assignment) => (
               <AssignmentRow key={assignment.id} classes={classes} data={toRow(assignment)} timeZone={timeZone} />
             ))}
@@ -190,10 +206,8 @@ export default async function AssignmentsPage() {
 
       {completed.length > 0 && (
         <div>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-            Completed
-          </h2>
-          <div className="space-y-3">
+          <WorkGroupHeading>Completed</WorkGroupHeading>
+          <div className="space-y-2">
             {completed.map((assignment) => (
               <AssignmentRow key={assignment.id} classes={classes} data={toRow(assignment)} timeZone={timeZone} />
             ))}
