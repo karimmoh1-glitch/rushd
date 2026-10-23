@@ -1,13 +1,11 @@
 import "server-only";
 import * as z from "zod";
 
-// Learning resources for a concept. Two kinds, always labeled differently:
-//  - "video": a specific YouTube video that the YouTube Data API returned
-//    for the concept, from an allow-listed educational channel, and that a
-//    second API call confirmed exists. Only with YOUTUBE_API_KEY set.
-//  - "search": a link to a search on a reputable site for the concept. It is
-//    not a claim that any particular result is good.
-// Nothing here is model-generated: no titles, ids, or URLs come from an LLM.
+// Learning resources for a concept, in two clearly labeled kinds:
+//  - "video": a YouTube video from an allow-listed channel, confirmed to exist
+//    by a second API call (only when YOUTUBE_API_KEY is set).
+//  - "search": a search link on a reputable site, not a claim about any result.
+// Nothing here comes from an LLM: no titles, ids or URLs.
 
 export interface Resource {
   kind: "video" | "search";
@@ -61,13 +59,23 @@ const VideosResponse = z.object({
 
 /** "PT12M3S" -> "12 min". */
 export function durationLabel(iso: string): string | undefined {
-  const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
-  if (!m) return undefined;
-  const minutes = Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0) + (Number(m[3] ?? 0) >= 30 ? 1 : 0);
-  return minutes >= 1 ? `${minutes} min` : "<1 min";
+  const match = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!match) return undefined;
+  const hours = Number(match[1] ?? 0);
+  const minutesPart = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+
+  let minutes = hours * 60 + minutesPart;
+  if (seconds >= 30) minutes += 1;
+  if (minutes < 1) return "<1 min";
+  return `${minutes} min`;
 }
 
-export function searchLinks(concept: string): Resource[] {
+function isTrustedChannel(channelTitle: string): boolean {
+  return TRUSTED_CHANNELS.has(channelTitle.toLowerCase());
+}
+
+function searchLinks(concept: string): Resource[] {
   const q = encodeURIComponent(concept);
   return [
     { kind: "search", verified: false, title: `Search Khan Academy for “${concept}”`, source: "Khan Academy", url: `https://www.khanacademy.org/search?page_search_query=${q}`, concept },
@@ -87,41 +95,54 @@ async function verifiedVideos(concept: string, key: string, fetchImpl: typeof fe
     videoEmbeddable: "true",
     key,
   }).toString();
-  const sRes = await fetchImpl(search, { signal: AbortSignal.timeout(6000) });
-  if (!sRes.ok) return [];
-  const found = SearchResponse.parse(await sRes.json());
-  const ids = found.items
-    .filter((i) => i.id.videoId && TRUSTED_CHANNELS.has(i.snippet.channelTitle.toLowerCase()))
-    .map((i) => i.id.videoId!)
-    .slice(0, 3);
-  if (ids.length === 0) return [];
+  const searchResponse = await fetchImpl(search, { signal: AbortSignal.timeout(6000) });
+  if (!searchResponse.ok) return [];
+  const found = SearchResponse.parse(await searchResponse.json());
 
+  const ids: string[] = [];
+  for (const item of found.items) {
+    if (item.id.videoId && isTrustedChannel(item.snippet.channelTitle)) ids.push(item.id.videoId);
+  }
+  const firstIds = ids.slice(0, 3);
+  if (firstIds.length === 0) return [];
+
+  // Second call: confirm each video exists, is public, and is still on a trusted channel.
   const videos = new URL("https://www.googleapis.com/youtube/v3/videos");
-  videos.search = new URLSearchParams({ part: "snippet,contentDetails,status", id: ids.join(","), key }).toString();
-  const vRes = await fetchImpl(videos, { signal: AbortSignal.timeout(6000) });
-  if (!vRes.ok) return [];
-  const confirmed = VideosResponse.parse(await vRes.json());
-  return confirmed.items
-    .filter((v) => /^[A-Za-z0-9_-]{11}$/.test(v.id) && v.status.privacyStatus === "public" && TRUSTED_CHANNELS.has(v.snippet.channelTitle.toLowerCase()))
-    .slice(0, 2)
-    .map((v) => ({
-      kind: "video" as const,
+  videos.search = new URLSearchParams({ part: "snippet,contentDetails,status", id: firstIds.join(","), key }).toString();
+  const videosResponse = await fetchImpl(videos, { signal: AbortSignal.timeout(6000) });
+  if (!videosResponse.ok) return [];
+  const confirmed = VideosResponse.parse(await videosResponse.json());
+
+  const resources: Resource[] = [];
+  for (const video of confirmed.items) {
+    const validId = /^[A-Za-z0-9_-]{11}$/.test(video.id);
+    const isPublic = video.status.privacyStatus === "public";
+    if (!validId || !isPublic || !isTrustedChannel(video.snippet.channelTitle)) continue;
+    resources.push({
+      kind: "video",
       verified: true,
-      title: v.snippet.title.slice(0, 200),
-      source: v.snippet.channelTitle.slice(0, 80),
-      url: `https://www.youtube.com/watch?v=${v.id}`,
+      title: video.snippet.title.slice(0, 200),
+      source: video.snippet.channelTitle.slice(0, 80),
+      url: `https://www.youtube.com/watch?v=${video.id}`,
       concept,
-      durationLabel: durationLabel(v.contentDetails.duration),
-    }));
+      durationLabel: durationLabel(video.contentDetails.duration),
+    });
+  }
+  return resources.slice(0, 2);
 }
 
 /** Resources for up to two concepts. Never throws: any provider failure
  * just means fewer verified videos. */
 export async function recommendResources(concepts: string[], fetchImpl: typeof fetch = fetch): Promise<Resource[]> {
-  const unique = [...new Set(concepts.map((c) => c.trim()).filter(Boolean))].slice(0, 2);
+  const unique: string[] = [];
+  for (const concept of concepts) {
+    const trimmed = concept.trim();
+    if (trimmed && !unique.includes(trimmed)) unique.push(trimmed);
+  }
+
   const key = process.env.YOUTUBE_API_KEY;
   const out: Resource[] = [];
-  for (const concept of unique) {
+  for (const concept of unique.slice(0, 2)) {
     if (key) {
       try {
         out.push(...(await verifiedVideos(concept, key, fetchImpl)));

@@ -3,10 +3,8 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { readStoredRubric, type RubricCriterion } from "@/lib/canvas/content";
 
-// Per-user retrieval over mirrored course content. Every query is scoped by
-// the userId the caller got from the session; the optional classId narrows
-// further and is itself checked against that user. Nothing here trusts an id
-// that came from a model or a client without re-checking ownership.
+// Search and read mirrored course content. Every query is scoped to the
+// session's userId, so an id from a model or client is always re-checked for ownership.
 
 export type MaterialKind = "MODULE_ITEM" | "PAGE" | "ASSIGNMENT" | "ANNOUNCEMENT";
 
@@ -34,13 +32,19 @@ export interface MaterialDetail {
 
 const MAX_TERMS = 12;
 
-/** Turns free text into an OR query of plain lexemes: natural questions
- * rarely contain every word of the passage that answers them. Only
- * alphanumeric words survive, so the result is always valid tsquery syntax. */
-export function toOrQuery(text: string): string | null {
+/** Turns free text into an OR search ("a | b | c"), since a question rarely has
+ * every word of its answer. Only a-z/0-9 words survive, so the tsquery is always valid. */
+function toOrQuery(text: string): string | null {
   const words = (text.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? []).slice(0, 40);
-  const unique = [...new Set(words)].filter((w) => /^[a-z0-9]+$/.test(w)).slice(0, MAX_TERMS);
-  return unique.length ? unique.join(" | ") : null;
+  const terms: string[] = [];
+  for (const word of words) {
+    if (terms.includes(word)) continue;
+    if (!/^[a-z0-9]+$/.test(word)) continue;
+    terms.push(word);
+  }
+  const firstTerms = terms.slice(0, MAX_TERMS);
+  if (firstTerms.length === 0) return null;
+  return firstTerms.join(" | ");
 }
 
 export async function searchMaterials(
@@ -63,7 +67,7 @@ export async function searchMaterials(
     WHERE m."userId" = ${userId} ${classFilter} AND m."searchVector" @@ q
     ORDER BY ts_rank_cd(m."searchVector", q) DESC, m."postedAt" DESC NULLS LAST
     LIMIT ${take}`;
-  return rows.map((r) => ({ ...r, excerpt: r.excerpt.trim() }));
+  return rows.map((row) => ({ ...row, excerpt: row.excerpt.trim() }));
 }
 
 export async function getMaterial(
@@ -71,8 +75,9 @@ export async function getMaterial(
   id: string,
   { classId }: { classId?: string | null } = {},
 ): Promise<MaterialDetail | null> {
+  const classFilter = classId ? { classId } : {};
   const row = await db.courseMaterial.findFirst({
-    where: { id, userId, ...(classId ? { classId } : {}) },
+    where: { id, userId, ...classFilter },
     select: {
       id: true,
       kind: true,
@@ -108,5 +113,6 @@ export async function getAssignmentMaterial(userId: string, assignmentId: string
     where: { userId, kind: "ASSIGNMENT", assignmentId },
     select: { id: true },
   });
-  return row ? getMaterial(userId, row.id) : null;
+  if (!row) return null;
+  return getMaterial(userId, row.id);
 }
