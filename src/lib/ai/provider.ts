@@ -1,5 +1,5 @@
 import "server-only";
-import type { QuickAddDraft } from "./schemas";
+import type { GeneratedQuestion, QuickAddDraft } from "./schemas";
 import type { ClassRef } from "./fallback-parse";
 
 export type Confidence = "high" | "medium" | "low";
@@ -71,4 +71,25 @@ export interface AIProvider {
     now: Date,
     onUsage?: (usage: CallUsage) => void,
   ): Promise<ExtractedAssignment[] | null>;
+
+  /** Practice questions for one topic, grounded in what the student's course
+   * gives us. Null on any failure; callers keep the no-AI workflow. */
+  generatePracticeQuestions(
+    input: PracticeGenerationInput,
+    onUsage?: (usage: CallUsage) => void,
+  ): Promise<GeneratedQuestion[] | null>;
+}
+
+export interface PracticeGenerationInput {
+  courseName: string;
+  /** e.g. "AP", "University"; null when unknown. */
+  level: string | null;
+  topic: string;
+  /** Other topics in the course, for context. */
+  relatedTopics: string[];
+  /** Short excerpts from the student's own course materials, if any matched. */
+  excerpts: { title: string; text: string }[];
+  /** Subject-family instruction (src/lib/learning/subjects.ts). */
+  formatInstruction: string;
+  count: number;
 }

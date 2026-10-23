@@ -35,33 +35,38 @@ model User {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  profile          Profile?
-  availability     StudyAvailability[]
-  classes          Class[]
-  assignments      Assignment[]
-  exams            Exam[]
-  plans            Plan[]
-  planItems        PlanItem[]
-  studySessions    StudySession[]
-  notifications    Notification[]
-  feedback         Feedback[]
-  events           Event[]
-  invitedByCode    InviteCode?         @relation(fields: [invitedByCodeId], references: [id])
-  canvasConnection CanvasConnection?
-  teamsConnection  TeamsConnection?
-  calendarFeed     CalendarFeed?
-  referralsMade    Referral[]          @relation("Referrer")
-  referredBy       Referral?           @relation("Referred")
-  scheduleBlocks   ScheduleBlock[]
-  passwordResets   PasswordResetToken[]
-  courseModules    CourseModule[]
-  courseMaterials  CourseMaterial[]
-  tutorChats       TutorConversation[]
-  draftReviews     DraftReview[]
-  subscription     Subscription?
-  aiUsage          AiUsage[]
-  assessments      Assessment[]
-  masteryEvidence  MasteryEvidence[]
+  profile           Profile?
+  availability      StudyAvailability[]
+  classes           Class[]
+  assignments       Assignment[]
+  exams             Exam[]
+  plans             Plan[]
+  planItems         PlanItem[]
+  studySessions     StudySession[]
+  notifications     Notification[]
+  feedback          Feedback[]
+  events            Event[]
+  invitedByCode     InviteCode?          @relation(fields: [invitedByCodeId], references: [id])
+  canvasConnection  CanvasConnection?
+  teamsConnection   TeamsConnection?
+  calendarFeed      CalendarFeed?
+  referralsMade     Referral[]           @relation("Referrer")
+  referredBy        Referral?            @relation("Referred")
+  scheduleBlocks    ScheduleBlock[]
+  passwordResets    PasswordResetToken[]
+  courseModules     CourseModule[]
+  courseMaterials   CourseMaterial[]
+  tutorChats        TutorConversation[]
+  draftReviews      DraftReview[]
+  subscription      Subscription?
+  aiUsage           AiUsage[]
+  assessments       Assessment[]
+  masteryEvidence   MasteryEvidence[]
+  courseTopics      CourseTopic[]
+  topicPrereqs      TopicPrerequisite[]
+  practiceQuestions PracticeQuestion[]
+  practiceSessions  PracticeSession[]
+  questionReports   QuestionReport[]
 
   @@index([createdAt])
 }
@@ -147,34 +152,37 @@ enum Priority {
 }
 
 model Class {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  teacher   String?
-  period    String?
-  color     String   @default("#2563eb")
-  priority  Priority @default(MEDIUM)
-  archived  Boolean  @default(false)
+  id          String       @id @default(cuid())
+  userId      String
+  name        String
+  teacher     String?
+  period      String?
+  color       String       @default("#2563eb")
+  priority    Priority     @default(MEDIUM)
+  archived    Boolean      @default(false)
   // Course details (all optional, so courses from Canvas/Teams/onboarding
   // keep working without them).
   level       CourseLevel?
   institution String?
   subject     String?
   code        String? // e.g. "CHEM 101"; as the school writes it
-  termStart   DateTime? @db.Date
-  termEnd     DateTime? @db.Date
+  termStart   DateTime?    @db.Date
+  termEnd     DateTime?    @db.Date
   weeklyHours Int? // the student's own study-time goal for this course
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignments   Assignment[]
-  exams         Exam[]
-  canvasCourses CanvasCourse[]
-  teamsClasses  TeamsClass[]
-  modules       CourseModule[]
-  materials     CourseMaterial[]
-  tutorChats    TutorConversation[]
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments       Assignment[]
+  exams             Exam[]
+  canvasCourses     CanvasCourse[]
+  teamsClasses      TeamsClass[]
+  modules           CourseModule[]
+  materials         CourseMaterial[]
+  tutorChats        TutorConversation[]
+  topics            CourseTopic[]
+  practiceQuestions PracticeQuestion[]
+  practiceSessions  PracticeSession[]
 
   @@index([userId, archived])
 }
@@ -241,11 +249,11 @@ model Assignment {
   // One row per Canvas assignment per student — the backbone of idempotent
   // sync. NULL canvas ids (manual rows) never collide in Postgres.
   @@unique([userId, canvasCourseId, canvasAssignmentId])
+  @@unique([userId, feedUid])
   @@index([userId, status, dueAt])
   @@index([classId])
   @@index([userId, source])
   @@index([userId, teamsAssignmentId])
-  @@unique([userId, feedUid])
 }
 
 model Exam {
@@ -506,21 +514,21 @@ model CanvasConnection {
 }
 
 model CanvasCourse {
-  id             String    @id @default(cuid())
-  connectionId   String
-  canvasCourseId String
-  name           String
-  courseCode     String?
-  termName       String?
-  selected       Boolean   @default(false)
-  classId        String? // the Rushd Class this course syncs into
-  lastSyncedAt   DateTime?
+  id              String    @id @default(cuid())
+  connectionId    String
+  canvasCourseId  String
+  name            String
+  courseCode      String?
+  termName        String?
+  selected        Boolean   @default(false)
+  classId         String? // the Rushd Class this course syncs into
+  lastSyncedAt    DateTime?
   // Course content (modules, pages, announcements, rubrics) syncs separately
   // from assignments; these record its last run.
   contentSyncedAt DateTime?
   contentSyncNote String? // user-facing, e.g. "Pages aren't visible to students in this course."
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   connection CanvasConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   class      Class?           @relation(fields: [classId], references: [id], onDelete: SetNull)
@@ -610,7 +618,7 @@ enum CourseMaterialKind {
 }
 
 model CourseMaterial {
-  id             String             @id @default(cuid())
+  id             String                   @id @default(cuid())
   userId         String
   classId        String
   canvasCourseId String
@@ -777,19 +785,19 @@ model AppSetting {
 // ---------------------------------------------------------------------------
 
 model Assessment {
-  id           String   @id @default(cuid())
-  userId       String
-  classId      String?
-  source       String // photo | text
-  subject      String
-  topic        String
-  topicKey     String
+  id            String   @id @default(cuid())
+  userId        String
+  classId       String?
+  source        String // photo | text
+  subject       String
+  topic         String
+  topicKey      String
   itemsAssessed Int
-  estimateLow  Float // 0-100
-  estimateHigh Float // 0-100
-  confidence   String // low | medium | high
-  result       Json // validated AssessmentResult (summary, skills, gaps, next steps, practice, resources)
-  createdAt    DateTime @default(now())
+  estimateLow   Float // 0-100
+  estimateHigh  Float // 0-100
+  confidence    String // low | medium | high
+  result        Json // validated AssessmentResult (summary, skills, gaps, next steps, practice, resources)
+  createdAt     DateTime @default(now())
 
   user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   evidence MasteryEvidence[]
@@ -811,10 +819,165 @@ model MasteryEvidence {
   assessmentId String?
   createdAt    DateTime @default(now())
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assessment Assessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  // Per-question practice evidence (all optional: rows from photo checks
+  // leave them empty). See docs/MASTERY.md for how each one is used.
+  topicId       String? // the course topic this answers to, when known
+  sessionId     String? // the practice session it came from
+  questionId    String?
+  result        AttemptResult?
+  difficulty    Int? // 1 easier, 2 standard, 3 harder
+  hintsUsed     Int?
+  confidence    Int? // self-reported before the reveal: 1 unsure, 2 fairly sure, 3 sure
+  timeTakenSec  Int?
+  isReview      Boolean? // answered while the topic was due for review
+  studentAnswer String? // what the student wrote, for their mistake history
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessment Assessment?       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  topic      CourseTopic?      @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  session    PracticeSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  question   PracticeQuestion? @relation(fields: [questionId], references: [id], onDelete: SetNull)
 
   @@index([userId, topicKey, createdAt])
+  @@index([userId, topicId, createdAt])
+  @@index([userId, classId, createdAt])
+}
+
+enum AttemptResult {
+  CORRECT
+  PARTIAL
+  INCORRECT
+}
+
+// ---------------------------------------------------------------------------
+// Course topic maps (docs/MASTERY.md)
+// ---------------------------------------------------------------------------
+
+enum TopicSource {
+  STUDENT // typed by the student
+  SYLLABUS // extracted from the student's own syllabus, then confirmed
+  TEMPLATE // from a generic course template (always labeled generic)
+  AI_SUGGESTED
+}
+
+enum TopicStatus {
+  CONFIRMED
+  PROPOSED // waiting for the student to confirm; not used for mastery or review
+}
+
+model CourseTopic {
+  id        String      @id @default(cuid())
+  userId    String
+  classId   String
+  parentId  String? // set for subtopics (one level deep)
+  title     String
+  key       String // topicKey(title): links evidence recorded before the topic existed
+  position  Int         @default(0)
+  source    TopicSource @default(STUDENT)
+  status    TopicStatus @default(CONFIRMED)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class         Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
+  parent        CourseTopic?        @relation("TopicTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children      CourseTopic[]       @relation("TopicTree")
+  prerequisites TopicPrerequisite[] @relation("TopicNeeds")
+  requiredBy    TopicPrerequisite[] @relation("TopicUnlocks")
+  evidence      MasteryEvidence[]
+  questions     PracticeQuestion[]
+  sessions      PracticeSession[]
+
+  @@unique([classId, key])
+  @@index([userId, classId, position])
+}
+
+// "topic needs prerequisite first". Both ends are in the same course and owned
+// by the same student; the service refuses edges that would make a cycle.
+model TopicPrerequisite {
+  id             String   @id @default(cuid())
+  userId         String
+  classId        String
+  topicId        String
+  prerequisiteId String
+  createdAt      DateTime @default(now())
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic        CourseTopic @relation("TopicNeeds", fields: [topicId], references: [id], onDelete: Cascade)
+  prerequisite CourseTopic @relation("TopicUnlocks", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, prerequisiteId])
+  @@index([userId, classId])
+}
+
+// ---------------------------------------------------------------------------
+// Practice questions and sessions
+// ---------------------------------------------------------------------------
+
+enum QuestionOrigin {
+  STUDENT // the student's own question ("your question")
+  AI_GENERATED // generated, unverified, always labeled as such
+}
+
+model PracticeQuestion {
+  id          String         @id @default(cuid())
+  userId      String
+  classId     String
+  topicId     String?
+  origin      QuestionOrigin @default(STUDENT)
+  format      String         @default("general") // subject-family format, see src/lib/learning/subjects.ts
+  prompt      String
+  answer      String
+  explanation String?
+  hints       String[]       @default([])
+  difficulty  Int            @default(2) // 1 easier, 2 standard, 3 harder
+  sourceNote  String? // for generated items: what they were grounded in
+  aiModel     String?
+  hiddenAt    DateTime? // reported or removed by the student
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class    Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  topic    CourseTopic?      @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  evidence MasteryEvidence[]
+  reports  QuestionReport[]
+
+  @@index([userId, classId, hiddenAt])
+}
+
+model PracticeSession {
+  id          String    @id @default(cuid())
+  userId      String
+  classId     String
+  topicId     String?
+  mode        String    @default("practice") // practice | review | mistakes
+  questionIds String[]  @default([])
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class    Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  topic    CourseTopic?      @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  evidence MasteryEvidence[]
+
+  @@index([userId, classId, startedAt])
+}
+
+// "Report a problem" on a generated question. The question is hidden for the
+// student right away; the report is kept so the generator can be reviewed.
+model QuestionReport {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  reason     String // wrong_answer | unclear | off_topic | other
+  note       String?
+  createdAt  DateTime @default(now())
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question PracticeQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
 }
 
 // ---------------------------------------------------------------------------

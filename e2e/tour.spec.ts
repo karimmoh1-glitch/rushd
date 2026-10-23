@@ -82,6 +82,69 @@ test("design tour", async ({ browser }) => {
   await page.goto("/courses");
   await page.getByRole("link", { name: "AP Calculus AB" }).click();
   await shoot(page, "d-course-page-term");
+  const calcUrl = page.url().replace(/\/$/, "");
+
+  // Learning core: a topic map, own questions, one session, mistakes.
+  await page.goto(`${calcUrl}/topics`);
+  await shoot(page, "d-course-topics-empty");
+  for (const title of ["Limits", "Derivatives"]) {
+    await page.getByLabel("New topic").fill(title);
+    await page.getByRole("button", { name: "Add topic" }).click();
+    await expect(page.getByRole("heading", { name: title, level: 3 })).toBeVisible();
+  }
+  for (const title of ["Chain rule", "Product rule"]) {
+    await page.getByLabel("New topic").fill(title);
+    await page.getByLabel("Inside").selectOption({ label: "Derivatives" });
+    await page.getByRole("button", { name: "Add topic" }).click();
+    await expect(page.getByRole("heading", { name: title, level: 3 })).toBeVisible();
+  }
+  await page.getByRole("button", { name: "Edit Chain rule" }).click();
+  await page.getByRole("dialog").getByLabel("Limits").check();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/d-topic-dialog.png` });
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.goto(`${calcUrl}/practice`);
+  await shoot(page, "d-course-practice-empty");
+  const questions: [string, string, string][] = [
+    ["Chain rule", "Differentiate sin(x^2)", "2x cos(x^2)"],
+    ["Chain rule", "Differentiate (3x + 1)^5", "15(3x + 1)^4"],
+    ["Limits", "Evaluate the limit of (x^2 - 1)/(x - 1) as x approaches 1", "Factor: (x - 1)(x + 1)/(x - 1) = x + 1, so the limit is 2"],
+  ];
+  for (const [topic, prompt, answer] of questions) {
+    await page.getByRole("button", { name: "Add a question" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Topic").selectOption({ label: topic });
+    await dialog.getByLabel("Problem").fill(prompt);
+    await dialog.getByLabel("Worked solution").fill(answer);
+    if (prompt.includes("sin")) await dialog.getByLabel("Hint (optional)").fill("Outer derivative times inner derivative");
+    if (prompt.includes("sin")) await page.screenshot({ path: `${OUT}/d-question-dialog.png` });
+    await dialog.getByRole("button", { name: "Add question" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+  await shoot(page, "d-course-practice");
+  await page.getByRole("button", { name: "Start a practice session" }).click();
+  await page.waitForURL(/\/practice\/[^/]+$/);
+  const sessionUrl = page.url();
+  await page.getByLabel(/Your answer/).fill("cos(x^2)");
+  await page.getByRole("button", { name: "Fairly sure" }).click();
+  if (await page.getByRole("button", { name: "Show a hint" }).count()) await page.getByRole("button", { name: "Show a hint" }).click();
+  await shoot(page, "d-practice-question");
+  await page.getByRole("button", { name: "Show the answer" }).click();
+  await shoot(page, "d-practice-answer");
+  await page.getByRole("button", { name: "I missed it" }).click();
+  await page.getByRole("button", { name: "Show the answer" }).click();
+  await page.getByRole("button", { name: "I got it" }).click();
+  await page.getByRole("button", { name: "Show the answer" }).click();
+  await page.getByRole("button", { name: "Partly" }).click();
+  await expect(page.getByRole("heading", { name: "Session done" })).toBeVisible();
+  await shoot(page, "d-practice-summary");
+  await page.goto(`${calcUrl}/mistakes`);
+  await shoot(page, "d-course-mistakes");
+  await page.goto(`${calcUrl}/topics`);
+  await shoot(page, "d-course-topics");
+  await page.goto(calcUrl);
+  await shoot(page, "d-course-page-learning");
 
   for (const [path, name] of [
     ["/assignments", "d-assignments"],
@@ -118,6 +181,22 @@ test("design tour", async ({ browser }) => {
   await page.locator("#main-content").getByRole("button", { name: "Add course" }).click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/m-course-sheet.png` });
+  await page.keyboard.press("Escape");
+  for (const [path, name] of [
+    [calcUrl, "m-course-page"],
+    [`${calcUrl}/topics`, "m-course-topics"],
+    [`${calcUrl}/practice`, "m-course-practice"],
+    [`${calcUrl}/mistakes`, "m-course-mistakes"],
+    ["/mastery", "m-mastery"],
+  ] as const) {
+    await page.goto(path);
+    await shoot(page, name);
+  }
+  await page.goto(`${calcUrl}/practice`);
+  await page.getByRole("button", { name: "Start a practice session" }).click();
+  await page.waitForURL((url) => url.href !== sessionUrl && /\/practice\/[^/]+$/.test(url.pathname));
+  await page.getByRole("button", { name: "Show the answer" }).click();
+  await shoot(page, "m-practice-answer");
   await context.close();
 
   const guest = await (await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "dark" })).newPage();

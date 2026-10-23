@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 // The main screens pass axe (WCAG 2 A/AA) in both color schemes, with real data on them.
 test("main screens have no axe violations in light or dark", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   for (const colorScheme of ["dark", "light"] as const) {
     const context = await browser.newContext({ colorScheme, extraHTTPHeaders: { "x-forwarded-for": "127.0.0.4" } });
     // The app defaults to dark and keeps the student's choice in localStorage (next-themes).
@@ -41,6 +41,41 @@ test("main screens have no axe violations in light or dark", async ({ browser })
     await page.waitForTimeout(1500);
     const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
     for (const v of r.violations) results.push(`${colorScheme} course: ${v.id} (${v.nodes.length}) ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);
+
+    // The learning screens, with real data: a topic, a question, one answer.
+    async function check(name: string) {
+      await page.waitForTimeout(1000);
+      const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+      for (const v of result.violations) results.push(`${colorScheme} ${name}: ${v.id} (${v.nodes.length}) ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);
+    }
+    const courseUrl = page.url().replace(/\/$/, "");
+    await page.goto(`${courseUrl}/topics`);
+    await page.getByLabel("New topic").fill("Stoichiometry");
+    await page.getByRole("button", { name: "Add topic" }).click();
+    await page.getByRole("heading", { name: "Stoichiometry", level: 3 }).waitFor();
+    await check("topics");
+    await page.goto(`${courseUrl}/practice`);
+    await page.getByRole("button", { name: "Add a question" }).click();
+    await page.getByRole("dialog").getByLabel("Problem").fill("How many moles are in 18 g of water?");
+    await page.getByRole("dialog").getByLabel("Worked solution").fill("18 g ÷ 18 g/mol = 1 mol");
+    await page.getByRole("dialog").getByLabel("Hint (optional)").fill("Use the molar mass of water");
+    await check("question dialog");
+    await page.getByRole("dialog").getByRole("button", { name: "Add question" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await check("practice");
+    await page.getByRole("button", { name: "Start a practice session" }).click();
+    await page.waitForURL(/\/practice\/[^/]+$/);
+    await page.getByRole("button", { name: "Show a hint" }).click();
+    await check("session question");
+    await page.getByRole("button", { name: "Show the answer" }).click();
+    await check("session answer");
+    await page.getByRole("button", { name: "I missed it" }).click();
+    await page.getByRole("heading", { name: "Session done" }).waitFor();
+    await check("session summary");
+    await page.goto(`${courseUrl}/mistakes`);
+    await check("mistakes");
+    await page.goto("/mastery");
+    await check("mastery");
     expect(results).toEqual([]);
     await context.close();
   }

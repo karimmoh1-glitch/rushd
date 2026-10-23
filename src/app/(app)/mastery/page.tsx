@@ -1,99 +1,79 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { requireUser } from "@/lib/auth/dal";
-import { getMastery } from "@/lib/practice/load";
-import { nextReview, type TopicMastery } from "@/lib/practice/mastery";
-import { formatDateInZone } from "@/lib/time/zone";
+import { getLearningOverview, type TopicView } from "@/lib/learning/load";
+import type { MasteryStatusV2, TopicEstimate } from "@/lib/learning/estimator";
 import { buttonVariants } from "@/components/ui/button";
-import { ScheduleReviewButton } from "./schedule-review-button";
 import { PathEmpty } from "@/components/brand/path-empty";
+import { MasteryChip, estimateLine } from "@/components/learning/mastery-chip";
+import { StartPracticeButton } from "@/components/learning/start-practice-button";
+import { ScheduleReviewButton } from "./schedule-review-button";
 
 export const metadata: Metadata = { title: "Mastery" };
 
-const STATUS_LABEL = { needs_review: "Needs review", developing: "Developing", strong: "Strong" } as const;
-const STATUS_ORDER = ["needs_review", "developing", "strong"] as const;
-
-const TREND_DISPLAY = {
-  up: { Icon: ArrowUpRight, label: "Improving" },
-  down: { Icon: ArrowDownRight, label: "Slipping" },
-  steady: { Icon: Minus, label: "Steady" },
+const ORDER: MasteryStatusV2[] = ["needs_review", "developing", "secure", "not_enough_evidence"];
+const COUNT_LABEL: Record<MasteryStatusV2, string> = {
+  needs_review: "need review",
+  developing: "developing",
+  secure: "secure",
+  not_enough_evidence: "not enough evidence",
 };
 
-function barColor(status: TopicMastery["status"]): string {
-  if (status === "needs_review") return "bg-signal";
-  if (status === "strong") return "bg-teal";
-  return "bg-foreground/55";
-}
-
-function Trend({ trend }: { trend: TopicMastery["trend"] }) {
-  if (!trend) return null;
-  const { Icon, label } = TREND_DISPLAY[trend];
+function TopicLine({
+  title,
+  estimate,
+  href,
+  indent,
+  children,
+}: {
+  title: string;
+  estimate: TopicEstimate;
+  href?: string;
+  indent?: boolean;
+  children?: React.ReactNode;
+}) {
   return (
-    <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
-      <Icon className="h-3 w-3" aria-hidden="true" />
-      {label}
-    </span>
-  );
-}
-
-function TopicRow({ topic, timeZone }: { topic: TopicMastery; timeZone: string | null | undefined }) {
-  const lastChecked = formatDateInZone(topic.lastAssessed, timeZone, { month: "short", day: "numeric" });
-  return (
-    <li className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5 py-3">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{topic.topicLabel}</p>
-        <p className="text-xs text-muted-foreground">
-          {topic.evidenceCount} check{topic.evidenceCount === 1 ? "" : "s"} · last {lastChecked} · {topic.confidence} confidence
-        </p>
+    <li className={indent ? "py-3 pl-5" : "py-3"}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        {href ? (
+          <Link href={href} className="min-w-0 truncate text-sm font-medium underline-offset-4 hover:underline">
+            {title}
+          </Link>
+        ) : (
+          <span className="min-w-0 truncate text-sm font-medium">{title}</span>
+        )}
+        <MasteryChip status={estimate.status} />
       </div>
-      <div className="text-right">
-        <p className="text-sm tabular-nums">{topic.low}–{topic.high}%</p>
-        <Trend trend={topic.trend} />
-      </div>
-      <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`Estimated ${topic.low} to ${topic.high} percent`}>
-        <div className={`h-full rounded-full ${barColor(topic.status)}`} style={{ marginLeft: `${topic.low}%`, width: `${Math.max(2, topic.high - topic.low)}%` }} />
-      </div>
+      {estimateLine(estimate) && <p className="mt-1 text-xs text-muted-foreground">{estimateLine(estimate)}</p>}
+      <p className="mt-0.5 text-sm text-muted-foreground">{estimate.explanation}</p>
+      {children}
     </li>
   );
 }
 
-function TopicGroup({
-  status,
-  topics,
-  timeZone,
-}: {
-  status: TopicMastery["status"];
-  topics: TopicMastery[];
-  timeZone: string | null | undefined;
-}) {
-  if (topics.length === 0) return null;
-  return (
-    <section aria-labelledby={`g-${status}`}>
-      <h2 id={`g-${status}`} className="border-b border-border pb-2 text-base font-semibold">
-        {STATUS_LABEL[status]} <span className="font-normal text-muted-foreground">· {topics.length}</span>
-      </h2>
-      <ul className="divide-y divide-border">
-        {topics.map((topic) => (
-          <TopicRow key={topic.topicKey} topic={topic} timeZone={timeZone} />
-        ))}
-      </ul>
-    </section>
-  );
+function countsLine(topics: TopicView[]): string {
+  const counts = new Map<MasteryStatusV2, number>();
+  for (const t of topics) counts.set(t.estimate.status, (counts.get(t.estimate.status) ?? 0) + 1);
+  return ORDER.filter((s) => counts.get(s)).map((s) => `${counts.get(s)} ${COUNT_LABEL[s]}`).join(" · ");
 }
 
 export default async function MasteryPage() {
   const user = await requireUser();
-  const topics = await getMastery(user.id);
-  const focus = nextReview(topics);
+  const overview = await getLearningOverview(user.id);
+  const courses = overview.courses.filter((c) => !c.archived || c.learning.topics.some((t) => t.estimate.answers > 0));
+  const withTopics = courses.filter((c) => c.learning.topics.length > 0);
+  const withoutTopics = courses.filter((c) => c.learning.topics.length === 0);
+  const hasEvidence = withTopics.some((c) => c.learning.topics.some((t) => t.estimate.answers > 0)) || overview.unlinked.length > 0;
+  const courseName = new Map(overview.courses.map((c) => [c.id, c.name]));
+  const gap = withTopics.flatMap((c) => c.learning.topics.filter((t) => t.remediation).map((t) => ({ course: c, topic: t })))[0];
 
   return (
     <div className="max-w-3xl space-y-10">
       <header>
         <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Mastery</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          What your practice checks show you know, topic by topic. Estimates come with a range and get more reliable with
-          every check; recent work counts more.
+          What your practice shows you know, course by course. Every status comes from your own answers and says how sure it
+          can be; with little evidence, it says so.
         </p>
         <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <Link href="/mastery/habits" className="underline underline-offset-4">Study habits</Link>
@@ -101,48 +81,112 @@ export default async function MasteryPage() {
         </p>
       </header>
 
-      {topics.length === 0 ? (
+      {!hasEvidence && withTopics.length === 0 ? (
         <PathEmpty title="No evidence yet">
           <p>
-            Check a page of practice work and Rushd starts mapping what you&apos;ve mastered and what to review. Nothing here
-            is guessed: every number comes from your own checks.
+            Open a course, add its topics, and practice a few questions. Rushd starts mapping what you&apos;ve mastered and
+            what to review from your answers. Nothing here is guessed.
           </p>
-          <Link href="/practice" className={`${buttonVariants()} mt-4`}>Check my work</Link>
+          <Link href="/courses" className={`${buttonVariants()} mt-4`}>Go to my courses</Link>
         </PathEmpty>
       ) : (
         <>
-          {focus && (
-            <section aria-labelledby="focus" className="rounded-xl border border-border bg-card p-5">
-              <h2 id="focus" className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">
+          {overview.review.length > 0 && (
+            <section aria-labelledby="due" className="rounded-xl bg-card px-4 py-4 shadow-(--shadow-card) ring-1 ring-foreground/[0.07] sm:px-5">
+              <h2 id="due" className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-signal-ink">
                 <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal" />
-                Study next
+                Due for review
               </h2>
-              <p className="mt-1.5 font-display text-2xl font-medium tracking-tight">{focus.topicLabel}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                About {focus.estimate}% (range {focus.low}–{focus.high}%, {focus.confidence} confidence) from {focus.evidenceCount} check
-                {focus.evidenceCount === 1 ? "" : "s"}.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link href={`/tutor?ask=${encodeURIComponent(`Help me review ${focus.topicLabel}. Start with a quick diagnostic question.`)}`} className={buttonVariants()}>
-                  Review with the tutor
-                </Link>
-                <ScheduleReviewButton topicKey={focus.topicKey} />
-                <Link href="/practice" className={buttonVariants({ variant: "ghost" })}>Check again</Link>
-              </div>
+              <ul className="mt-2 divide-y divide-border">
+                {overview.review.slice(0, 5).map((item) => (
+                  <li key={item.topicId} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2.5">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
+                        {item.title} <span className="font-normal text-muted-foreground">· {courseName.get(item.classId)}</span>
+                      </span>
+                      <span className="block text-xs text-muted-foreground">{item.reason}</span>
+                    </span>
+                    <StartPracticeButton classId={item.classId} topicId={item.topicId} mode="review" label="Review" size="sm" />
+                  </li>
+                ))}
+              </ul>
+              {overview.review.length > 5 && <p className="pt-2 text-xs text-muted-foreground">And {overview.review.length - 5} more in their courses.</p>}
             </section>
           )}
 
-          {STATUS_ORDER.map((status) => (
-            <TopicGroup
-              key={status}
-              status={status}
-              topics={topics.filter((topic) => topic.status === status)}
-              timeZone={user.profile?.timezone}
-            />
+          {gap?.topic.remediation && (
+            <section aria-labelledby="gap" className="space-y-1">
+              <h2 id="gap" className="text-base font-semibold">Biggest gap</h2>
+              <p className="text-sm">
+                <span className="font-medium">{gap.topic.title}</span>{" "}
+                <span className="text-muted-foreground">in {gap.course.name}. {gap.topic.remediation.reason}</span>
+              </p>
+            </section>
+          )}
+
+          {withTopics.map((course) => (
+            <section key={course.id} aria-labelledby={`course-${course.id}`} style={{ ["--course" as string]: course.color }}>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-border pb-2">
+                <h2 id={`course-${course.id}`} className="flex items-center gap-2 text-base font-semibold">
+                  <span aria-hidden="true" className="course-rule h-2.5 w-2.5 rounded-full" />
+                  <Link href={`/courses/${course.id}/topics`} className="underline-offset-4 hover:underline">
+                    {course.name}
+                  </Link>
+                </h2>
+                <span className="text-xs text-muted-foreground">{countsLine(course.learning.topics)}</span>
+              </div>
+              <ul className="divide-y divide-border">
+                {course.learning.topics.map((topic) => (
+                  <TopicLine key={topic.id} title={topic.title} estimate={topic.estimate} indent={Boolean(topic.parentId)} />
+                ))}
+              </ul>
+            </section>
           ))}
+
+          {overview.unlinked.length > 0 && (
+            <section aria-labelledby="other-checks">
+              <h2 id="other-checks" className="border-b border-border pb-2 text-base font-semibold">
+                From photo checks, not yet in a topic map
+              </h2>
+              <p className="pt-2 text-xs text-muted-foreground">
+                Add a topic with the same name to the right course and this evidence moves there.
+              </p>
+              <ul className="divide-y divide-border">
+                {overview.unlinked.map((item) => (
+                  <TopicLine
+                    key={`${item.classId}:${item.key}`}
+                    title={`${item.label}${item.classId && courseName.get(item.classId) ? ` · ${courseName.get(item.classId)}` : ""}`}
+                    estimate={item.estimate}
+                  >
+                    {item.estimate.status === "needs_review" && (
+                      <div className="pt-2">
+                        <ScheduleReviewButton topicKey={item.key} size="sm" />
+                      </div>
+                    )}
+                  </TopicLine>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {withoutTopics.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              No topics yet in{" "}
+              {withoutTopics.map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && (i === withoutTopics.length - 1 ? " and " : ", ")}
+                  <Link href={`/courses/${c.id}/topics`} className="underline underline-offset-4">{c.name}</Link>
+                </span>
+              ))}
+              . Add them to track mastery there.
+            </p>
+          )}
+
           <p className="text-xs text-muted-foreground">
-            Estimates are AI judgments of short checks, not grades. They weigh recent evidence more (half-life about a month)
-            and widen when evidence is thin.
+            How this works: answers count more when they&apos;re recent, harder, and done without hints; success in separate
+            sessions counts more than many answers in one sitting; and a topic comes due for review as time passes since you
+            last got it right. These are estimates from a handful of answers, not grades, and they don&apos;t know how your
+            teacher grades.
           </p>
         </>
       )}
