@@ -81,6 +81,7 @@ test("design tour", async ({ browser }) => {
   await shoot(page, "d-course-page");
   await page.goto("/courses");
   await page.getByRole("link", { name: "AP Calculus AB" }).click();
+  await page.waitForURL(/\/courses\/[^/]+$/);
   await shoot(page, "d-course-page-term");
   const calcUrl = page.url().replace(/\/$/, "");
 
