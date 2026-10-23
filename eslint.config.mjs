@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // The desktop wrapper is a separate Tauri project with its own tooling.
     "desktop/**",
+    // The iPhone app is a separate Expo project with its own package.json and tooling.
+    "mobile/**",
     // Cloudflare build output — generated, not source.
     ".open-next/**",
     ".wrangler/**",

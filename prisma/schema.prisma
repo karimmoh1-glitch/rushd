@@ -54,6 +54,7 @@ model User {
   referredBy        Referral?            @relation("Referred")
   scheduleBlocks    ScheduleBlock[]
   passwordResets    PasswordResetToken[]
+  refreshTokens     MobileRefreshToken[]
   courseModules     CourseModule[]
   courseMaterials   CourseMaterial[]
   tutorChats        TutorConversation[]
@@ -585,6 +586,32 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Refresh tokens for native clients (the iPhone app) using /api/v1. Only a
+// SHA-256 digest is stored; the raw token lives in the device's keychain.
+// Each refresh rotates the token: the old row is revoked and points at its
+// replacement. Presenting a revoked token again means it was copied, so the
+// whole family (every token descended from one sign-in) is revoked.
+// sessionVersion ties the family to User.sessionVersion, so "sign out
+// everywhere" and password changes void mobile sign-ins too.
+model MobileRefreshToken {
+  id             String    @id @default(cuid())
+  userId         String
+  tokenHash      String    @unique
+  familyId       String
+  deviceLabel    String?
+  sessionVersion Int
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  replacedById   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
 }
 
 // ---------------------------------------------------------------------------

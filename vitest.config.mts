@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
-    exclude: ["src/**/*.integration.test.ts", "**/node_modules/**"],
+    exclude: ["src/**/*.integration.test.ts", "**/node_modules/**", "mobile/**"],
   },
   resolve: {
     alias: {

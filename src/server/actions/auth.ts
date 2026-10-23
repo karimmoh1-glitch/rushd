@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { hashPassword } from "@/lib/auth/password";
+import { verifyCredentials } from "@/lib/auth/credentials";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { SignupSchema, LoginSchema } from "@/lib/validation/auth";
@@ -17,15 +18,6 @@ export type AuthFormState =
       message?: string;
     }
   | undefined;
-
-// A throwaway hash, made once, for logins to accounts that don't exist.
-let dummyHashPromise: Promise<string> | undefined;
-function dummyHash() {
-  if (dummyHashPromise === undefined) {
-    dummyHashPromise = hashPassword("not-a-real-password-for-timing-only");
-  }
-  return dummyHashPromise;
-}
 
 // Extra details for the "signup" event, or undefined when there are none.
 function signupEventDetails(inviteCode: string | undefined, referred: boolean) {
@@ -135,19 +127,11 @@ export async function login(
     return { message: "Too many attempts. Try again in a few minutes." };
   }
 
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true, passwordHash: true, onboardingCompletedAt: true, sessionVersion: true },
-  });
-
   // Same generic message whether the email doesn't exist or the password is
   // wrong — do not let this endpoint reveal which emails have accounts.
-  const invalidMessage = { message: "Invalid email or password." };
-
-  // Compare against a throwaway hash when the account doesn't exist so both
-  // paths take the same bcrypt time and response timing reveals nothing.
-  const valid = await verifyPassword(password, user?.passwordHash ?? (await dummyHash()));
-  if (!user || !valid) return invalidMessage;
+  // verifyCredentials also equalizes the bcrypt time of both paths.
+  const user = await verifyCredentials(email, password);
+  if (!user) return { message: "Invalid email or password." };
 
   await createSession(user.id, user.sessionVersion);
 

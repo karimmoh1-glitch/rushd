@@ -1,0 +1,2058 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Rushd API",
+    "version": "1.0.0",
+    "description": "Versioned JSON API for Rushd's native clients. Bearer tokens only (no cookies). Every error is `{ \"error\": { \"code\", \"message\" } }`. See docs/API.md."
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Relative to the Rushd deployment, e.g. http://localhost:3000/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Account"
+    },
+    {
+      "name": "Today"
+    },
+    {
+      "name": "Assignments"
+    },
+    {
+      "name": "Courses"
+    },
+    {
+      "name": "Sessions"
+    }
+  ],
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "summary": "Sign in with email and password",
+        "security": [],
+        "tags": [
+          "Auth"
+        ],
+        "description": "Same password check, rate limits (10 attempts per IP+email and 30 per IP per 15 minutes) and enumeration-safe error as the web login.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "deviceName": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/TokenPair"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "onboardingCompleted": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "onboardingCompleted"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid_credentials (wrong email or password, indistinguishable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Rotate the refresh token",
+        "security": [],
+        "tags": [
+          "Auth"
+        ],
+        "description": "Returns a new pair and revokes the presented refresh token. Presenting a token that was already rotated or revoked revokes every token from that sign-in (refresh_token_reused).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "refreshToken"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "refresh_token_invalid or refresh_token_reused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Sign out this device, or everywhere",
+        "tags": [
+          "Auth"
+        ],
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "`{ refreshToken }` ends that sign-in (no access token needed). `{ everywhere: true }` needs a bearer token and signs the student out of every device and every web session. With neither, ends the sign-in the bearer token belongs to.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  },
+                  "everywhere": {
+                    "type": "boolean"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Signed out"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "summary": "The signed-in student",
+        "tags": [
+          "Account"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Student",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  },
+                  "required": [
+                    "user"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/today": {
+      "get": {
+        "summary": "The Today screen",
+        "tags": [
+          "Today"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Next up with reasons, today's study blocks, coming up with due status, this week's workload, and study time per course. Same logic as the web dashboard.",
+        "responses": {
+          "200": {
+            "description": "Today",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "today": {
+                      "$ref": "#/components/schemas/Today"
+                    }
+                  },
+                  "required": [
+                    "today"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/assignments": {
+      "get": {
+        "summary": "List assignments",
+        "tags": [
+          "Assignments"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Open work ranked by Pulse then due date (like the web list); work Canvas stopped listing after it; completed newest first.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "completed",
+                "all"
+              ],
+              "default": "open"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "assignments": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Assignment"
+                      }
+                    }
+                  },
+                  "required": [
+                    "assignments"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad status filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add an assignment",
+        "tags": [
+          "Assignments"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "dueAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "estimatedMinutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 1000,
+                    "default": 30
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH"
+                    ],
+                    "default": "MEDIUM"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "title",
+                  "dueAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "assignment": {
+                      "$ref": "#/components/schemas/Assignment"
+                    }
+                  },
+                  "required": [
+                    "assignment"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Course not found (or not yours)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/assignments/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "One assignment",
+        "tags": [
+          "Assignments"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "assignment": {
+                      "$ref": "#/components/schemas/Assignment"
+                    }
+                  },
+                  "required": [
+                    "assignment"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (or not yours)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Mark done / not done, or edit",
+        "tags": [
+          "Assignments"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "`{ status }` alone marks it complete or not. Other fields are merged into the current values; Canvas keeps ownership of an imported assignment's title, due date and course.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "NOT_STARTED",
+                      "IN_PROGRESS",
+                      "COMPLETED"
+                    ]
+                  },
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "dueAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "estimatedMinutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 1000
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "LOW",
+                      "MEDIUM",
+                      "HIGH"
+                    ]
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000
+                  }
+                },
+                "required": [],
+                "minProperties": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "assignment": {
+                      "$ref": "#/components/schemas/Assignment"
+                    }
+                  },
+                  "required": [
+                    "assignment"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Assignment or course not found (or not yours)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/courses": {
+      "get": {
+        "summary": "List courses",
+        "tags": [
+          "Courses"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Courses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "courses": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Course"
+                      }
+                    }
+                  },
+                  "required": [
+                    "courses"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/courses/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "One course with its open work",
+        "tags": [
+          "Courses"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Course",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "course": {
+                      "$ref": "#/components/schemas/Course"
+                    },
+                    "openAssignments": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Assignment"
+                      }
+                    },
+                    "upcomingExams": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Exam"
+                      }
+                    }
+                  },
+                  "required": [
+                    "course",
+                    "openAssignments",
+                    "upcomingExams"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (or not yours)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/sessions/active": {
+      "get": {
+        "summary": "The in-progress study session",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/ActiveSession"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "session"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/sessions": {
+      "post": {
+        "summary": "Start a study session",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Exactly one of assignmentId or examId. Only one session can be in progress.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "assignmentId": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "PLANNED",
+                          "MANUAL"
+                        ],
+                        "default": "MANUAL"
+                      }
+                    },
+                    "required": [
+                      "assignmentId"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "examId": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "PLANNED",
+                          "MANUAL"
+                        ],
+                        "default": "MANUAL"
+                      }
+                    },
+                    "required": [
+                      "examId"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session": {
+                      "$ref": "#/components/schemas/ActiveSession"
+                    }
+                  },
+                  "required": [
+                    "session"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Assignment or exam not found (or not yours, or already completed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another session is already in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/sessions/{id}/complete": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "summary": "Complete a session",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "The student confirms the minutes; the app's timer is only a suggestion.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "actualMinutes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": [
+                      "EASIER",
+                      "AS_EXPECTED",
+                      "HARDER"
+                    ]
+                  }
+                },
+                "required": [
+                  "actualMinutes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "$ref": "#/components/schemas/SessionSummary"
+                    }
+                  },
+                  "required": [
+                    "summary"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (or not yours)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/sessions/{id}/abandon": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "summary": "Abandon a session",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "RAN_OUT_OF_TIME",
+                      "HARDER_THAN_EXPECTED",
+                      "GOT_DISTRACTED",
+                      "NEED_HELP",
+                      "SOMETHING_CAME_UP",
+                      "OTHER"
+                    ]
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Abandoned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (or not yours)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already finished",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "unauthorized (missing, forged, or revoked token) or token_expired (refresh and retry)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "rate_limited; see Retry-After",
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid_request",
+                  "invalid_credentials",
+                  "unauthorized",
+                  "token_expired",
+                  "refresh_token_invalid",
+                  "refresh_token_reused",
+                  "not_found",
+                  "conflict",
+                  "rate_limited",
+                  "internal"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "TokenPair": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "HS256 JWT, valid 15 minutes. Send as `Authorization: Bearer <token>`."
+          },
+          "accessTokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "43-character opaque token. Store in the device keychain; it rotates on every refresh."
+          },
+          "refreshTokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tokenType": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          }
+        },
+        "required": [
+          "accessToken",
+          "accessTokenExpiresAt",
+          "refreshToken",
+          "refreshTokenExpiresAt",
+          "tokenType"
+        ]
+      },
+      "DueStatus": {
+        "type": "string",
+        "enum": [
+          "overdue",
+          "today",
+          "soon",
+          "later"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeZone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "onboardingCompleted": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "timeZone",
+          "onboardingCompleted",
+          "createdAt"
+        ]
+      },
+      "Assignment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "course": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "color": {
+                "type": "string",
+                "description": "Hex color"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "color"
+            ]
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueStatus": {
+            "$ref": "#/components/schemas/DueStatus"
+          },
+          "dueLabel": {
+            "type": "string",
+            "description": "Formatted in the student's time zone, e.g. \"Tomorrow, 11:59 PM\""
+          },
+          "estimatedMinutes": {
+            "type": "integer"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "COMPLETED"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "CANVAS",
+              "TEAMS",
+              "CALENDAR"
+            ]
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "removedUpstream": {
+            "type": "boolean",
+            "description": "Canvas no longer lists it; kept but left out of the plan."
+          },
+          "pulse": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "0-100: how strongly it needs the student now. Null for finished work."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "course",
+          "dueAt",
+          "dueStatus",
+          "dueLabel",
+          "estimatedMinutes",
+          "priority",
+          "status",
+          "notes",
+          "source",
+          "completedAt",
+          "removedUpstream",
+          "pulse"
+        ]
+      },
+      "TermProgress": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "upcoming"
+                ]
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "running"
+                ]
+              },
+              "percent": {
+                "type": "integer"
+              },
+              "week": {
+                "type": "integer"
+              },
+              "weeks": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "state",
+              "percent",
+              "week",
+              "weeks"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "ended"
+                ]
+              }
+            },
+            "required": [
+              "state"
+            ]
+          }
+        ]
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "level": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "levelLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "As the student entered it; never invented."
+          },
+          "institution": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "teacher": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "period": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ]
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "termStart": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "termEnd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "term": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TermProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weeklyGoalMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "openAssignmentCount": {
+            "type": "integer"
+          },
+          "upcomingExamCount": {
+            "type": "integer"
+          },
+          "studiedMinutesLast7Days": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color",
+          "level",
+          "levelLabel",
+          "code",
+          "institution",
+          "subject",
+          "teacher",
+          "period",
+          "priority",
+          "archived",
+          "termStart",
+          "termEnd",
+          "term",
+          "weeklyGoalMinutes",
+          "openAssignmentCount",
+          "upcomingExamCount",
+          "studiedMinutesLast7Days"
+        ]
+      },
+      "Exam": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "examAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueStatus": {
+            "$ref": "#/components/schemas/DueStatus"
+          },
+          "dueLabel": {
+            "type": "string"
+          },
+          "prepMinutes": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "examAt",
+          "dueStatus",
+          "dueLabel",
+          "prepMinutes"
+        ]
+      },
+      "ActiveSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "classColor": {
+            "type": "string"
+          },
+          "plannedMinutes": {
+            "type": "integer"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Compute elapsed time from this."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "className",
+          "classColor",
+          "plannedMinutes",
+          "startedAt"
+        ]
+      },
+      "SessionSummary": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "plannedMinutes": {
+            "type": "integer"
+          },
+          "actualMinutes": {
+            "type": "integer"
+          },
+          "perceivedDifficulty": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "EASIER",
+                  "AS_EXPECTED",
+                  "HARDER"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "plannedMinutes",
+          "actualMinutes",
+          "perceivedDifficulty"
+        ]
+      },
+      "Today": {
+        "type": "object",
+        "properties": {
+          "timeZone": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "dateLabel": {
+            "type": "string"
+          },
+          "overdueCount": {
+            "type": "integer"
+          },
+          "dueThisWeek": {
+            "type": "integer"
+          },
+          "minutesStudiedThisWeek": {
+            "type": "integer"
+          },
+          "nextUp": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "itemId": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "assignment",
+                      "exam"
+                    ]
+                  },
+                  "assignmentId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "examId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "courseName": {
+                    "type": "string"
+                  },
+                  "courseColor": {
+                    "type": "string"
+                  },
+                  "minutes": {
+                    "type": "integer"
+                  },
+                  "pulse": {
+                    "type": "integer"
+                  },
+                  "plannedLabel": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "reasons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Plain-language reasons from the planner's real score, at most 3."
+                  }
+                },
+                "required": [
+                  "itemId",
+                  "kind",
+                  "assignmentId",
+                  "examId",
+                  "title",
+                  "courseName",
+                  "courseColor",
+                  "minutes",
+                  "pulse",
+                  "plannedLabel",
+                  "reasons"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "todayBlocks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "itemId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "assignment",
+                    "exam"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "courseName": {
+                  "type": "string"
+                },
+                "courseColor": {
+                  "type": "string"
+                },
+                "minutes": {
+                  "type": "integer"
+                },
+                "startMinute": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "timeLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pinned": {
+                  "type": "boolean"
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "itemId",
+                "kind",
+                "title",
+                "courseName",
+                "courseColor",
+                "minutes",
+                "startMinute",
+                "timeLabel",
+                "pinned",
+                "reasons"
+              ]
+            }
+          },
+          "plannedMinutesToday": {
+            "type": "integer"
+          },
+          "todayEmpty": {
+            "type": "object",
+            "properties": {
+              "hasWork": {
+                "type": "boolean"
+              },
+              "noAvailability": {
+                "type": "boolean"
+              },
+              "availableMinutesToday": {
+                "type": "integer"
+              },
+              "laterBlock": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "when": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "when"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "hasWork",
+              "noAvailability",
+              "availableMinutesToday",
+              "laterBlock"
+            ]
+          },
+          "comingUp": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "assignment",
+                    "exam"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "courseName": {
+                  "type": "string"
+                },
+                "courseColor": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "dueStatus": {
+                  "$ref": "#/components/schemas/DueStatus"
+                },
+                "dueLabel": {
+                  "type": "string"
+                },
+                "fromCanvas": {
+                  "type": "boolean"
+                },
+                "pulse": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "title",
+                "courseName",
+                "courseColor",
+                "at",
+                "dueStatus",
+                "dueLabel",
+                "fromCanvas",
+                "pulse"
+              ]
+            }
+          },
+          "week": {
+            "type": "object",
+            "properties": {
+              "show": {
+                "type": "boolean"
+              },
+              "plannedMinutes": {
+                "type": "integer"
+              },
+              "shortfallMinutes": {
+                "type": "integer"
+              },
+              "days": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "letter": {
+                      "type": "string"
+                    },
+                    "minutes": {
+                      "type": "integer"
+                    },
+                    "availableMinutes": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "label",
+                    "letter",
+                    "minutes",
+                    "availableMinutes"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "show",
+              "plannedMinutes",
+              "shortfallMinutes",
+              "days"
+            ]
+          },
+          "courseStudyTime": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "minutes": {
+                  "type": "integer"
+                },
+                "goalMinutes": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "color",
+                "minutes",
+                "goalMinutes"
+              ]
+            }
+          }
+        },
+        "required": [
+          "timeZone",
+          "date",
+          "dateLabel",
+          "overdueCount",
+          "dueThisWeek",
+          "minutesStudiedThisWeek",
+          "nextUp",
+          "todayBlocks",
+          "plannedMinutesToday",
+          "todayEmpty",
+          "comingUp",
+          "week",
+          "courseStudyTime"
+        ]
+      }
+    }
+  }
+}
