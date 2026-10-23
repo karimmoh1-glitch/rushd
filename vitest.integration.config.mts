@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.integration.test.ts"],
+    exclude: ["**/node_modules/**", "mobile/**"],
     setupFiles: ["./src/test/setup-integration.ts"],
     // Integration tests share one Postgres database and clean up after
     // themselves — running them concurrently risks cross-test interference.
