@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
+import { clearOverrides, skipForToday } from "@/server/actions/plan-overrides";
 import { StartSessionButton } from "@/components/start-session-button";
+import { StartPracticeButton } from "@/components/learning/start-practice-button";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +27,7 @@ export function TodayPlanItem({
   timeLabel,
 }: {
   itemId: string;
-  itemKind: "assignment" | "exam";
+  itemKind: "assignment" | "exam" | "review";
   assignmentId: string | null;
   title: string;
   className: string;
@@ -51,8 +53,20 @@ export function TodayPlanItem({
 
   function skip() {
     startTransition(async () => {
+      const result = await skipForToday({ kind: itemKind, itemId });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
       await logPlanItemInteraction("skipped", itemId, itemKind);
-      toast.info("Skipped for today.");
+      const undo = {
+        label: "Undo",
+        onClick: () => {
+          void clearOverrides({ kind: itemKind, itemId });
+        },
+      };
+      if (result.risk) toast.warning(result.risk, { action: undo });
+      else toast.info("Skipped for today. Rushd moved it.", { action: undo });
     });
   }
 
@@ -63,7 +77,10 @@ export function TodayPlanItem({
       )}
       <span aria-hidden="true" className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: classColor }} />
       <div className="min-w-0 flex-1">
-        <p className={cn("truncate text-sm font-medium", pending && "line-through decoration-muted-foreground")}>{title}</p>
+        <p className={cn("truncate text-sm font-medium", pending && "line-through decoration-muted-foreground")}>
+          {itemKind === "review" && <span className="mr-1.5 align-[1px] text-[11px] font-medium uppercase tracking-[0.08em] text-teal">Review</span>}
+          {itemKind === "review" ? title.replace(/^Review: /, "") : title}
+        </p>
         <p className="truncate text-xs text-muted-foreground">
           {className} · {formatDuration(scheduledMinutes)}
           {reasons.length > 0 && (
@@ -90,11 +107,15 @@ export function TodayPlanItem({
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <StartSessionButton
-          target={assignmentId ? { assignmentId } : { examId: itemId }}
-          source="PLANNED"
-          variant="ghost"
-        />
+        {itemKind === "review" ? (
+          <StartPracticeButton classId={itemId} mode="review" label="Review" size="sm" variant="ghost" />
+        ) : (
+          <StartSessionButton
+            target={assignmentId ? { assignmentId } : { examId: itemId }}
+            source="PLANNED"
+            variant="ghost"
+          />
+        )}
         {assignmentId && (
           <span className="flex h-8 w-8 items-center justify-center">
             <Checkbox

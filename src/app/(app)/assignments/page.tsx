@@ -22,6 +22,7 @@ interface AssignmentRecord {
   priority: AssignmentRowData["priority"];
   status: AssignmentRowData["status"];
   notes: string | null;
+  weightPercent: number | null;
   source: NonNullable<AssignmentRowData["source"]>;
   canvasUrl: string | null;
   estimatedByRushd: boolean;
@@ -40,6 +41,7 @@ function toRowData(assignment: AssignmentRecord, pulse: number | null): Assignme
     priority: assignment.priority,
     status: assignment.status,
     notes: assignment.notes ?? undefined,
+    weightPercent: assignment.weightPercent,
     className: assignment.class.name,
     classColor: assignment.class.color,
     source: assignment.source,
@@ -112,6 +114,7 @@ export default async function AssignmentsPage() {
         priority: true,
         status: true,
         notes: true,
+        weightPercent: true,
         source: true,
         canvasUrl: true,
         estimatedByRushd: true,

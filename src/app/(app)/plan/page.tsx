@@ -20,6 +20,9 @@ import { ScheduleAgenda } from "./schedule-agenda";
 import { PlanWarnings } from "./plan-warnings";
 import { ClearPinnedButton } from "./clear-pinned-button";
 import type { AgendaBlock, AgendaDay, DayOption } from "./types";
+import { currentTime } from "@/lib/time/now";
+import { latestChangeNote, rollPlanForward } from "@/lib/planning/snapshots";
+import { WhatChanged } from "@/components/planning/what-changed";
 
 export const metadata: Metadata = {
   title: "Schedule",
@@ -55,6 +58,7 @@ function toAgendaBlock(
   allScored: ScoredItem[],
   now: Date,
   tz: string,
+  todayKey: string,
 ): AgendaBlock {
   const startMinute = session.startMinute ?? 0;
   return {
@@ -73,7 +77,9 @@ function toAgendaBlock(
     reasonCode: session.reasonCode,
     reasons: scored ? explainScore(scored, now, allScored, tz) : [],
     fromCanvas: session.item.source === "CANVAS",
-    dueLabel: dueLabelFor(session.item.dueAt, now, tz),
+    dueLabel: session.item.kind === "review" ? "spaced review" : dueLabelFor(session.item.dueAt, now, tz),
+    isToday: session.scheduledDate === todayKey,
+    estimateMinutes: session.item.prep?.baseMinutes ?? session.item.rawEstimatedMinutes,
   };
 }
 
@@ -98,7 +104,7 @@ function NothingToPlan() {
 
 export default async function PlanPage() {
   const user = await requireUser();
-  const now = new Date();
+  const now = await currentTime();
 
   const [plan, profile, availability, canvas] = await Promise.all([
     generatePlanForUser(user.id, now),
@@ -115,7 +121,9 @@ export default async function PlanPage() {
 
   const tz = plan.timeZone;
   const todayKey = localDateKey(now, tz);
-  const scoredById = new Map(plan.scored.map((scored) => [scored.item.id, scored]));
+  await rollPlanForward(user.id, plan, now);
+  const changeNote = await latestChangeNote(user.id, now, tz, true);
+  const scoredById = new Map(plan.scored.map((scored) => [`${scored.item.kind}:${scored.item.id}`, scored]));
 
   // The agenda: each day in the horizon with its scheduled blocks.
   const planDays = (plan.days ?? []).slice(0, DEFAULT_HORIZON_DAYS);
@@ -130,7 +138,7 @@ export default async function PlanPage() {
       plannedMinutes: day.plannedMinutes,
       status: day.status,
       blocks: sessionsThatDay.map((session, index) =>
-        toAgendaBlock(session, index, scoredById.get(session.item.id), plan.scored, now, tz),
+        toAgendaBlock(session, index, scoredById.get(`${session.item.kind}:${session.item.id}`), plan.scored, now, tz, todayKey),
       ),
     };
   });
@@ -147,7 +155,8 @@ export default async function PlanPage() {
 
   const weekPlanned = sum(days.map((day) => day.plannedMinutes));
   const weekAvailable = sum(days.map((day) => day.availableMinutes));
-  const openWork = sum(plan.scored.map((scored) => scored.item.remainingMinutes));
+  const openWork = sum(plan.scored.filter((scored) => scored.item.kind !== "review").map((scored) => scored.item.remainingMinutes));
+  const reviewMinutes = sum(days.flatMap((day) => day.blocks.filter((block) => block.kind === "review").map((block) => block.minutes)));
   const pinnedCount = plan.sessions.filter((session) => session.pinned).length;
   const deferredCount = Object.keys(plan.deferredMinutesByItem ?? {}).length;
 
@@ -176,6 +185,8 @@ export default async function PlanPage() {
         </div>
       </header>
 
+      {changeNote && <WhatChanged planId={changeNote.planId} sentences={changeNote.sentences} />}
+
       <PlanWarnings
         warnings={plan.warnings ?? []}
         scored={plan.scored}
@@ -187,6 +198,7 @@ export default async function PlanPage() {
         <div>
           <dt className="text-xs text-muted-foreground">Planned this week</dt>
           <dd className="mt-1 font-mono text-2xl font-semibold tabular-nums">{formatDuration(weekPlanned)}</dd>
+          {reviewMinutes > 0 && <dd className="mt-0.5 text-xs text-muted-foreground">incl. {formatDuration(reviewMinutes)} review</dd>}
         </div>
         <div>
           <dt className="text-xs text-muted-foreground">Study time available</dt>
@@ -226,7 +238,10 @@ export default async function PlanPage() {
           <span className="ml-2 text-muted-foreground group-open:hidden">Show</span>
         </summary>
         <ul className="mt-4 space-y-2 text-muted-foreground">
-          <li>Work is ranked by how soon it&apos;s due, priority, overdue status, and exam proximity. The top item gets the earliest open time.</li>
+          <li>Work is ranked by how soon it&apos;s due, priority, overdue status, exam proximity, and its share of your grade when you&apos;ve set it. The top item gets the earliest open time.</li>
+          <li>Exam prep grows when your practice shows that course&apos;s topics need review or haven&apos;t been practiced, and shrinks when they look secure (never below three quarters or above one and a half times your number).</li>
+          <li>Topics that are due for review get a short review block (15 to 45 minutes per course) in the next three days, when there&apos;s room. Reviews never push real deadlines out.</li>
+          <li>Nothing is planned for a course outside its term dates. &ldquo;Skip today&rdquo; and &ldquo;Not this week&rdquo; are respected, and Rushd says when one puts a deadline at risk.</li>
           <li>
             Blocks are about {formatDuration(profile?.preferredSessionMinutes ?? 60)} with a {DEFAULT_BREAK_MINUTES}-minute
             break between them, and no day gets more than {formatDuration(profile?.maxDailyMinutes ?? 240)}.

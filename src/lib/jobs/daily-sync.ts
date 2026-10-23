@@ -92,7 +92,7 @@ export async function runDailySync(budgetMs: number, now = new Date()): Promise<
       report.outOfTime = true;
       break;
     }
-    await regeneratePlanSnapshot(userId);
+    await regeneratePlanSnapshot(userId, "sync");
     report.plans++;
   }
   return report;

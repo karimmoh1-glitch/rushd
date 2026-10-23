@@ -25,7 +25,7 @@ export async function updateClass(id: string, input: ClassInput): Promise<Action
   const result = await updateCourse(user.id, id, input);
   if (!result.ok) return { error: result.error };
 
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "course_changed");
   revalidatePath("/courses");
   return { success: true };
 }
@@ -35,7 +35,7 @@ export async function setClassArchived(id: string, archived: boolean): Promise<A
   const result = await setCourseArchived(user.id, id, archived);
   if (!result.ok) return { error: result.error };
 
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "course_changed");
   revalidatePath("/courses");
   return { success: true };
 }

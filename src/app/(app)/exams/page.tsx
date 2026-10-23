@@ -21,6 +21,7 @@ interface ExamRecord {
   prepMinutes: number;
   priority: ExamRowData["priority"];
   notes: string | null;
+  weightPercent: number | null;
   class: { name: string; color: string };
 }
 
@@ -35,6 +36,7 @@ function toRowData(exam: ExamRecord, pulse: number | null): ExamRowData {
     prepMinutes: exam.prepMinutes,
     priority: exam.priority,
     notes: exam.notes ?? undefined,
+    weightPercent: exam.weightPercent,
     className: exam.class.name,
     classColor: exam.class.color,
   };
@@ -75,6 +77,7 @@ export default async function ExamsPage() {
         prepMinutes: true,
         priority: true,
         notes: true,
+        weightPercent: true,
         class: { select: { name: true, color: true } },
       },
     }),

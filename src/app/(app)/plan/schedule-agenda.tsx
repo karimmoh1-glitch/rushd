@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Check, Lock, LockOpen, MoreHorizontal, MoveRight, Info } from "lucide-react";
+import { CalendarX, Check, Info, Lock, LockOpen, MoreHorizontal, MoveRight, SkipForward, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,11 +15,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { pinBlock, unpinBlock } from "@/server/actions/schedule";
 import { setAssignmentStatus } from "@/server/actions/assignments";
+import { clearOverrides, notThisWeek, skipForToday } from "@/server/actions/plan-overrides";
 import { REASON_LABELS } from "@/lib/planning/constants";
 import { formatDuration } from "@/lib/format";
 import { formatMinuteOfDay } from "@/lib/time/zone";
 import { cn } from "@/lib/utils";
 import { BlockDialog } from "./block-dialog";
+import { EstimateDialog } from "./estimate-dialog";
 import type { AgendaBlock, AgendaDay, DayOption } from "./types";
 
 /** A thin bar showing how full the day is; it turns amber at 90%. */
@@ -45,13 +47,18 @@ function emptyDayMessage(day: AgendaDay): string {
 
 function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOption[] }) {
   const [editing, setEditing] = useState(false);
+  const [estimating, setEstimating] = useState(false);
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
+  const isReview = block.kind === "review";
+  const target = { kind: block.kind, itemId: block.itemId };
 
   function lock() {
+    if (block.kind === "review") return;
+    const kind = block.kind;
     startTransition(async () => {
       const result = await pinBlock({
-        kind: block.kind,
+        kind,
         itemId: block.itemId,
         date: block.date,
         startMinute: block.startMinute,
@@ -59,6 +66,8 @@ function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOp
       });
       if ("error" in result) {
         toast.error(result.error);
+      } else if (result.risk) {
+        toast.warning(result.risk);
       } else {
         toast.success("Locked. This block stays put when your plan changes.");
       }
@@ -90,11 +99,24 @@ function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOp
     });
   }
 
+  function override(kind: "skip" | "week") {
+    startTransition(async () => {
+      const result = kind === "skip" ? await skipForToday(target) : await notThisWeek(target);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      const undo = { label: "Undo", onClick: () => void clearOverrides(target) };
+      if (result.risk) toast.warning(result.risk, { action: undo });
+      else toast.success(result.message ?? "Skipped for today. Rushd moved it.", { action: undo });
+    });
+  }
+
   return (
     <li
       className={cn(
         "group flex items-stretch gap-3 rounded-lg border bg-card px-3 py-2.5 transition-[opacity,background-color] sm:gap-4",
-        block.pinned ? "border-primary/40" : "border-border",
+        block.pinned ? "border-primary/40" : isReview ? "border-dashed border-border-strong" : "border-border",
         (pending || done) && "opacity-60",
       )}
     >
@@ -102,19 +124,25 @@ function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOp
         <span className="block text-foreground">{formatMinuteOfDay(block.startMinute)}</span>
         <span className="block text-muted-foreground">{formatMinuteOfDay(block.endMinute)}</span>
       </div>
-      <span aria-hidden="true" className="w-1 shrink-0 rounded-full" style={{ backgroundColor: block.classColor }} />
+      <span
+        aria-hidden="true"
+        className={cn("w-1 shrink-0 rounded-full", isReview && "opacity-60")}
+        style={{ backgroundColor: block.classColor }}
+      />
       <div className="min-w-0 flex-1">
         <p className={cn("truncate text-sm font-medium", done && "line-through")}>
           {block.kind === "exam" && <span className="text-muted-foreground">Exam prep: </span>}
-          {block.title}
+          {isReview && <span className="mr-1.5 align-[1px] text-[11px] font-medium uppercase tracking-[0.08em] text-teal">Review</span>}
+          {isReview ? block.title.replace(/^Review: /, "") : block.title}
         </p>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {block.className} · {formatDuration(block.minutes)} · {block.dueLabel}
           {block.fromCanvas && " · Canvas"}
         </p>
+        {block.reasons[0] && <p className="mt-1 line-clamp-2 text-xs text-foreground/75">{block.reasons[0]}</p>}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {block.pinned && <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Locked in place" />}
+      <div className="flex shrink-0 items-start gap-1">
+        {block.pinned && <Lock className="mt-2 h-3.5 w-3.5 text-muted-foreground" aria-label="Locked in place" />}
         <Popover>
           <PopoverTrigger
             render={
@@ -143,19 +171,35 @@ function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOp
               </Button>
             }
           />
-          <DropdownMenuContent align="end" className="w-48">
-            {block.pinned ? (
-              <DropdownMenuItem onClick={unlock}>
-                <LockOpen className="h-4 w-4" /> Unlock
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={lock}>
-                <Lock className="h-4 w-4" /> Lock here
+          <DropdownMenuContent align="end" className="w-52">
+            {!isReview &&
+              (block.pinned ? (
+                <DropdownMenuItem onClick={unlock}>
+                  <LockOpen className="h-4 w-4" /> Unlock
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={lock}>
+                  <Lock className="h-4 w-4" /> Lock here
+                </DropdownMenuItem>
+              ))}
+            {!isReview && (
+              <DropdownMenuItem onClick={() => setEditing(true)}>
+                <MoveRight className="h-4 w-4" /> Move or resize
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => setEditing(true)}>
-              <MoveRight className="h-4 w-4" /> Move or resize
+            {block.isToday && (
+              <DropdownMenuItem onClick={() => override("skip")}>
+                <SkipForward className="h-4 w-4" /> Skip today
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => override("week")}>
+              <CalendarX className="h-4 w-4" /> Not this week
             </DropdownMenuItem>
+            {!isReview && (
+              <DropdownMenuItem onClick={() => setEstimating(true)}>
+                <Timer className="h-4 w-4" /> {block.kind === "exam" ? "Change prep time" : "Change estimate"}
+              </DropdownMenuItem>
+            )}
             {block.kind === "assignment" && (
               <>
                 <DropdownMenuSeparator />
@@ -168,6 +212,7 @@ function BlockRow({ block, dayOptions }: { block: AgendaBlock; dayOptions: DayOp
         </DropdownMenu>
       </div>
       {editing && <BlockDialog block={block} dayOptions={dayOptions} open={editing} onOpenChange={setEditing} />}
+      {estimating && <EstimateDialog block={block} open={estimating} onOpenChange={setEstimating} />}
     </li>
   );
 }

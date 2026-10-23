@@ -108,6 +108,7 @@ function ExamDialogForm({
     initialData?.priority ?? prefill?.priority ?? "MEDIUM",
   );
   const [notes, setNotes] = useState(initialData?.notes ?? "");
+  const [weight, setWeight] = useState(initialData?.weightPercent ? String(initialData.weightPercent) : "");
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -123,6 +124,7 @@ function ExamDialogForm({
       prepMinutes,
       priority,
       notes: notes || undefined,
+      weightPercent: weight.trim() ? Number(weight) : null,
     };
 
     startTransition(async () => {
@@ -209,6 +211,7 @@ function ExamDialogForm({
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="exam-priority">Priority</Label>
           <Select
@@ -226,6 +229,25 @@ function ExamDialogForm({
               <SelectItem value="HIGH">High</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="exam-weight">Share of grade (optional)</Label>
+          <div className="relative">
+            <Input
+              id="exam-weight"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={100}
+              step={1}
+              value={weight}
+              onChange={(event) => setWeight(event.target.value)}
+              placeholder="e.g. 20"
+              className="pr-8"
+            />
+            <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">%</span>
+          </div>
+        </div>
         </div>
 
         <div className="space-y-2">

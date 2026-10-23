@@ -23,7 +23,7 @@ export function StartPracticeButton({
   mode?: "practice" | "review" | "mistakes";
   label: string;
   variant?: "signal" | "outline" | "ghost" | "default";
-  size?: "default" | "sm";
+  size?: "default" | "sm" | "lg";
   className?: string;
 }) {
   const router = useRouter();

@@ -6,6 +6,7 @@ import { requireUserOrThrow } from "@/lib/auth/dal";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import * as topics from "@/lib/learning/topics";
 import * as practice from "@/lib/learning/practice";
+import { regeneratePlanSnapshot } from "@/server/actions/plans";
 
 // Thin wrappers: read the session, validate input, call the learning services
 // (src/lib/learning), which scope every query by the student's own userId.
@@ -185,6 +186,10 @@ export async function completeSessionAction(input: { classId: string; sessionId:
   if (!parsed.success) return invalid(parsed.error);
   const result = await practice.completeSession(user.id, parsed.data.sessionId);
   if (!result.ok) return { error: result.error };
+  // New evidence can change review blocks and exam prep: replan and record what moved.
+  await regeneratePlanSnapshot(user.id, "practice_completed");
   refreshCourse(parsed.data.classId);
+  revalidatePath("/dashboard");
+  revalidatePath("/plan");
   return { success: true, summary: result.summary };
 }

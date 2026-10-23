@@ -27,7 +27,7 @@ export async function connectFeedAction(url: string): Promise<Result<FeedSyncSum
   if (!result.ok) return { error: result.error };
   await logEvent(user.id, "canvas_feed_connected", { ...result.value });
   await logEvent(user.id, "canvas_synced", { via: "feed", ...result.value });
-  await regeneratePlanSnapshot(user.id).catch(() => {});
+  await regeneratePlanSnapshot(user.id, "sync").catch(() => {});
   revalidateAll();
   return { success: true, value: result.value };
 }
@@ -40,7 +40,7 @@ export async function syncFeedAction(): Promise<Result<FeedSyncSummary>> {
   revalidateAll();
   if (!result.ok) return { error: result.error };
   await logEvent(user.id, "canvas_synced", { via: "feed", ...result.value });
-  await regeneratePlanSnapshot(user.id).catch(() => {});
+  await regeneratePlanSnapshot(user.id, "sync").catch(() => {});
   return { success: true, value: result.value };
 }
 
@@ -48,7 +48,7 @@ export async function disconnectFeedAction(removeAssignments: boolean): Promise<
   const user = await requireUserOrThrow();
   const result = await disconnectFeed(user.id, removeAssignments === true);
   if (!result.ok) return { error: result.error };
-  await regeneratePlanSnapshot(user.id).catch(() => {});
+  await regeneratePlanSnapshot(user.id, "sync").catch(() => {});
   revalidateAll();
   return { success: true, value: result.value };
 }

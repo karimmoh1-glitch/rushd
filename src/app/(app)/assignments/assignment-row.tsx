@@ -192,6 +192,7 @@ export function AssignmentRow({
           priority: data.priority,
           status: data.status,
           notes: data.notes,
+          weightPercent: data.weightPercent,
         }}
         managedByCanvas={data.source === "CANVAS"}
         estimatedByRushd={data.estimatedByRushd}
