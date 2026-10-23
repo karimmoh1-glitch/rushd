@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { Pool, neonConfig } from "@neondatabase/serverless";
+import { Pool } from "@neondatabase/serverless";
+import { configureNeon } from "./db";
 
 // The Postgres rate limiter persists across runs. Clear only the buckets the
 // local test client uses, so repeated runs
@@ -11,7 +12,7 @@ const KEYS = ["signup", "school-inquiry", "pv", "reset"].flatMap((p) => CLIENTS.
 
 export default async function setup() {
   if (!process.env.DATABASE_URL) return;
-  neonConfig.webSocketConstructor = globalThis.WebSocket;
+  configureNeon();
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
     const hashes = KEYS.map((k) => createHash("sha256").update(k).digest("hex"));

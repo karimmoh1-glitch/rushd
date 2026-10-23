@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
-import { Pool, neonConfig } from "@neondatabase/serverless";
+import { Pool } from "@neondatabase/serverless";
+import { configureNeon } from "./db";
 
 // Course content browsing, rubric display, and the AI surfaces' unavailable
 // states. Live Canvas can't run here, so after a real signup the test seeds
 // mirrored content rows directly (what a content sync writes); the e2e
 // teardown deletes the account and everything under it.
 
-neonConfig.webSocketConstructor = globalThis.WebSocket;
+configureNeon();
 
 async function seed(email: string) {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });

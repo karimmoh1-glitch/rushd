@@ -1,10 +1,11 @@
-import { Pool, neonConfig } from "@neondatabase/serverless";
+import { Pool } from "@neondatabase/serverless";
+import { configureNeon } from "./db";
 
 // Removes the throwaway accounts the specs sign up (every child row
 // cascades from User), so test runs leave nothing behind in the database.
 export default async function teardown() {
   if (!process.env.DATABASE_URL) return;
-  neonConfig.webSocketConstructor = globalThis.WebSocket;
+  configureNeon();
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
     const { rowCount } = await pool.query(`DELETE FROM "User" WHERE email LIKE 'e2e-%@example.com'`);
