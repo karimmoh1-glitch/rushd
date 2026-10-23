@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
+import { IdSchema } from "@/lib/validation/import";
 import {
   AssignmentSchema,
   type AssignmentInput,
@@ -77,6 +78,7 @@ export async function updateAssignment(
   input: AssignmentInput,
 ): Promise<ActionResult> {
   const user = await requireUserOrThrow();
+  if (!IdSchema.safeParse(id).success) return { error: "Assignment not found." };
   const parsed = AssignmentSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -147,6 +149,8 @@ export async function setAssignmentStatus(
   status: AssignmentInput["status"],
 ): Promise<ActionResult> {
   const user = await requireUserOrThrow();
+  if (!IdSchema.safeParse(id).success) return { error: "Assignment not found." };
+  if (!AssignmentSchema.shape.status.safeParse(status).success) return { error: "Invalid status." };
 
   const existing = await db.assignment.findFirst({
     where: { id, userId: user.id },
@@ -175,6 +179,7 @@ export async function setAssignmentStatus(
 
 export async function deleteAssignment(id: string): Promise<ActionResult> {
   const user = await requireUserOrThrow();
+  if (!IdSchema.safeParse(id).success) return { error: "Assignment not found." };
 
   const result = await db.assignment.deleteMany({
     where: { id, userId: user.id },

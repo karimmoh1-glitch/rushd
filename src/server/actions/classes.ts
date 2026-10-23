@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
+import { IdSchema } from "@/lib/validation/import";
 import type { ClassInput } from "@/lib/validation/classes";
 import { createCourse, setCourseArchived, updateCourse } from "@/lib/courses/service";
 import { logEvent } from "@/lib/analytics/log-event";
@@ -22,6 +23,7 @@ export async function createClass(input: ClassInput): Promise<ActionResult> {
 
 export async function updateClass(id: string, input: ClassInput): Promise<ActionResult> {
   const user = await requireUserOrThrow();
+  if (!IdSchema.safeParse(id).success) return { error: "Class not found." };
   const result = await updateCourse(user.id, id, input);
   if (!result.ok) return { error: result.error };
 
@@ -32,7 +34,8 @@ export async function updateClass(id: string, input: ClassInput): Promise<Action
 
 export async function setClassArchived(id: string, archived: boolean): Promise<ActionResult> {
   const user = await requireUserOrThrow();
-  const result = await setCourseArchived(user.id, id, archived);
+  if (!IdSchema.safeParse(id).success) return { error: "Class not found." };
+  const result = await setCourseArchived(user.id, id, archived === true);
   if (!result.ok) return { error: result.error };
 
   await regeneratePlanSnapshot(user.id);
@@ -42,6 +45,7 @@ export async function setClassArchived(id: string, archived: boolean): Promise<A
 
 export async function deleteClass(id: string): Promise<ActionResult> {
   const user = await requireUserOrThrow();
+  if (!IdSchema.safeParse(id).success) return { error: "Class not found." };
 
   const existingClass = await db.class.findFirst({
     where: { id, userId: user.id },
