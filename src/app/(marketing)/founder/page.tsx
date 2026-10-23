@@ -33,7 +33,7 @@ export default function FounderPage() {
           </span>
         )}
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight">{founder.name}</h1>
+          <h1 className="text-4xl leading-[1.05] tracking-[-0.025em] sm:text-5xl">{founder.name}</h1>
           <p className="mt-1 text-lg text-muted-foreground">{founder.role}</p>
         </div>
       </header>

@@ -20,7 +20,7 @@ export default function PricingPage() {
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
       <PageViewBeacon path="/pricing" />
       <div className="max-w-2xl">
-        <h1 className="text-4xl font-semibold tracking-tight">Pricing</h1>
+        <h1 className="text-4xl leading-[1.05] tracking-[-0.025em] sm:text-6xl">Pricing</h1>
         <p className="mt-4 text-lg text-muted-foreground">
           Planning and Canvas sync are free. AI tutoring, practice checks, and rubric reviews come with a monthly allowance on
           every plan, so Rushd can stay affordable and honest about costs.

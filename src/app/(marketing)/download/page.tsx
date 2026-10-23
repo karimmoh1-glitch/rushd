@@ -14,7 +14,7 @@ export default function DownloadPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
       <PageViewBeacon path="/download" />
-      <h1 className="text-4xl font-semibold tracking-tight">Rushd for desktop</h1>
+      <h1 className="text-4xl leading-[1.05] tracking-[-0.025em] sm:text-6xl">Rushd for desktop</h1>
       <p className="mt-4 text-lg text-muted-foreground">
         A native app window for your Rushd account on Mac and Windows. It opens Rushd directly, keeps you signed in, and sends
         links to other sites to your browser. It&apos;s the same Rushd as the website, so it needs an internet connection.
