@@ -212,3 +212,14 @@ test("with AI off, AI features don't look available", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Check my work" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "From a screenshot" })).toHaveCount(0);
 });
+
+test("a shared ranking link finishes ranking with reduced motion", async ({ browser }) => {
+  const context = await browser.newContext({ reducedMotion: "reduce" });
+  const page = await context.newPage();
+  // "Bio: lab report tomorrow 2h", base64url-encoded into the hash.
+  await page.goto("/tools/rank-my-week#w=QmlvOiBsYWIgcmVwb3J0IHRvbW9ycm93IDJo");
+  const list = page.getByRole("list", { name: "Your week ranked by Pulse" });
+  await expect(list.getByText("Due tomorrow.")).toBeVisible();
+  await expect(page.getByText("ranking…")).toHaveCount(0);
+  await context.close();
+});

@@ -241,7 +241,14 @@ export function RankMyWeek({ compact = false, autoplay = false }: { compact?: bo
 
   // After 380ms the rows slide into Pulse order while the scores count up for 900ms.
   useEffect(() => {
-    if (!rows || reduceMotion) return;
+    if (!rows) return;
+    // Reduced motion: show the finished ranking right away. This also covers a
+    // ranking that started before we knew the motion setting (a shared link).
+    if (reduceMotion) {
+      setSettled(true);
+      setCountUpProgress(1);
+      return;
+    }
     const settleTimer = window.setTimeout(() => setSettled(true), 380);
     const startTime = performance.now() + 380;
     let frame = 0;
