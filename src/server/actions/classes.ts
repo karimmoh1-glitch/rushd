@@ -36,9 +36,8 @@ export async function updateClass(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  // updateMany scoped to (id, userId) makes ownership the query condition
-  // itself rather than a separate check — a class owned by someone else
-  // simply matches zero rows.
+  // Filtering by (id, userId) is the ownership check: someone else's class
+  // matches zero rows.
   const result = await db.class.updateMany({
     where: { id, userId: user.id },
     data: parsed.data,
@@ -70,23 +69,24 @@ export async function setClassArchived(
 export async function deleteClass(id: string): Promise<ActionResult> {
   const user = await requireUserOrThrow();
 
-  const cls = await db.class.findFirst({
+  const existingClass = await db.class.findFirst({
     where: { id, userId: user.id },
     select: {
       id: true,
       _count: { select: { assignments: true, exams: true } },
     },
   });
-  if (!cls) return { error: "Class not found." };
+  if (!existingClass) return { error: "Class not found." };
 
-  if (cls._count.assignments > 0 || cls._count.exams > 0) {
+  const hasWork = existingClass._count.assignments > 0 || existingClass._count.exams > 0;
+  if (hasWork) {
     return {
       error:
         "This class has assignments or exams attached. Archive it instead of deleting, or remove those first.",
     };
   }
 
-  await db.class.delete({ where: { id: cls.id } });
+  await db.class.delete({ where: { id: existingClass.id } });
   revalidatePath("/courses");
   return { success: true };
 }

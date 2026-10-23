@@ -13,6 +13,30 @@ import { assertOwnsClass } from "@/server/actions/class-ownership";
 
 export type ActionResult = { error: string } | { success: true };
 
+function revalidateAssignmentPages() {
+  revalidatePath("/assignments");
+  revalidatePath("/dashboard");
+}
+
+/** What completedAt should become. undefined means "leave it unchanged". */
+function completedAtFor(newStatus: string, oldStatus: string): Date | null | undefined {
+  if (newStatus !== "COMPLETED") {
+    return null;
+  }
+  if (oldStatus === "COMPLETED") {
+    // Already completed: keep the original completion time.
+    return undefined;
+  }
+  return new Date();
+}
+
+/** Runs when an assignment moves to COMPLETED. */
+async function onAssignmentCompleted(userId: string, assignmentId: string) {
+  await logEvent(userId, "assignment_completed", { assignmentId });
+  // Finished work doesn't need the study time the student pinned for it.
+  await db.scheduleBlock.deleteMany({ where: { userId, assignmentId } });
+}
+
 export async function createAssignment(
   input: AssignmentInput,
 ): Promise<ActionResult> {
@@ -44,8 +68,7 @@ export async function createAssignment(
 
   await logEvent(user.id, "assignment_created", { assignmentId: created.id });
   await regeneratePlanSnapshot(user.id);
-  revalidatePath("/assignments");
-  revalidatePath("/dashboard");
+  revalidateAssignmentPages();
   return { success: true };
 }
 
@@ -78,39 +101,43 @@ export async function updateAssignment(
   });
   if (!existing) return { error: "Assignment not found." };
 
-  // Canvas owns title, due date, and course for imported work — the next sync
-  // would overwrite edits anyway, so they're kept as-is (the form shows them
-  // read-only). The student's own fields (estimate, priority, status, notes)
-  // are always theirs to change.
-  const fromCanvas = existing.source === "CANVAS";
+  // Canvas owns the title, due date and course of imported work (the next sync
+  // would overwrite edits anyway). The student's own fields are always theirs.
+  let classId = data.classId;
+  let title = data.title;
+  let dueAt = new Date(data.dueAt);
+  if (existing.source === "CANVAS") {
+    classId = existing.classId;
+    title = existing.title;
+    dueAt = existing.dueAt;
+  }
+
+  // Once the student sets their own estimate, syncs stop touching it.
+  const estimateUnchanged = data.estimatedMinutes === existing.estimatedMinutes;
+  const estimatedByRushd = existing.estimatedByRushd && estimateUnchanged;
+
   const result = await db.assignment.updateMany({
     where: { id, userId: user.id },
     data: {
-      classId: fromCanvas ? existing.classId : data.classId,
-      title: fromCanvas ? existing.title : data.title,
-      dueAt: fromCanvas ? existing.dueAt : new Date(data.dueAt),
+      classId,
+      title,
+      dueAt,
       estimatedMinutes: data.estimatedMinutes,
-      // Once the student sets their own estimate, syncs stop touching it.
-      estimatedByRushd: existing.estimatedByRushd && data.estimatedMinutes === existing.estimatedMinutes,
+      estimatedByRushd,
       priority: data.priority,
       status: data.status,
       notes: data.notes || null,
-      completedAt:
-        data.status === "COMPLETED"
-          ? (existing.status === "COMPLETED" ? undefined : new Date())
-          : null,
+      completedAt: completedAtFor(data.status, existing.status),
     },
   });
   if (result.count === 0) return { error: "Assignment not found." };
 
   if (data.status === "COMPLETED" && existing.status !== "COMPLETED") {
-    await logEvent(user.id, "assignment_completed", { assignmentId: id });
-    await db.scheduleBlock.deleteMany({ where: { userId: user.id, assignmentId: id } });
+    await onAssignmentCompleted(user.id, id);
   }
   await regeneratePlanSnapshot(user.id);
 
-  revalidatePath("/assignments");
-  revalidatePath("/dashboard");
+  revalidateAssignmentPages();
   revalidatePath("/plan");
   return { success: true };
 }
@@ -127,23 +154,21 @@ export async function setAssignmentStatus(
   });
   if (!existing) return { error: "Assignment not found." };
 
+  let completedAt: Date | null = null;
+  if (status === "COMPLETED") {
+    completedAt = new Date();
+  }
   await db.assignment.updateMany({
     where: { id, userId: user.id },
-    data: {
-      status,
-      completedAt: status === "COMPLETED" ? new Date() : null,
-    },
+    data: { status, completedAt },
   });
 
   if (status === "COMPLETED" && existing.status !== "COMPLETED") {
-    await logEvent(user.id, "assignment_completed", { assignmentId: id });
-    // Finished work doesn't need the study time the student pinned for it.
-    await db.scheduleBlock.deleteMany({ where: { userId: user.id, assignmentId: id } });
+    await onAssignmentCompleted(user.id, id);
   }
   await regeneratePlanSnapshot(user.id);
 
-  revalidatePath("/assignments");
-  revalidatePath("/dashboard");
+  revalidateAssignmentPages();
   revalidatePath("/plan");
   return { success: true };
 }
@@ -157,7 +182,6 @@ export async function deleteAssignment(id: string): Promise<ActionResult> {
   if (result.count === 0) return { error: "Assignment not found." };
 
   await regeneratePlanSnapshot(user.id);
-  revalidatePath("/assignments");
-  revalidatePath("/dashboard");
+  revalidateAssignmentPages();
   return { success: true };
 }

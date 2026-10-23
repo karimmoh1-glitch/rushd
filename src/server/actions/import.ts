@@ -3,10 +3,10 @@
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { aiEnabled } from "@/lib/env";
-import { aiProvider } from "@/lib/ai";
+import { aiProvider, type CallUsage } from "@/lib/ai";
 import type { ExtractedAssignment } from "@/lib/ai/provider";
 import { validateImageFiles } from "@/lib/upload/validate-image";
-import type { CallUsage } from "@/lib/ai";
+import type { Prisma } from "@/generated/prisma/client";
 import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
@@ -17,15 +17,17 @@ export type ExtractResult =
   | { status: "unavailable" } // AI not configured or the call failed — manual entry is the path forward
   | { status: "error"; error: string }; // bad input (file type/size), not an AI failure
 
-/**
- * Extracts assignments from uploaded screenshots. Never persists the
- * images — validated in memory, sent to the AI provider, discarded. See
- * docs/AI_ARCHITECTURE.md and docs/PRIVACY.md.
- */
+/** Extracts assignments from uploaded screenshots. The images are never saved:
+ * checked in memory, sent to the AI, then dropped (see docs/PRIVACY.md). */
 export async function extractFromScreenshots(formData: FormData): Promise<ExtractResult> {
   const user = await requireUserOrThrow();
 
-  const files = formData.getAll("images").filter((f): f is File => f instanceof File);
+  const files: File[] = [];
+  for (const entry of formData.getAll("images")) {
+    if (entry instanceof File) {
+      files.push(entry);
+    }
+  }
   const validation = await validateImageFiles(files);
   if (!validation.ok) {
     return { status: "error", error: validation.error };
@@ -41,13 +43,24 @@ export async function extractFromScreenshots(formData: FormData): Promise<Extrac
   });
 
   const reservation = await reserveAi(user.id, "screenshot_import");
-  if (!reservation.ok) return { status: "error", error: reservation.message };
-  let usage: CallUsage | undefined;
-  const result = await aiProvider.parseAssignmentImages(validation.images, classes, new Date(), (u) => (usage = u));
-  if (usage) await settleAi(reservation.usageId, usage.model, usage);
-  else await failAi(reservation.usageId, "no_response");
+  if (!reservation.ok) {
+    return { status: "error", error: reservation.message };
+  }
 
-  if (!result) return { status: "unavailable" };
+  // The provider reports token usage through this callback, if it answered at all.
+  let usage: CallUsage | undefined;
+  const result = await aiProvider.parseAssignmentImages(validation.images, classes, new Date(), (callUsage) => {
+    usage = callUsage;
+  });
+  if (usage) {
+    await settleAi(reservation.usageId, usage.model, usage);
+  } else {
+    await failAi(reservation.usageId, "no_response");
+  }
+
+  if (!result) {
+    return { status: "unavailable" };
+  }
 
   await logEvent(user.id, "assignment_imported", { count: result.length });
   return { status: "ok", assignments: result };
@@ -63,56 +76,56 @@ export interface ImportItem {
 
 export type CommitResult = { error: string } | { success: true; created: number };
 
-/**
- * Bulk-creates the assignments/exams the student confirmed on the review
- * screen. Every classId is re-verified against the actual owner here —
- * the same rule as every other mutation, regardless of where the data
- * (AI-extracted, in this case) originated. See docs/SECURITY.md.
- */
+/** Saves the assignments and exams the student confirmed on the review screen.
+ * Every classId is re-checked against the owner, even though it came from us. */
 export async function commitImportedAssignments(items: ImportItem[]): Promise<CommitResult> {
   const user = await requireUserOrThrow();
 
   if (items.length === 0) return { error: "Nothing to add." };
   if (items.length > 40) return { error: "Too many items at once." };
 
-  const classIds = [...new Set(items.map((i) => i.classId))];
+  // Check each distinct class once.
+  const classIds = new Set<string>();
+  for (const item of items) {
+    classIds.add(item.classId);
+  }
   for (const classId of classIds) {
     if (!(await assertOwnsClass(user.id, classId))) {
       return { error: "One of the selected classes wasn't found." };
     }
   }
 
-  const assignmentItems = items.filter((i) => i.kind === "assignment");
-  const examItems = items.filter((i) => i.kind === "exam");
+  const assignmentRows: Prisma.AssignmentCreateManyInput[] = [];
+  const examRows: Prisma.ExamCreateManyInput[] = [];
+  for (const item of items) {
+    if (item.kind === "assignment") {
+      assignmentRows.push({
+        userId: user.id,
+        classId: item.classId,
+        title: item.title,
+        dueAt: new Date(item.dueAt),
+        estimatedMinutes: item.minutes,
+      });
+    } else if (item.kind === "exam") {
+      examRows.push({
+        userId: user.id,
+        classId: item.classId,
+        title: item.title,
+        examAt: new Date(item.dueAt),
+        prepMinutes: item.minutes,
+      });
+    }
+  }
 
-  await db.$transaction([
-    ...(assignmentItems.length > 0
-      ? [
-          db.assignment.createMany({
-            data: assignmentItems.map((i) => ({
-              userId: user.id,
-              classId: i.classId,
-              title: i.title,
-              dueAt: new Date(i.dueAt),
-              estimatedMinutes: i.minutes,
-            })),
-          }),
-        ]
-      : []),
-    ...(examItems.length > 0
-      ? [
-          db.exam.createMany({
-            data: examItems.map((i) => ({
-              userId: user.id,
-              classId: i.classId,
-              title: i.title,
-              examAt: new Date(i.dueAt),
-              prepMinutes: i.minutes,
-            })),
-          }),
-        ]
-      : []),
-  ]);
+  // Only include the inserts that have rows, and run them together.
+  const inserts: Prisma.PrismaPromise<Prisma.BatchPayload>[] = [];
+  if (assignmentRows.length > 0) {
+    inserts.push(db.assignment.createMany({ data: assignmentRows }));
+  }
+  if (examRows.length > 0) {
+    inserts.push(db.exam.createMany({ data: examRows }));
+  }
+  await db.$transaction(inserts);
 
   await logEvent(user.id, "assignment_confirmed", { count: items.length });
   await regeneratePlanSnapshot(user.id);
