@@ -10,6 +10,7 @@ export type MaterialKind = "MODULE_ITEM" | "PAGE" | "ASSIGNMENT" | "ANNOUNCEMENT
 
 export interface MaterialHit {
   id: string;
+  classId: string;
   kind: MaterialKind;
   title: string;
   className: string;
@@ -56,9 +57,9 @@ export async function searchMaterials(
   const take = Math.max(1, Math.min(10, limit));
   const classFilter = classId ? Prisma.sql`AND m."classId" = ${classId}` : Prisma.empty;
   const rows = await db.$queryRaw<
-    { id: string; kind: MaterialKind; title: string; url: string | null; className: string; excerpt: string }[]
+    { id: string; classId: string; kind: MaterialKind; title: string; url: string | null; className: string; excerpt: string }[]
   >`
-    SELECT m.id, m.kind, m.title, m.url, c.name AS "className",
+    SELECT m.id, m."classId", m.kind, m.title, m.url, c.name AS "className",
       ts_headline('english', coalesce(m.body, ''), q,
         'StartSel="", StopSel="", MaxWords=45, MinWords=15, MaxFragments=2, FragmentDelimiter=" … "') AS excerpt
     FROM "CourseMaterial" m

@@ -3,6 +3,7 @@ import type { RetrievedSource } from "./tools";
 export interface CitedSource {
   n: number;
   id: string;
+  classId: string | null;
   title: string;
   kind: RetrievedSource["kind"];
   className: string;
@@ -30,7 +31,7 @@ export function resolveCitations(
     if (n === undefined) {
       n = sources.length + 1;
       numberFor.set(id, n);
-      sources.push({ n, id, title: source.title, kind: source.kind, className: source.className, url: source.url });
+      sources.push({ n, id, classId: source.classId ?? null, title: source.title, kind: source.kind, className: source.className, url: source.url });
     }
     return `[${n}]`;
   });

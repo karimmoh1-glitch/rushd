@@ -18,7 +18,9 @@ import { subjectProfile } from "./subjects";
 export type PracticeResult<T = { id: string }> = ({ ok: true } & T) | { ok: false; error: string };
 
 export type AttemptResultValue = "CORRECT" | "PARTIAL" | "INCORRECT";
-export type SessionMode = "practice" | "review" | "mistakes";
+/** "tutor": a one-question session the tutor opens for a check question
+ * (src/lib/tutor/checks.ts); like "mistakes", it uses the ids it is given. */
+export type SessionMode = "practice" | "review" | "mistakes" | "tutor";
 
 export const SESSION_SIZE = 8;
 const MAX_QUESTIONS_PER_COURSE = 500;
@@ -135,9 +137,9 @@ async function pickQuestions(
   options: { topicId?: string | null; mode: SessionMode; questionIds?: string[] },
   now: Date,
 ): Promise<string[]> {
-  if (options.mode === "mistakes") {
+  if (options.mode === "mistakes" || options.mode === "tutor") {
     let ids = options.questionIds ?? [];
-    if (ids.length === 0) {
+    if (ids.length === 0 && options.mode === "mistakes") {
       const misses = await db.masteryEvidence.findMany({
         where: { userId, classId, result: { in: ["INCORRECT", "PARTIAL"] }, questionId: { not: null } },
         orderBy: { createdAt: "desc" },
@@ -286,6 +288,8 @@ export interface AttemptInput {
   confidence?: number | null;
   timeTakenSec?: number | null;
   answer?: string | null;
+  /** Where the answer was given. Server code only (the action's schema doesn't accept it). */
+  source?: "practice" | "tutor";
 }
 
 /** Records one answer as evidence. Returns the topic's status before and after. */
@@ -329,7 +333,7 @@ export async function recordAttempt(
       topicLabel: topic?.title ?? `${session.class.name} (no topic)`,
       score: RESULT_SCORE[input.result],
       weight: 1,
-      source: "practice",
+      source: input.source ?? "practice",
       sessionId: session.id,
       questionId: question.id,
       result: input.result,
