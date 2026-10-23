@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
-import { ClassCard } from "./class-card";
+import { ClassCard, type ClassCardData } from "./class-card";
 import { AddClassButton } from "./add-class-button";
 import Link from "next/link";
 import { PathEmpty } from "@/components/brand/path-empty";
@@ -9,6 +9,31 @@ import { PathEmpty } from "@/components/brand/path-empty";
 export const metadata: Metadata = {
   title: "Courses",
 };
+
+interface ClassRecord {
+  id: string;
+  name: string;
+  teacher: string | null;
+  period: string | null;
+  color: string;
+  priority: ClassCardData["priority"];
+  archived: boolean;
+  _count: { assignments: number; exams: number };
+}
+
+function toCardData(course: ClassRecord): ClassCardData {
+  return {
+    id: course.id,
+    name: course.name,
+    teacher: course.teacher ?? undefined,
+    period: course.period ?? undefined,
+    color: course.color,
+    priority: course.priority,
+    archived: course.archived,
+    assignmentCount: course._count.assignments,
+    examCount: course._count.exams,
+  };
+}
 
 export default async function ClassesPage() {
   const user = await requireUser();
@@ -28,8 +53,8 @@ export default async function ClassesPage() {
     },
   });
 
-  const active = classes.filter((c) => !c.archived);
-  const archived = classes.filter((c) => c.archived);
+  const active = classes.filter((course) => !course.archived);
+  const archived = classes.filter((course) => course.archived);
 
   return (
     <div className="space-y-8">
@@ -50,21 +75,8 @@ export default async function ClassesPage() {
         </PathEmpty>
       ) : (
         <div className="space-y-3">
-          {active.map((c) => (
-            <ClassCard
-              key={c.id}
-              data={{
-                id: c.id,
-                name: c.name,
-                teacher: c.teacher ?? undefined,
-                period: c.period ?? undefined,
-                color: c.color,
-                priority: c.priority,
-                archived: c.archived,
-                assignmentCount: c._count.assignments,
-                examCount: c._count.exams,
-              }}
-            />
+          {active.map((course) => (
+            <ClassCard key={course.id} data={toCardData(course)} />
           ))}
         </div>
       )}
@@ -75,21 +87,8 @@ export default async function ClassesPage() {
             Archived
           </h2>
           <div className="space-y-3">
-            {archived.map((c) => (
-              <ClassCard
-                key={c.id}
-                data={{
-                  id: c.id,
-                  name: c.name,
-                  teacher: c.teacher ?? undefined,
-                  period: c.period ?? undefined,
-                  color: c.color,
-                  priority: c.priority,
-                  archived: c.archived,
-                  assignmentCount: c._count.assignments,
-                  examCount: c._count.exams,
-                }}
-              />
+            {archived.map((course) => (
+              <ClassCard key={course.id} data={toCardData(course)} />
             ))}
           </div>
         </div>

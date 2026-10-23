@@ -34,19 +34,30 @@ export function ClassCard({ data }: { data: ClassCardData }) {
   const [editOpen, setEditOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  // "Ms. Lee · Period 3", or a dash when neither is set.
+  const details = [data.teacher, data.period].filter(Boolean).join(" · ") || "—";
+  // A course with work in it can't be deleted, only archived.
+  const hasWork = data.assignmentCount > 0 || data.examCount > 0;
+
   function toggleArchived() {
     startTransition(async () => {
       const result = await setClassArchived(data.id, !data.archived);
-      if ("error" in result) toast.error(result.error);
-      else toast.success(data.archived ? "Course restored." : "Course archived.");
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success(data.archived ? "Course restored." : "Course archived.");
+      }
     });
   }
 
   function handleDelete() {
     startTransition(async () => {
       const result = await deleteClass(data.id);
-      if ("error" in result) toast.error(result.error);
-      else toast.success("Course deleted.");
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Course deleted.");
+      }
     });
   }
 
@@ -71,7 +82,7 @@ export function ClassCard({ data }: { data: ClassCardData }) {
               )}
             </div>
             <p className="truncate text-sm text-muted-foreground">
-              {[data.teacher, data.period].filter(Boolean).join(" · ") || "—"}
+              {details}
               {" · "}
               {data.assignmentCount} assignment{data.assignmentCount === 1 ? "" : "s"},{" "}
               {data.examCount} exam{data.examCount === 1 ? "" : "s"}
@@ -101,7 +112,7 @@ export function ClassCard({ data }: { data: ClassCardData }) {
               <DropdownMenuItem
                 variant="destructive"
                 onClick={handleDelete}
-                disabled={data.assignmentCount > 0 || data.examCount > 0}
+                disabled={hasWork}
               >
                 Delete
               </DropdownMenuItem>

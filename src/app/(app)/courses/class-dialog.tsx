@@ -30,6 +30,12 @@ export interface ClassDialogInitialData extends ClassInput {
   id: string;
 }
 
+function submitLabel(pending: boolean, editing: boolean): string {
+  if (pending) return "Saving…";
+  if (editing) return "Save changes";
+  return "Add course";
+}
+
 export function ClassDialog({
   open,
   onOpenChange,
@@ -42,9 +48,7 @@ export function ClassDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        {/* Keyed by target so switching between "add" and editing different
-            classes remounts with fresh initial state, instead of syncing
-            props into state via an effect. */}
+        {/* The key gives each course (or "new") its own fresh form state. */}
         <ClassDialogForm
           key={initialData?.id ?? "new"}
           initialData={initialData}
@@ -73,8 +77,8 @@ function ClassDialogForm({
     initialData?.priority ?? "MEDIUM",
   );
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     const input: ClassInput = {
       name,
       teacher: teacher || undefined,
@@ -84,9 +88,12 @@ function ClassDialogForm({
     };
 
     startTransition(async () => {
-      const result = initialData
-        ? await updateClass(initialData.id, input)
-        : await createClass(input);
+      let result;
+      if (initialData) {
+        result = await updateClass(initialData.id, input);
+      } else {
+        result = await createClass(input);
+      }
 
       if ("error" in result) {
         toast.error(result.error);
@@ -112,7 +119,7 @@ function ClassDialogForm({
           <Input
             id="class-name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(event) => setName(event.target.value)}
             placeholder="e.g. AP Chemistry"
             maxLength={80}
             required
@@ -126,7 +133,7 @@ function ClassDialogForm({
             <Input
               id="class-teacher"
               value={teacher}
-              onChange={(e) => setTeacher(e.target.value)}
+              onChange={(event) => setTeacher(event.target.value)}
               maxLength={80}
             />
           </div>
@@ -135,7 +142,7 @@ function ClassDialogForm({
             <Input
               id="class-period"
               value={period}
-              onChange={(e) => setPeriod(e.target.value)}
+              onChange={(event) => setPeriod(event.target.value)}
               placeholder="e.g. Period 3"
               maxLength={40}
             />
@@ -145,18 +152,18 @@ function ClassDialogForm({
         <div className="space-y-2">
           <Label>Color</Label>
           <div className="flex gap-2">
-            {CLASS_COLORS.map((c) => (
+            {CLASS_COLORS.map((option) => (
               <button
-                key={c.value}
+                key={option.value}
                 type="button"
-                aria-label={`Color ${c.name}`}
-                aria-pressed={color === c.value}
-                onClick={() => setColor(c.value)}
+                aria-label={`Color ${option.name}`}
+                aria-pressed={color === option.value}
+                onClick={() => setColor(option.value)}
                 className={cn(
                   "h-7 w-7 rounded-full ring-offset-2 ring-offset-background",
-                  color === c.value && "ring-2 ring-ring",
+                  color === option.value && "ring-2 ring-ring",
                 )}
-                style={{ backgroundColor: c.value }}
+                style={{ backgroundColor: option.value }}
               />
             ))}
           </div>
@@ -166,7 +173,7 @@ function ClassDialogForm({
           <Label htmlFor="class-priority">Priority</Label>
           <Select
             value={priority}
-            onValueChange={(v) => v && setPriority(v as ClassInput["priority"])}
+            onValueChange={(value) => value && setPriority(value as ClassInput["priority"])}
           >
             <SelectTrigger id="class-priority">
               <SelectValue>
@@ -184,7 +191,7 @@ function ClassDialogForm({
 
       <DialogFooter>
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : initialData ? "Save changes" : "Add course"}
+          {submitLabel(pending, Boolean(initialData))}
         </Button>
       </DialogFooter>
     </form>
