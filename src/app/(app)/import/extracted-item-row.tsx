@@ -66,14 +66,14 @@ export function ExtractedItemRow({
       <div className="flex items-start gap-3">
         <Checkbox
           checked={item.included}
-          onCheckedChange={(v) => onChange({ included: v === true })}
+          onCheckedChange={(checked) => onChange({ included: checked === true })}
           className="mt-1"
           aria-label={`Include "${item.title}"`}
         />
         <div className="min-w-0 flex-1 space-y-3">
           <Input
             value={item.title}
-            onChange={(e) => onChange({ title: e.target.value })}
+            onChange={(event) => onChange({ title: event.target.value })}
             aria-label="Title"
             className="font-medium"
           />
@@ -81,10 +81,10 @@ export function ExtractedItemRow({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Class</label>
-              <Select value={item.classId} onValueChange={(v) => v && onChange({ classId: v })}>
+              <Select value={item.classId} onValueChange={(value) => value && onChange({ classId: value })}>
                 <SelectTrigger className="w-full">
                   <SelectValue>
-                    {(v: string) => classes.find((c) => c.id === v)?.name ?? "Choose"}
+                    {(value: string) => classes.find((c) => c.id === value)?.name ?? "Choose"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -106,11 +106,11 @@ export function ExtractedItemRow({
               <label className="text-xs text-muted-foreground">Type</label>
               <Select
                 value={item.kind}
-                onValueChange={(v) => v && onChange({ kind: v as DraftItem["kind"] })}
+                onValueChange={(value) => value && onChange({ kind: value as DraftItem["kind"] })}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue>
-                    {(v: DraftItem["kind"]) => (v === "exam" ? "Exam" : "Assignment")}
+                    {(value: DraftItem["kind"]) => (value === "exam" ? "Exam" : "Assignment")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -125,7 +125,7 @@ export function ExtractedItemRow({
               <Input
                 type="datetime-local"
                 value={item.dueAt}
-                onChange={(e) => onChange({ dueAt: e.target.value })}
+                onChange={(event) => onChange({ dueAt: event.target.value })}
               />
             </div>
 
@@ -137,7 +137,7 @@ export function ExtractedItemRow({
                 max={3000}
                 step={5}
                 value={item.minutes}
-                onChange={(e) => onChange({ minutes: Number(e.target.value) })}
+                onChange={(event) => onChange({ minutes: Number(event.target.value) })}
               />
             </div>
           </div>
@@ -167,6 +167,7 @@ export function draftFromExtracted(
   fallbackClassId: string,
   now: Date,
 ): DraftItem {
+  // With no date in the screenshot, guess tomorrow at 11:59 PM and flag it as low confidence.
   const fallbackDue = new Date(now);
   fallbackDue.setDate(now.getDate() + 1);
   fallbackDue.setHours(23, 59, 0, 0);
