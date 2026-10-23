@@ -1,26 +1,19 @@
-// The "measurement -> better prediction" half of the loop documented in
-// docs/PLANNING_ENGINE.md's "Future estimation architecture" section. Turns
-// real StudySession history into a calibration multiplier the planning
-// engine actually uses — not just a number shown on a dashboard. Same
-// arithmetic as src/lib/mastery/habits/build-insights.ts's estimateAccuracy (this
-// intentionally doesn't duplicate that computation's shape by accident;
-// it's the same "avg(actual)/avg(planned)" ratio, applied forward instead
-// of just reported backward), gated behind the same kind of minimum-sample
-// floor so a single fluke session never distorts a real prediction.
+// Turns real StudySession history into a correction multiplier that the
+// planner uses to adjust estimates. It's the same "average actual / planned"
+// ratio Insights reports, applied forward. A minimum number of sessions is
+// required so one fluke session never distorts a prediction.
 
-import type { SessionRecord } from "@/lib/insights/build-insights";
+import { averageTimeRatio, groupByClass, type SessionRecord } from "@/lib/insights/build-insights";
 
 const MIN_SESSIONS_PER_CLASS = 3;
 const MIN_SESSIONS_OVERALL = 3;
-/** A multiplier is only worth applying if it represents a real, consistent
- * pattern — below this it's noise, and forcing a 3% "adjustment" would just
- * make estimates look falsely precise. */
+/** Smaller differences than this are noise; a 3% "adjustment" would only look falsely precise. */
 const MIN_NOTABLE_DEVIATION = 0.1; // 10%
-/** Safety clamps: never adjust an estimate by more than 2x in either
- * direction, however extreme the historical ratio — a single very-overrun
- * class shouldn't be allowed to triple a prediction and break scheduling. */
+/** Never adjust an estimate by more than 2x either way, however extreme the history. */
 const MAX_MULTIPLIER = 2.0;
 const MIN_MULTIPLIER = 0.5;
+/** An adjusted estimate is never below this; every real task takes some time. */
+const MIN_ADJUSTED_MINUTES = 5;
 
 export interface ClassEstimationProfile {
   className: string;
@@ -44,28 +37,18 @@ export function buildEstimationProfile(sessions: SessionRecord[]): EstimationPro
 
   let overallMultiplier = 1.0;
   if (rated.length >= MIN_SESSIONS_OVERALL) {
-    const avgRatio =
-      rated.reduce((sum, s) => sum + (s.actualMinutes ?? 0) / s.plannedMinutes, 0) / rated.length;
-    if (Math.abs(avgRatio - 1) >= MIN_NOTABLE_DEVIATION) {
-      overallMultiplier = clampMultiplier(avgRatio);
+    const ratio = averageTimeRatio(rated);
+    if (Math.abs(ratio - 1) >= MIN_NOTABLE_DEVIATION) {
+      overallMultiplier = clampMultiplier(ratio);
     }
   }
 
-  const byClassSessions = new Map<string, SessionRecord[]>();
-  for (const s of rated) {
-    const list = byClassSessions.get(s.className) ?? [];
-    list.push(s);
-    byClassSessions.set(s.className, list);
-  }
-
   const byClass: ClassEstimationProfile[] = [];
-  for (const [className, classSessions] of byClassSessions) {
+  for (const [className, classSessions] of groupByClass(rated)) {
     if (classSessions.length < MIN_SESSIONS_PER_CLASS) continue;
-    const avgRatio =
-      classSessions.reduce((sum, s) => sum + (s.actualMinutes ?? 0) / s.plannedMinutes, 0) /
-      classSessions.length;
-    if (Math.abs(avgRatio - 1) < MIN_NOTABLE_DEVIATION) continue;
-    const multiplier = clampMultiplier(avgRatio);
+    const ratio = averageTimeRatio(classSessions);
+    if (Math.abs(ratio - 1) < MIN_NOTABLE_DEVIATION) continue;
+    const multiplier = clampMultiplier(ratio);
     byClass.push({
       className,
       multiplier,
@@ -73,6 +56,7 @@ export function buildEstimationProfile(sessions: SessionRecord[]): EstimationPro
       sampleSize: classSessions.length,
     });
   }
+  // Classes whose estimates are furthest off come first.
   byClass.sort((a, b) => Math.abs(b.percentOff) - Math.abs(a.percentOff));
 
   return {
@@ -90,12 +74,12 @@ export interface AdjustedEstimate {
   percentOff: number;
 }
 
-/** Applies a student's estimation profile to one raw estimate. Class-level
- * calibration wins when there's enough class-specific data; otherwise falls
- * back to the student's overall pattern; otherwise the raw number stands
- * completely unchanged. Always rounds to the nearest minute and never
- * returns something below 5 minutes (a real task always takes some
- * non-trivial time). */
+function scaleMinutes(rawMinutes: number, multiplier: number): number {
+  return Math.max(MIN_ADJUSTED_MINUTES, Math.round(rawMinutes * multiplier));
+}
+
+/** Applies the profile to one raw estimate. The class's own multiplier wins;
+ * otherwise the student's overall one; otherwise the raw number is unchanged. */
 export function adjustEstimate(
   rawMinutes: number,
   className: string,
@@ -104,7 +88,7 @@ export function adjustEstimate(
   const classProfile = profile.byClass.find((c) => c.className === className);
   if (classProfile) {
     return {
-      minutes: Math.max(5, Math.round(rawMinutes * classProfile.multiplier)),
+      minutes: scaleMinutes(rawMinutes, classProfile.multiplier),
       adjusted: true,
       multiplier: classProfile.multiplier,
       source: "class",
@@ -113,7 +97,7 @@ export function adjustEstimate(
   }
   if (profile.overallMultiplier !== 1.0) {
     return {
-      minutes: Math.max(5, Math.round(rawMinutes * profile.overallMultiplier)),
+      minutes: scaleMinutes(rawMinutes, profile.overallMultiplier),
       adjusted: true,
       multiplier: profile.overallMultiplier,
       source: "overall",
