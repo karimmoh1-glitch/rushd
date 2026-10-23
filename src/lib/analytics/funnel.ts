@@ -3,11 +3,9 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { ACTIVE_EVENTS, SETUP_EVENTS, STUDY_EVENTS } from "./events";
 
-// Admin-only growth metrics from first-party data. Public steps are cookieless
-// counts (each browser counted at most once a day per step, automation never);
-// account steps come from the Event table. Test and staff accounts are
-// excluded everywhere, and only real student actions count as activity
-// (see events.ts).
+// Admin-only growth metrics. Public steps are cookieless page counts; account
+// steps come from the Event table. Test and staff accounts are excluded
+// everywhere, and only real student actions count as activity (see events.ts).
 
 const DAY = 86_400_000;
 const WEEK = 7 * DAY;
@@ -42,34 +40,65 @@ export interface Growth {
   paid: number;
 }
 
+type CohortMember = { id: string; createdAt: Date; onboarded: boolean };
+type PageViewTotal = { path: string; _sum: { count: number | null } };
+
+/** Total views over the given paths. */
+function sumViews(views: PageViewTotal[], paths: string[]): number {
+  let total = 0;
+  for (const path of paths) {
+    const row = views.find((v) => v.path === path);
+    total += row?._sum.count ?? 0;
+  }
+  return total;
+}
+
+/** How many of these users have at least one event with one of these names. */
+async function usersWhoReached(userIds: string[], eventNames: string[]): Promise<number> {
+  if (userIds.length === 0) return 0;
+  const groups = await db.event.groupBy({ by: ["userId"], where: { userId: { in: userIds }, name: { in: eventNames } } });
+  return groups.length;
+}
+
+/** Day-N retention, measured from each student's own signup time: active between
+ * fromDays and toDays after signup, out of students at least minAgeDays old. */
+async function activeBetween(cohort: CohortMember[], now: Date, fromDays: number, toDays: number, minAgeDays: number) {
+  const eligibleIds: string[] = [];
+  for (const member of cohort) {
+    const ageMs = now.getTime() - member.createdAt.getTime();
+    if (ageMs >= minAgeDays * DAY) eligibleIds.push(member.id);
+  }
+  if (eligibleIds.length === 0) return { active: 0, eligible: 0 };
+
+  const rows = await db.$queryRaw<{ n: bigint }[]>`
+      SELECT COUNT(DISTINCT u.id)::bigint AS n
+      FROM "User" u JOIN "Event" e ON e."userId" = u.id
+      WHERE u.id = ANY(${eligibleIds})
+        AND e.name = ANY(${ACTIVE_EVENTS})
+        AND e."createdAt" >= u."createdAt" + (${fromDays} * interval '1 day')
+        AND e."createdAt" <  u."createdAt" + (${toDays} * interval '1 day')`;
+  return { active: Number(rows[0]?.n ?? 0), eligible: eligibleIds.length };
+}
+
+async function countPaid(userIds: string[]): Promise<number> {
+  if (userIds.length === 0) return 0;
+  return db.subscription.count({ where: { userId: { in: userIds }, status: { in: ["active", "trialing"] }, plan: { not: "FREE" } } });
+}
+
 /** `userIds` (tests only) limits the account steps to those users, test accounts included. */
 export async function getGrowth(sinceDays = 30, now = new Date(), opts: { userIds?: string[] } = {}): Promise<Growth> {
   const since = new Date(now.getTime() - sinceDays * DAY);
   const views = await db.pageView.groupBy({ by: ["path"], where: { day: { gte: since } }, _sum: { count: true } });
-  const v = (...paths: string[]) => paths.reduce((sum, p) => sum + (views.find((x) => x.path === p)?._sum.count ?? 0), 0);
 
   const who = opts.userIds ? Prisma.sql`u.id = ANY(${opts.userIds})` : REAL;
-  const cohort = await db.$queryRaw<{ id: string; createdAt: Date; onboarded: boolean }[]>`
+  const cohort = await db.$queryRaw<CohortMember[]>`
     SELECT u.id, u."createdAt", (u."onboardingCompletedAt" IS NOT NULL) AS onboarded
     FROM "User" u WHERE u."createdAt" >= ${since} AND ${who}`;
   const ids = cohort.map((c) => c.id);
-
-  const reached = async (names: string[]) =>
-    ids.length === 0 ? 0 : (await db.event.groupBy({ by: ["userId"], where: { userId: { in: ids }, name: { in: names } } })).length;
-
-  // Day-N activity, relative to each student's own signup time.
-  const activeBetween = async (fromDays: number, toDays: number, minAgeDays: number) => {
-    const eligible = cohort.filter((c) => now.getTime() - c.createdAt.getTime() >= minAgeDays * DAY);
-    if (eligible.length === 0) return { active: 0, eligible: 0 };
-    const rows = await db.$queryRaw<{ n: bigint }[]>`
-      SELECT COUNT(DISTINCT u.id)::bigint AS n
-      FROM "User" u JOIN "Event" e ON e."userId" = u.id
-      WHERE u.id = ANY(${eligible.map((c) => c.id)})
-        AND e.name = ANY(${ACTIVE_EVENTS})
-        AND e."createdAt" >= u."createdAt" + (${fromDays} * interval '1 day')
-        AND e."createdAt" <  u."createdAt" + (${toDays} * interval '1 day')`;
-    return { active: Number(rows[0]?.n ?? 0), eligible: eligible.length };
-  };
+  let onboarded = 0;
+  for (const member of cohort) {
+    if (member.onboarded) onboarded++;
+  }
 
   const referrals = await db.$queryRaw<{ joined: bigint; activated: bigint }[]>`
     SELECT COUNT(*)::bigint AS joined, COUNT(r."qualifiedAt")::bigint AS activated
@@ -78,25 +107,25 @@ export async function getGrowth(sinceDays = 30, now = new Date(), opts: { userId
 
   return {
     sinceDays,
-    visitors: v("/"),
-    plannerStarts: v("#try-start"),
-    rankings: v("#try"),
-    saves: v("#try-save"),
-    shares: v("#try-share"),
-    toolVisits: v("/tools", "/tools/rank-my-week", "/tools/exam-study-planner"),
-    examPlans: v("#exam-plan"),
-    signupPage: v("/signup"),
-    referralVisits: v("#ref-visit"),
+    visitors: sumViews(views, ["/"]),
+    plannerStarts: sumViews(views, ["#try-start"]),
+    rankings: sumViews(views, ["#try"]),
+    saves: sumViews(views, ["#try-save"]),
+    shares: sumViews(views, ["#try-share"]),
+    toolVisits: sumViews(views, ["/tools", "/tools/rank-my-week", "/tools/exam-study-planner"]),
+    examPlans: sumViews(views, ["#exam-plan"]),
+    signupPage: sumViews(views, ["/signup"]),
+    referralVisits: sumViews(views, ["#ref-visit"]),
     signups: ids.length,
-    onboarded: cohort.filter((c) => c.onboarded).length,
-    firstSetup: await reached(SETUP_EVENTS),
-    firstStudy: await reached(STUDY_EVENTS),
-    importedWeek: await reached(["try_week_imported"]),
-    day1: await activeBetween(1, 2, 2),
-    day7: await activeBetween(7, 14, 14),
+    onboarded,
+    firstSetup: await usersWhoReached(ids, SETUP_EVENTS),
+    firstStudy: await usersWhoReached(ids, STUDY_EVENTS),
+    importedWeek: await usersWhoReached(ids, ["try_week_imported"]),
+    day1: await activeBetween(cohort, now, 1, 2, 2),
+    day7: await activeBetween(cohort, now, 7, 14, 14),
     referralsJoined: Number(referrals[0]?.joined ?? 0),
     referralsActivated: Number(referrals[0]?.activated ?? 0),
-    paid: ids.length ? await db.subscription.count({ where: { userId: { in: ids }, status: { in: ["active", "trialing"] }, plan: { not: "FREE" } } }) : 0,
+    paid: await countPaid(ids),
   };
 }
 
@@ -151,22 +180,31 @@ export async function getRecurring(now = new Date()): Promise<Recurring> {
     SELECT DISTINCT e."userId", FLOOR(EXTRACT(EPOCH FROM (${now}::timestamptz - e."createdAt")) / 604800)::int AS week
     FROM "Event" e JOIN "User" u ON u.id = e."userId"
     WHERE e."createdAt" >= ${since} AND e.name = ANY(${ACTIVE_EVENTS}) AND ${REAL}`;
-  const weeks = new Map<string, Set<number>>();
-  for (const r of rows) {
-    if (!weeks.has(r.userId)) weeks.set(r.userId, new Set());
-    weeks.get(r.userId)!.add(Number(r.week));
+  // Week 0 is this week, week 1 last week, and so on.
+  const activeWeeksByUser = new Map<string, Set<number>>();
+  for (const row of rows) {
+    let weeks = activeWeeksByUser.get(row.userId);
+    if (!weeks) {
+      weeks = new Set();
+      activeWeeksByUser.set(row.userId, weeks);
+    }
+    weeks.add(Number(row.week));
   }
+
   let recurring = 0;
   let thisWeek = 0;
   let lastWeek = 0;
   let retained = 0;
-  for (const set of weeks.values()) {
-    if (set.size >= 2) recurring++;
-    if (set.has(0)) thisWeek++;
-    if (set.has(1)) {
+  for (const weeks of activeWeeksByUser.values()) {
+    if (weeks.size >= 2) recurring++;
+    if (weeks.has(0)) thisWeek++;
+    if (weeks.has(1)) {
       lastWeek++;
-      if (set.has(0)) retained++;
+      if (weeks.has(0)) retained++;
     }
   }
-  return { recurring, activeThisWeek: thisWeek, activeLastWeek: lastWeek, retainedPct: lastWeek ? Math.round((retained / lastWeek) * 100) : null };
+
+  let retainedPct: number | null = null;
+  if (lastWeek > 0) retainedPct = Math.round((retained / lastWeek) * 100);
+  return { recurring, activeThisWeek: thisWeek, activeLastWeek: lastWeek, retainedPct };
 }

@@ -4,12 +4,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import { qualifiesForReferral } from "@/lib/referral/constants";
 import { qualifyReferral } from "@/lib/referral/referral";
 
-// Product analytics events — see docs/PRODUCT.md#analytics for the event
-// list and the "understand, don't surveil" intent behind it.
-//
-// Best-effort: a logging failure must never break the user-facing action it
-// describes, so errors are swallowed (and reported to the server console for
-// operator visibility) rather than propagated.
+// Product analytics events (see docs/PRODUCT.md#analytics). Best effort: a
+// logging failure must never break the action it describes, so errors are only logged.
 export async function logEvent(
   userId: string,
   name: string,
