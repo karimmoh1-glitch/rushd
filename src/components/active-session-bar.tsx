@@ -19,6 +19,7 @@ import { useActiveSession } from "@/components/active-session-context";
 import {
   completeSession,
   abandonSession,
+  type ActiveSessionData,
   type AbandonReasonValue,
   type CompletedSessionSummary,
   type PerceivedDifficultyValue,
@@ -39,29 +40,34 @@ const PERCEIVED_DIFFICULTY_OPTIONS: { value: PerceivedDifficultyValue; label: st
   { value: "HARDER", label: "Harder than expected" },
 ];
 
-function elapsedParts(startedAt: string) {
-  const totalSeconds = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
-  return {
-    minutes: Math.floor(totalSeconds / 60),
-    label: (() => {
-      const h = Math.floor(totalSeconds / 3600);
-      const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = totalSeconds % 60;
-      const pad = (n: number) => String(n).padStart(2, "0");
-      return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-    })(),
-  };
+// ---------- Plain helper functions ----------
+
+function secondsSince(startedAt: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
 }
 
-/**
- * Persistent bar shown on every authenticated page while a study session is
- * running. Always mounted (never conditionally, based on activeSession) so
- * the post-completion summary dialog — local, independent state — survives
- * even the instant activeSession flips back to null.
- */
+/** "05:07" under an hour, "1:05:07" after. */
+function formatClock(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (hours > 0) return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+  return `${pad(minutes)}:${pad(seconds)}`;
+}
+
+function difficultyLabel(value: PerceivedDifficultyValue): string | undefined {
+  return PERCEIVED_DIFFICULTY_OPTIONS.find((option) => option.value === value)?.label;
+}
+
+// ---------- Main component ----------
+
+// Always mounted (not only while a session runs), so the summary dialog
+// survives the moment activeSession goes back to null.
 export function ActiveSessionBar() {
   const { activeSession, setActiveSession } = useActiveSession();
-  const [, forceTick] = useState(0);
+  // Bumped every second so the clock re-renders.
+  const [, setTick] = useState(0);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [actualMinutesInput, setActualMinutesInput] = useState("");
@@ -72,13 +78,14 @@ export function ActiveSessionBar() {
 
   useEffect(() => {
     if (!activeSession) return;
-    const interval = setInterval(() => forceTick((t) => t + 1), 1000);
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(interval);
   }, [activeSession]);
 
   function openComplete() {
     if (!activeSession) return;
-    setActualMinutesInput(String(Math.max(1, elapsedParts(activeSession.startedAt).minutes || 1)));
+    const elapsedMinutes = Math.floor(secondsSince(activeSession.startedAt) / 60);
+    setActualMinutesInput(String(Math.max(1, elapsedMinutes || 1)));
     setDifficulty("");
     setCompleteOpen(true);
   }
@@ -91,11 +98,7 @@ export function ActiveSessionBar() {
       return;
     }
     startTransition(async () => {
-      const result = await completeSession(
-        activeSession.id,
-        Math.round(minutes),
-        difficulty || undefined,
-      );
+      const result = await completeSession(activeSession.id, Math.round(minutes), difficulty || undefined);
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -121,148 +124,244 @@ export function ActiveSessionBar() {
     });
   }
 
-  const elapsed = activeSession ? elapsedParts(activeSession.startedAt) : null;
-
   return (
     <>
       {activeSession && (
-        <div className="sticky top-0 z-20 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-accent/60 px-4 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary"
-            />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{activeSession.title}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {activeSession.className} · Planned {formatDuration(activeSession.plannedMinutes)}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <span className="font-mono text-sm tabular-nums">{elapsed?.label}</span>
-            <Button size="sm" onClick={openComplete} disabled={pending}>
-              Complete
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setAbandonOpen(true)} disabled={pending}>
-              Abandon
-            </Button>
-          </div>
-        </div>
+        <SessionBar
+          session={activeSession}
+          pending={pending}
+          onComplete={openComplete}
+          onAbandon={() => setAbandonOpen(true)}
+        />
       )}
 
-      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>How long did this actually take?</DialogTitle>
-            <DialogDescription>
-              {activeSession &&
-                `Rushd estimated ${formatDuration(activeSession.plannedMinutes)}. Elapsed time is pre-filled below — edit it if the tab was open longer than you actually worked.`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1.5">
-            <Label htmlFor="actual-minutes">You worked for (minutes)</Label>
-            <Input
-              id="actual-minutes"
-              type="number"
-              min={1}
-              max={1000}
-              value={actualMinutesInput}
-              onChange={(e) => setActualMinutesInput(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>How did it feel? (optional)</Label>
-            <div className="flex gap-2">
-              {PERCEIVED_DIFFICULTY_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setDifficulty((d) => (d === opt.value ? "" : opt.value))}
-                  className={`flex-1 rounded-md border px-2 py-2 text-xs font-medium transition-colors ${
-                    difficulty === opt.value
-                      ? "border-primary bg-accent text-accent-foreground"
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={confirmComplete} disabled={pending}>
-              {pending ? "Saving…" : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CompleteDialog
+        open={completeOpen}
+        onOpenChange={setCompleteOpen}
+        session={activeSession}
+        minutesInput={actualMinutesInput}
+        onMinutesInputChange={setActualMinutesInput}
+        difficulty={difficulty}
+        onToggleDifficulty={(value) => setDifficulty((d) => (d === value ? "" : value))}
+        pending={pending}
+        onConfirm={confirmComplete}
+      />
 
-      <Dialog open={abandonOpen} onOpenChange={setAbandonOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Why did you stop?</DialogTitle>
-            <DialogDescription>Totally optional — skip if you&apos;d rather not say.</DialogDescription>
-          </DialogHeader>
-          <RadioGroup value={reason} onValueChange={(v) => setReason(v as AbandonReasonValue)}>
-            {ABANDON_REASONS.map((r) => (
-              <label key={r.value} className="flex items-center gap-2 text-sm">
-                <RadioGroupItem value={r.value} />
-                {r.label}
-              </label>
-            ))}
-          </RadioGroup>
-          <DialogFooter>
-            <Button variant="outline" onClick={confirmAbandon} disabled={pending}>
-              Skip
-            </Button>
-            <Button onClick={confirmAbandon} disabled={pending}>
-              {pending ? "Ending…" : "End session"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AbandonDialog
+        open={abandonOpen}
+        onOpenChange={setAbandonOpen}
+        reason={reason}
+        onReasonChange={setReason}
+        pending={pending}
+        onConfirm={confirmAbandon}
+      />
 
-      <Dialog open={summary !== null} onOpenChange={(open) => !open && setSummary(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Done</DialogTitle>
-          </DialogHeader>
-          {summary && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Rushd estimated</span>
-                <span className="font-medium">{formatDuration(summary.plannedMinutes)}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Actual</span>
-                <span className="font-medium">{formatDuration(summary.actualMinutes)}</span>
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
-                <span className="text-muted-foreground">Difference</span>
-                <span className="font-medium">
-                  {summary.actualMinutes - summary.plannedMinutes >= 0 ? "+" : ""}
-                  {summary.actualMinutes - summary.plannedMinutes} min
-                </span>
-              </div>
-              {summary.perceivedDifficulty && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Felt like</span>
-                  <span className="font-medium">
-                    {PERCEIVED_DIFFICULTY_OPTIONS.find((o) => o.value === summary.perceivedDifficulty)?.label}
-                  </span>
-                </div>
-              )}
-              <p className="text-sm text-muted-foreground">
-                That&apos;s useful data — Rushd will use it to improve future estimates.
-              </p>
-            </div>
-          )}
-          <DialogFooter>
-            <Button onClick={() => setSummary(null)}>Got it</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SummaryDialog summary={summary} onClose={() => setSummary(null)} />
     </>
+  );
+}
+
+// ---------- Pieces ----------
+
+function SessionBar({
+  session,
+  pending,
+  onComplete,
+  onAbandon,
+}: {
+  session: ActiveSessionData;
+  pending: boolean;
+  onComplete: () => void;
+  onAbandon: () => void;
+}) {
+  const clock = formatClock(secondsSince(session.startedAt));
+
+  return (
+    <div className="sticky top-0 z-20 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-accent/60 px-4 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          aria-hidden="true"
+          className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary"
+        />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{session.title}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {session.className} · Planned {formatDuration(session.plannedMinutes)}
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        <span className="font-mono text-sm tabular-nums">{clock}</span>
+        <Button size="sm" onClick={onComplete} disabled={pending}>
+          Complete
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onAbandon} disabled={pending}>
+          Abandon
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function CompleteDialog({
+  open,
+  onOpenChange,
+  session,
+  minutesInput,
+  onMinutesInputChange,
+  difficulty,
+  onToggleDifficulty,
+  pending,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  session: ActiveSessionData | null;
+  minutesInput: string;
+  onMinutesInputChange: (value: string) => void;
+  difficulty: PerceivedDifficultyValue | "";
+  onToggleDifficulty: (value: PerceivedDifficultyValue) => void;
+  pending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>How long did this actually take?</DialogTitle>
+          <DialogDescription>
+            {session &&
+              `Rushd estimated ${formatDuration(session.plannedMinutes)}. Elapsed time is pre-filled below — edit it if the tab was open longer than you actually worked.`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="actual-minutes">You worked for (minutes)</Label>
+          <Input
+            id="actual-minutes"
+            type="number"
+            min={1}
+            max={1000}
+            value={minutesInput}
+            onChange={(e) => onMinutesInputChange(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>How did it feel? (optional)</Label>
+          <div className="flex gap-2">
+            {PERCEIVED_DIFFICULTY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onToggleDifficulty(option.value)}
+                className={`flex-1 rounded-md border px-2 py-2 text-xs font-medium transition-colors ${
+                  difficulty === option.value
+                    ? "border-primary bg-accent text-accent-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={onConfirm} disabled={pending}>
+            {pending ? "Saving…" : "Confirm"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AbandonDialog({
+  open,
+  onOpenChange,
+  reason,
+  onReasonChange,
+  pending,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  reason: AbandonReasonValue | "";
+  onReasonChange: (reason: AbandonReasonValue) => void;
+  pending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Why did you stop?</DialogTitle>
+          <DialogDescription>Totally optional — skip if you&apos;d rather not say.</DialogDescription>
+        </DialogHeader>
+        <RadioGroup value={reason} onValueChange={(v) => onReasonChange(v as AbandonReasonValue)}>
+          {ABANDON_REASONS.map((r) => (
+            <label key={r.value} className="flex items-center gap-2 text-sm">
+              <RadioGroupItem value={r.value} />
+              {r.label}
+            </label>
+          ))}
+        </RadioGroup>
+        <DialogFooter>
+          <Button variant="outline" onClick={onConfirm} disabled={pending}>
+            Skip
+          </Button>
+          <Button onClick={onConfirm} disabled={pending}>
+            {pending ? "Ending…" : "End session"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SummaryDialog({ summary, onClose }: { summary: CompletedSessionSummary | null; onClose: () => void }) {
+  return (
+    <Dialog open={summary !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Done</DialogTitle>
+        </DialogHeader>
+        {summary && <SummaryDetails summary={summary} />}
+        <DialogFooter>
+          <Button onClick={onClose}>Got it</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SummaryDetails({ summary }: { summary: CompletedSessionSummary }) {
+  const difference = summary.actualMinutes - summary.plannedMinutes;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">Rushd estimated</span>
+        <span className="font-medium">{formatDuration(summary.plannedMinutes)}</span>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">Actual</span>
+        <span className="font-medium">{formatDuration(summary.actualMinutes)}</span>
+      </div>
+      <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
+        <span className="text-muted-foreground">Difference</span>
+        <span className="font-medium">
+          {difference >= 0 ? "+" : ""}
+          {difference} min
+        </span>
+      </div>
+      {summary.perceivedDifficulty && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Felt like</span>
+          <span className="font-medium">{difficultyLabel(summary.perceivedDifficulty)}</span>
+        </div>
+      )}
+      <p className="text-sm text-muted-foreground">
+        That&apos;s useful data — Rushd will use it to improve future estimates.
+      </p>
+    </div>
   );
 }
