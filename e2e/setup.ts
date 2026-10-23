@@ -7,7 +7,7 @@ import { configureNeon } from "./db";
 // don't trip signup or inquiry limits. Real users' buckets are untouched.
 // The dev server reports loopback addresses in x-forwarded-for; a11y.spec.ts
 // signs up from 127.0.0.2 so a full run stays under the per-IP signup limit.
-const CLIENTS = ["local", "::1", "127.0.0.1", "::ffff:127.0.0.1", "127.0.0.2", "127.0.0.3"];
+const CLIENTS = ["local", "::1", "127.0.0.1", "::ffff:127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4"];
 const KEYS = ["signup", "school-inquiry", "pv", "reset"].flatMap((p) => CLIENTS.map((c) => `${p}:${c}`));
 
 export default async function setup() {

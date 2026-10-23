@@ -156,7 +156,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="flex h-14 items-center justify-between border-b border-border px-4 md:hidden">
+      <div className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
         <Link href="/dashboard" aria-label="Rushd, Today">
           <RushdWordmark />
         </Link>
@@ -165,7 +165,7 @@ export function AppShell({
             href="/settings"
             aria-label="Settings"
             aria-current={isActive(pathname, "/settings") ? "page" : undefined}
-            className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Settings className="h-5 w-5" aria-hidden="true" />
           </Link>
@@ -174,7 +174,7 @@ export function AppShell({
             <button
               type="submit"
               aria-label="Log out"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <LogOut className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -182,15 +182,18 @@ export function AppShell({
         </div>
       </div>
 
-      <main id="main-content" className="pb-20 md:ml-56 md:pb-0">
+      <main id="main-content" className="pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0">
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
           <ActiveSessionBar />
-          {children}
+          {/* Keyed by page so each new page settles in (skipped with reduced motion). */}
+          <div key={pathname} className="page-enter">
+            {children}
+          </div>
         </div>
       </main>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-background md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 flex border-t border-sidebar-border bg-sidebar/90 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
         aria-label="Main navigation"
       >
         {mobileNavItems(ai).map((item) => {
@@ -201,12 +204,18 @@ export function AppShell({
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium",
+                "flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
                 active ? "text-foreground" : "text-muted-foreground",
               )}
             >
-              {active && <span aria-hidden="true" className="absolute top-1 h-1 w-1 rounded-full bg-signal" />}
-              <item.icon className="h-5 w-5" aria-hidden="true" />
+              <span
+                className={cn(
+                  "flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-(--dur-ui)",
+                  active && "bg-sidebar-accent",
+                )}
+              >
+                <item.icon className={cn("h-5 w-5", active && "text-signal")} aria-hidden="true" />
+              </span>
               {item.label}
             </Link>
           );
