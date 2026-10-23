@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { MoreVertical } from "lucide-react";
+import { CalendarPlus, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import type { ClassInput } from "@/lib/validation/classes";
 import { catalogRecord, levelLabel } from "@/lib/courses/catalog";
 import type { TermProgress } from "@/lib/courses/term";
 import { cn } from "@/lib/utils";
+import { StatusChip } from "@/components/status-chip";
+import type { DueStatus } from "@/lib/format";
 
 const PRIORITY_LABEL: Record<ClassInput["priority"], string> = {
   LOW: "Low priority",
@@ -32,6 +34,8 @@ export interface ClassCardData extends ClassInput {
   examCount: number;
   /** Where today falls in the term, worked out on the server in the student's time zone. */
   term?: TermProgress | null;
+  /** The soonest open assignment or upcoming exam, if any. */
+  nextDue?: { title: string; exam: boolean; status: DueStatus; dateLabel: string };
 }
 
 /** "Aug 25" from "2026-08-25", without time-zone shifts. */
@@ -146,7 +150,7 @@ export function ClassCard({ data, timeZone }: { data: ClassCardData; timeZone?: 
           </div>
         </div>
 
-        {(range || data.term) && (
+        {range || data.term ? (
           <div className="mt-4">
             <div className="flex items-baseline justify-between gap-3 text-xs">
               <span className="text-muted-foreground">{range}</span>
@@ -156,6 +160,39 @@ export function ClassCard({ data, timeZone }: { data: ClassCardData; timeZone?: 
               <span aria-hidden="true" className="mt-1.5 block h-1 overflow-hidden rounded-full bg-muted">
                 <span className="course-rule block h-full rounded-full" style={{ width: `${data.term.percent}%` }} />
               </span>
+            )}
+          </div>
+        ) : (
+          !data.archived && (
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="relative z-10 mt-4 inline-flex items-center gap-1.5 self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              <CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" />
+              Add term dates
+            </button>
+          )
+        )}
+
+        {/* Every active tile shows what's next, so tiles in a row line up instead of leaving gaps. */}
+        {!data.archived && (
+          <div className="mt-3 flex min-h-14 items-center justify-between gap-3 rounded-lg bg-surface-2/70 px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                {data.nextDue?.exam ? "Next exam" : "Next due"}
+              </p>
+              <p className={cn("truncate text-sm", !data.nextDue && "text-muted-foreground")}>
+                {data.nextDue ? data.nextDue.title : "Nothing open right now"}
+              </p>
+            </div>
+            {data.nextDue && (
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <StatusChip status={data.nextDue.status} />
+                <span className={cn("text-[11px] tabular-nums", data.nextDue.status === "overdue" ? "text-overdue" : "text-muted-foreground")}>
+                  {data.nextDue.dateLabel}
+                </span>
+              </div>
             )}
           </div>
         )}

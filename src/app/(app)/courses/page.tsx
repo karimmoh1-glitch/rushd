@@ -9,6 +9,7 @@ import { toDateInput } from "@/lib/courses/service";
 import { localDateKey, resolveTimeZone } from "@/lib/time/zone";
 import { termProgress } from "@/lib/courses/term";
 import { popularCatalogCourses } from "@/lib/courses/usage";
+import { dueStatus, formatDueDate } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Courses",
@@ -34,7 +35,9 @@ interface ClassRecord {
   _count: { assignments: number; exams: number };
 }
 
-function toCardData(course: ClassRecord, today: string): ClassCardData {
+type NextDue = NonNullable<ClassCardData["nextDue"]>;
+
+function toCardData(course: ClassRecord, today: string, nextDue?: NextDue): ClassCardData {
   const termStart = toDateInput(course.termStart);
   const termEnd = toDateInput(course.termEnd);
   return {
@@ -56,7 +59,42 @@ function toCardData(course: ClassRecord, today: string): ClassCardData {
     catalogId: course.catalogId ?? undefined,
     assignmentCount: course._count.assignments,
     examCount: course._count.exams,
+    nextDue,
   };
+}
+
+/** Each course's soonest open assignment or upcoming exam, with its due status worked out in the student's time zone. */
+async function nextDueByCourse(userId: string, timeZone: string): Promise<Map<string, NextDue>> {
+  const now = new Date();
+  const [assignments, exams] = await Promise.all([
+    db.assignment.findMany({
+      where: { userId, status: { not: "COMPLETED" }, canvasRemovedAt: null },
+      orderBy: { dueAt: "asc" },
+      select: { classId: true, title: true, dueAt: true },
+    }),
+    db.exam.findMany({
+      where: { userId, examAt: { gte: now } },
+      orderBy: { examAt: "asc" },
+      select: { classId: true, title: true, examAt: true },
+    }),
+  ]);
+  const soonest = new Map<string, { title: string; at: Date; exam: boolean }>();
+  const consider = (classId: string, title: string, at: Date, exam: boolean) => {
+    const current = soonest.get(classId);
+    if (!current || at < current.at) soonest.set(classId, { title, at, exam });
+  };
+  for (const a of assignments) consider(a.classId, a.title, a.dueAt, false);
+  for (const e of exams) consider(e.classId, e.title, e.examAt, true);
+  const result = new Map<string, NextDue>();
+  for (const [classId, item] of soonest) {
+    result.set(classId, {
+      title: item.title,
+      exam: item.exam,
+      status: dueStatus(item.at, timeZone, now),
+      dateLabel: formatDueDate(item.at, timeZone, now),
+    });
+  }
+  return result;
 }
 
 export default async function ClassesPage() {
@@ -87,9 +125,10 @@ export default async function ClassesPage() {
       _count: { select: { assignments: true, exams: true } },
     },
   });
-  const [popular, profile] = await Promise.all([
+  const [popular, profile, nextDue] = await Promise.all([
     popularCatalogCourses(),
     db.profile.findUnique({ where: { userId: user.id }, select: { studyLevel: true } }),
+    nextDueByCourse(user.id, timeZone),
   ]);
   // The student's own courses, newest first: "recent" in the picker, and duplicates are marked.
   const ownCourses = [...classes]
@@ -122,7 +161,7 @@ export default async function ClassesPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {active.map((course) => (
-            <ClassCard key={course.id} data={toCardData(course, today)} timeZone={timeZone} />
+            <ClassCard key={course.id} data={toCardData(course, today, nextDue.get(course.id))} timeZone={timeZone} />
           ))}
         </div>
       )}
