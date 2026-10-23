@@ -260,7 +260,7 @@ export default async function SettingsPage() {
           <div>
             <p className="text-sm font-medium">Download my data</p>
             <p className="text-sm text-muted-foreground">
-              Everything you&apos;ve added to Rushd, as one JSON file. Your password and saved connection tokens are never included.
+              Everything you&apos;ve added, as one JSON file. Never your password or tokens.
             </p>
           </div>
           {/* A plain link: the browser downloads the file the server streams. */}
