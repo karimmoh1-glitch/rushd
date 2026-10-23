@@ -8,9 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { connectFeedAction, disconnectFeedAction, syncFeedAction } from "@/server/actions/feed";
 
-function summary(v: { created: number; updated: number; removed: number }) {
-  const parts = [`${v.created} new`, `${v.updated} updated`];
-  if (v.removed) parts.push(`${v.removed} removed`);
+const DISCONNECT_OPTIONS = [
+  {
+    removeImported: false,
+    confirmText: "Disconnect and keep imported assignments as your own?",
+    label: "Disconnect, keep assignments",
+  },
+  {
+    removeImported: true,
+    confirmText: "Disconnect and delete assignments imported from the feed?",
+    label: "Disconnect and remove assignments",
+  },
+];
+
+// e.g. "3 new, 1 updated, 2 removed"
+function summary(counts: { created: number; updated: number; removed: number }) {
+  const parts = [`${counts.created} new`, `${counts.updated} updated`];
+  if (counts.removed) parts.push(`${counts.removed} removed`);
   return parts.join(", ");
 }
 
@@ -18,27 +32,45 @@ export function FeedControls({ connected }: { connected: boolean }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
+  const [pending, startTransition] = useTransition();
+
+  function handleConnect(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await connectFeedAction(url);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setUrl("");
+      toast.success(`Calendar connected: ${summary(result.value)}.`);
+      router.push("/assignments");
+    });
+  }
+
+  function handleSync() {
+    startTransition(async () => {
+      const result = await syncFeedAction();
+      if ("error" in result) toast.error(result.error);
+      else toast.success(`Synced: ${summary(result.value)}.`);
+      router.refresh();
+    });
+  }
+
+  function handleDisconnect(removeImported: boolean, confirmText: string) {
+    if (!window.confirm(confirmText)) return;
+    startTransition(async () => {
+      const result = await disconnectFeedAction(removeImported);
+      if ("error" in result) toast.error(result.error);
+      else toast.success("Calendar feed disconnected.");
+      router.refresh();
+    });
+  }
 
   if (!connected) {
     return (
-      <form
-        className="space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setError(null);
-          start(async () => {
-            const r = await connectFeedAction(url);
-            if ("error" in r) {
-              setError(r.error);
-              return;
-            }
-            setUrl("");
-            toast.success(`Calendar connected: ${summary(r.value)}.`);
-            router.push("/assignments");
-          });
-        }}
-      >
+      <form className="space-y-3" onSubmit={handleConnect}>
         <Label htmlFor="feed-url">Calendar feed link</Label>
         <Input
           id="feed-url"
@@ -62,39 +94,21 @@ export function FeedControls({ connected }: { connected: boolean }) {
 
   return (
     <div className="space-y-6">
-      <Button
-        disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const r = await syncFeedAction();
-            if ("error" in r) toast.error(r.error);
-            else toast.success(`Synced: ${summary(r.value)}.`);
-            router.refresh();
-          })
-        }
-      >
+      <Button disabled={pending} onClick={handleSync}>
         {pending ? "Working…" : "Sync now"}
       </Button>
       <div className="space-y-3 border-t border-border pt-6">
         <h2 className="text-base font-semibold">Disconnect</h2>
         <p className="text-sm text-muted-foreground">Deletes the saved feed link right away.</p>
         <div className="flex flex-wrap gap-2">
-          {[false, true].map((remove) => (
+          {DISCONNECT_OPTIONS.map((option) => (
             <Button
-              key={String(remove)}
+              key={option.label}
               variant="outline"
               disabled={pending}
-              onClick={() => {
-                if (!window.confirm(remove ? "Disconnect and delete assignments imported from the feed?" : "Disconnect and keep imported assignments as your own?")) return;
-                start(async () => {
-                  const r = await disconnectFeedAction(remove);
-                  if ("error" in r) toast.error(r.error);
-                  else toast.success("Calendar feed disconnected.");
-                  router.refresh();
-                });
-              }}
+              onClick={() => handleDisconnect(option.removeImported, option.confirmText)}
             >
-              {remove ? "Disconnect and remove assignments" : "Disconnect, keep assignments"}
+              {option.label}
             </Button>
           ))}
         </div>

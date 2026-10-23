@@ -17,11 +17,17 @@ const STEPS = [
 
 export default async function CanvasCalendarPage() {
   const user = await requireUser();
-  const tz = user.profile?.timezone;
+  const timeZone = user.profile?.timezone;
   const [feed, count] = await Promise.all([
     db.calendarFeed.findUnique({ where: { userId: user.id }, select: { host: true, status: true, lastSyncAt: true, lastSyncError: true } }),
     db.assignment.count({ where: { userId: user.id, source: "CALENDAR", canvasRemovedAt: null } }),
   ]);
+
+  let lastReadText = "";
+  if (feed?.lastSyncAt) {
+    const when = formatDateInZone(feed.lastSyncAt, timeZone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    lastReadText = `Last read ${when}.`;
+  }
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -37,10 +43,10 @@ export default async function CanvasCalendarPage() {
       {!feed ? (
         <section className="space-y-5">
           <ol className="space-y-2 text-sm">
-            {STEPS.map((s, i) => (
-              <li key={s} className="flex gap-3">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border font-mono text-[11px]">{i + 1}</span>
-                {s}
+            {STEPS.map((step, index) => (
+              <li key={step} className="flex gap-3">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border font-mono text-[11px]">{index + 1}</span>
+                {step}
               </li>
             ))}
           </ol>
@@ -60,9 +66,7 @@ export default async function CanvasCalendarPage() {
           <div className="space-y-1 text-sm">
             <p>
               Connected to {feed.host}. {count} upcoming assignment{count === 1 ? "" : "s"}.{" "}
-              {feed.lastSyncAt
-                ? `Last read ${formatDateInZone(feed.lastSyncAt, tz, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`
-                : ""}
+              {lastReadText}
             </p>
             {feed.status === "ERROR" && feed.lastSyncError && <p className="text-warning">{feed.lastSyncError}</p>}
           </div>

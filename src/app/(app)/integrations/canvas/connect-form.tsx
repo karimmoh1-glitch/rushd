@@ -50,19 +50,24 @@ export function ConnectForm({
         setError(result.error);
         return;
       }
-      toast.success(`Connected as ${result.data.canvasUserName}. Found ${result.data.courseCount} course${result.data.courseCount === 1 ? "" : "s"}.`);
+      const { canvasUserName, courseCount } = result.data;
+      const courses = courseCount === 1 ? "1 course" : `${courseCount} courses`;
+      toast.success(`Connected as ${canvasUserName}. Found ${courses}.`);
       router.refresh();
     });
   }
+
+  let submitLabel = reconnect ? "Reconnect" : "Connect Canvas";
+  if (pending) submitLabel = "Checking with Canvas...";
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
       {!reconnect && (
         <ol className="space-y-5">
-          {STEPS.map((step, i) => (
+          {STEPS.map((step, index) => (
             <li key={step.title} className="flex gap-4">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border font-mono text-xs tabular-nums text-muted-foreground">
-                {i + 1}
+                {index + 1}
               </span>
               <div>
                 <p className="font-medium">{step.title}</p>
@@ -111,7 +116,7 @@ export function ConnectForm({
             />
             <button
               type="button"
-              onClick={() => setShowToken((v) => !v)}
+              onClick={() => setShowToken((shown) => !shown)}
               className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
               aria-label={showToken ? "Hide token" : "Show token"}
             >
@@ -127,7 +132,7 @@ export function ConnectForm({
         )}
 
         <Button type="submit" className="w-full" size="lg" disabled={pending || !baseUrl.trim() || !token.trim()}>
-          {pending ? "Checking with Canvas..." : reconnect ? "Reconnect" : "Connect Canvas"}
+          {submitLabel}
         </Button>
 
         <p className="flex gap-2 text-xs leading-relaxed text-muted-foreground">
