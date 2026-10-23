@@ -16,7 +16,7 @@ export default async function AppLayout({
 
   return (
     <AppShell
-      displayName={user.profile?.displayName ?? "Student"}
+      displayName={user.profile?.displayName || "Student"}
       isAdmin={user.isAdmin}
       ai={aiEnabled}
       activeSession={activeSession}

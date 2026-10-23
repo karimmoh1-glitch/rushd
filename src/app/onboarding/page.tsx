@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { OnboardingWizard } from "./onboarding-wizard";
-import { teamsAvailable } from "@/lib/teams/service";
-import { aiEnabled } from "@/lib/env";
 import { emailConfigured } from "@/lib/email/send";
+import { popularCatalogCourses } from "@/lib/courses/usage";
 
 export const metadata: Metadata = {
   title: "Set up your plan",
 };
 
-export default function OnboardingPage() {
-  return <OnboardingWizard teams={teamsAvailable()} ai={aiEnabled} email={emailConfigured()} />;
+export default async function OnboardingPage() {
+  // Only courses enough real students chose; empty until then.
+  const popular = await popularCatalogCourses();
+  return <OnboardingWizard email={emailConfigured()} popularIds={popular.map((course) => course.catalogId)} />;
 }
