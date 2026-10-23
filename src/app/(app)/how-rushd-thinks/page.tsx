@@ -36,6 +36,12 @@ const SCORING_FACTORS = [
   },
 ];
 
+// "+12%" or "-8%"
+function signedPercent(percent: number): string {
+  if (percent > 0) return `+${percent}%`;
+  return `${percent}%`;
+}
+
 export default async function HowRushdThinksPage() {
   const user = await requireUser();
 
@@ -54,14 +60,14 @@ export default async function HowRushdThinksPage() {
     }),
     logEvent(user.id, "how_rushd_thinks_viewed"),
   ]);
-  const sessions: SessionRecord[] = rows.map((r) => ({
-    className: r.className,
-    classColor: r.classColor,
-    status: r.status as "COMPLETED" | "ABANDONED",
-    plannedMinutes: r.plannedMinutes,
-    actualMinutes: r.actualMinutes,
-    perceivedDifficulty: r.perceivedDifficulty,
-    startedAt: r.startedAt,
+  const sessions: SessionRecord[] = rows.map((row) => ({
+    className: row.className,
+    classColor: row.classColor,
+    status: row.status as "COMPLETED" | "ABANDONED",
+    plannedMinutes: row.plannedMinutes,
+    actualMinutes: row.actualMinutes,
+    perceivedDifficulty: row.perceivedDifficulty,
+    startedAt: row.startedAt,
   }));
 
   const estimationProfile = buildEstimationProfile(sessions);
@@ -97,10 +103,10 @@ export default async function HowRushdThinksPage() {
             How prioritization works
           </h2>
           <div className="space-y-3">
-            {SCORING_FACTORS.map((f) => (
-              <div key={f.label} className="rounded-lg border border-border px-4 py-3">
-                <p className="font-medium">{f.label}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{f.body}</p>
+            {SCORING_FACTORS.map((factor) => (
+              <div key={factor.label} className="rounded-lg border border-border px-4 py-3">
+                <p className="font-medium">{factor.label}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{factor.body}</p>
               </div>
             ))}
           </div>
@@ -124,18 +130,18 @@ export default async function HowRushdThinksPage() {
             </p>
           ) : (
             <div className="space-y-2">
-              {estimationProfile.byClass.map((c) => (
+              {estimationProfile.byClass.map((course) => (
                 <div
-                  key={c.className}
+                  key={course.className}
                   className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
                 >
-                  <p className="font-medium">{c.className}</p>
+                  <p className="font-medium">{course.className}</p>
                   <p className="text-sm text-muted-foreground">
                     Estimates adjusted{" "}
                     <span className="font-medium text-foreground">
-                      {c.percentOff > 0 ? `+${c.percentOff}%` : `${c.percentOff}%`}
+                      {signedPercent(course.percentOff)}
                     </span>{" "}
-                    from {c.sampleSize} session{c.sampleSize === 1 ? "" : "s"}
+                    from {course.sampleSize} session{course.sampleSize === 1 ? "" : "s"}
                   </p>
                 </div>
               ))}
@@ -160,12 +166,12 @@ export default async function HowRushdThinksPage() {
             </p>
           ) : (
             <div className="space-y-2">
-              {patterns.map((p) => (
-                <div key={p.key} className="rounded-lg border border-border px-4 py-3">
-                  <p className="text-sm">{p.statement}</p>
+              {patterns.map((pattern) => (
+                <div key={pattern.key} className="rounded-lg border border-border px-4 py-3">
+                  <p className="text-sm">{pattern.statement}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {p.confidence === "high" ? "High confidence" : "Medium confidence"} · from{" "}
-                    {p.sampleSize} session{p.sampleSize === 1 ? "" : "s"}
+                    {pattern.confidence === "high" ? "High confidence" : "Medium confidence"} · from{" "}
+                    {pattern.sampleSize} session{pattern.sampleSize === 1 ? "" : "s"}
                   </p>
                 </div>
               ))}

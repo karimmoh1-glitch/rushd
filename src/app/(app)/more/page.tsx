@@ -15,17 +15,20 @@ const LINKS = [
 ];
 
 export default function MorePage() {
+  // AI-only links are hidden when AI features are off.
+  const visibleLinks = LINKS.filter((link) => aiEnabled || !("ai" in link));
+
   return (
     <div className="space-y-6">
       <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">More</h1>
       <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-        {LINKS.filter((l) => aiEnabled || !("ai" in l)).map((l) => (
-          <li key={l.href}>
-            <Link href={l.href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/60">
-              <l.icon className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        {visibleLinks.map((link) => (
+          <li key={link.href}>
+            <Link href={link.href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/60">
+              <link.icon className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
               <span>
-                <span className="block text-sm font-medium">{l.label}</span>
-                <span className="block text-xs text-muted-foreground">{l.detail}</span>
+                <span className="block text-sm font-medium">{link.label}</span>
+                <span className="block text-xs text-muted-foreground">{link.detail}</span>
               </span>
             </Link>
           </li>

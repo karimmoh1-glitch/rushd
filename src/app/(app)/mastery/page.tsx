@@ -12,11 +12,23 @@ import { PathEmpty } from "@/components/brand/path-empty";
 export const metadata: Metadata = { title: "Mastery" };
 
 const STATUS_LABEL = { needs_review: "Needs review", developing: "Developing", strong: "Strong" } as const;
+const STATUS_ORDER = ["needs_review", "developing", "strong"] as const;
+
+const TREND_DISPLAY = {
+  up: { Icon: ArrowUpRight, label: "Improving" },
+  down: { Icon: ArrowDownRight, label: "Slipping" },
+  steady: { Icon: Minus, label: "Steady" },
+};
+
+function barColor(status: TopicMastery["status"]): string {
+  if (status === "needs_review") return "bg-signal";
+  if (status === "strong") return "bg-teal";
+  return "bg-foreground/55";
+}
 
 function Trend({ trend }: { trend: TopicMastery["trend"] }) {
   if (!trend) return null;
-  const Icon = trend === "up" ? ArrowUpRight : trend === "down" ? ArrowDownRight : Minus;
-  const label = trend === "up" ? "Improving" : trend === "down" ? "Slipping" : "Steady";
+  const { Icon, label } = TREND_DISPLAY[trend];
   return (
     <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
       <Icon className="h-3 w-3" aria-hidden="true" />
@@ -25,11 +37,55 @@ function Trend({ trend }: { trend: TopicMastery["trend"] }) {
   );
 }
 
+function TopicRow({ topic, timeZone }: { topic: TopicMastery; timeZone: string | null | undefined }) {
+  const lastChecked = formatDateInZone(topic.lastAssessed, timeZone, { month: "short", day: "numeric" });
+  return (
+    <li className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5 py-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{topic.topicLabel}</p>
+        <p className="text-xs text-muted-foreground">
+          {topic.evidenceCount} check{topic.evidenceCount === 1 ? "" : "s"} · last {lastChecked} · {topic.confidence} confidence
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm tabular-nums">{topic.low}–{topic.high}%</p>
+        <Trend trend={topic.trend} />
+      </div>
+      <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`Estimated ${topic.low} to ${topic.high} percent`}>
+        <div className={`h-full rounded-full ${barColor(topic.status)}`} style={{ marginLeft: `${topic.low}%`, width: `${Math.max(2, topic.high - topic.low)}%` }} />
+      </div>
+    </li>
+  );
+}
+
+function TopicGroup({
+  status,
+  topics,
+  timeZone,
+}: {
+  status: TopicMastery["status"];
+  topics: TopicMastery[];
+  timeZone: string | null | undefined;
+}) {
+  if (topics.length === 0) return null;
+  return (
+    <section aria-labelledby={`g-${status}`}>
+      <h2 id={`g-${status}`} className="border-b border-border pb-2 text-base font-semibold">
+        {STATUS_LABEL[status]} <span className="font-normal text-muted-foreground">· {topics.length}</span>
+      </h2>
+      <ul className="divide-y divide-border">
+        {topics.map((topic) => (
+          <TopicRow key={topic.topicKey} topic={topic} timeZone={timeZone} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default async function MasteryPage() {
   const user = await requireUser();
   const topics = await getMastery(user.id);
   const focus = nextReview(topics);
-  const groups = (["needs_review", "developing", "strong"] as const).map((s) => ({ status: s, topics: topics.filter((t) => t.status === s) }));
 
   return (
     <div className="max-w-3xl space-y-10">
@@ -76,34 +132,14 @@ export default async function MasteryPage() {
             </section>
           )}
 
-          {groups.map((g) =>
-            g.topics.length === 0 ? null : (
-              <section key={g.status} aria-labelledby={`g-${g.status}`}>
-                <h2 id={`g-${g.status}`} className="border-b border-border pb-2 text-base font-semibold">
-                  {STATUS_LABEL[g.status]} <span className="font-normal text-muted-foreground">· {g.topics.length}</span>
-                </h2>
-                <ul className="divide-y divide-border">
-                  {g.topics.map((t) => (
-                    <li key={t.topicKey} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{t.topicLabel}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t.evidenceCount} check{t.evidenceCount === 1 ? "" : "s"} · last {formatDateInZone(t.lastAssessed, user.profile?.timezone, { month: "short", day: "numeric" })} · {t.confidence} confidence
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm tabular-nums">{t.low}–{t.high}%</p>
-                        <Trend trend={t.trend} />
-                      </div>
-                      <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`Estimated ${t.low} to ${t.high} percent`}>
-                        <div className={`h-full rounded-full ${t.status === "needs_review" ? "bg-signal" : t.status === "strong" ? "bg-teal" : "bg-foreground/55"}`} style={{ marginLeft: `${t.low}%`, width: `${Math.max(2, t.high - t.low)}%` }} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ),
-          )}
+          {STATUS_ORDER.map((status) => (
+            <TopicGroup
+              key={status}
+              status={status}
+              topics={topics.filter((topic) => topic.status === status)}
+              timeZone={user.profile?.timezone}
+            />
+          ))}
           <p className="text-xs text-muted-foreground">
             Estimates are AI judgments of short checks, not grades. They weigh recent evidence more (half-life about a month)
             and widen when evidence is thin.

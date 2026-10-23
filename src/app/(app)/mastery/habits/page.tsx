@@ -14,10 +14,24 @@ export const metadata: Metadata = {
   title: "Progress",
 };
 
+// 0 -> "12 AM", 13 -> "1 PM"
 function formatHour(hour: number): string {
   const period = hour >= 12 ? "PM" : "AM";
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${h12} ${period}`;
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12} ${period}`;
+}
+
+// Within 10% either way counts as "about as expected".
+function accuracyColor(percentOff: number): string {
+  if (Math.abs(percentOff) <= 10) return "text-success";
+  if (percentOff > 0) return "text-warning";
+  return "text-muted-foreground";
+}
+
+function accuracyText(percentOff: number): string {
+  if (Math.abs(percentOff) <= 10) return "About as expected";
+  if (percentOff > 0) return `Takes ${percentOff}% longer than estimated`;
+  return `Takes ${Math.abs(percentOff)}% less time than estimated`;
 }
 
 export default async function InsightsPage() {
@@ -40,19 +54,24 @@ export default async function InsightsPage() {
     logEvent(user.id, "insights_viewed"),
   ]);
 
-  const sessions: SessionRecord[] = rows.map((r) => ({
-    className: r.className,
-    classColor: r.classColor,
-    status: r.status as "COMPLETED" | "ABANDONED",
-    plannedMinutes: r.plannedMinutes,
-    actualMinutes: r.actualMinutes,
-    perceivedDifficulty: r.perceivedDifficulty,
-    startedAt: r.startedAt,
+  const sessions: SessionRecord[] = rows.map((row) => ({
+    className: row.className,
+    classColor: row.classColor,
+    status: row.status as "COMPLETED" | "ABANDONED",
+    plannedMinutes: row.plannedMinutes,
+    actualMinutes: row.actualMinutes,
+    perceivedDifficulty: row.perceivedDifficulty,
+    startedAt: row.startedAt,
   }));
 
   const insights = buildInsights(sessions);
   const hasAnyPattern =
     insights.estimateAccuracy.length > 0 || insights.timeOfDay || insights.busiestDay;
+
+  let completionText = "—";
+  if (insights.overallCompletionRate !== null) {
+    completionText = `${Math.round(insights.overallCompletionRate * 100)}%`;
+  }
 
   return (
     <div className="space-y-10">
@@ -99,9 +118,7 @@ export default async function InsightsPage() {
               <Card className="col-span-2 sm:col-span-1">
                 <CardContent className="py-4">
                   <p className="text-2xl font-semibold">
-                    {insights.overallCompletionRate !== null
-                      ? `${Math.round(insights.overallCompletionRate * 100)}%`
-                      : "—"}
+                    {completionText}
                   </p>
                   <p className="text-sm text-muted-foreground">Sessions completed, not abandoned</p>
                 </CardContent>
@@ -147,20 +164,8 @@ export default async function InsightsPage() {
                           </p>
                         </div>
                       </div>
-                      <p
-                        className={`shrink-0 text-sm font-medium ${
-                          Math.abs(row.percentOff) <= 10
-                            ? "text-success"
-                            : row.percentOff > 0
-                              ? "text-warning"
-                              : "text-muted-foreground"
-                        }`}
-                      >
-                        {Math.abs(row.percentOff) <= 10
-                          ? "About as expected"
-                          : row.percentOff > 0
-                            ? `Takes ${row.percentOff}% longer than estimated`
-                            : `Takes ${Math.abs(row.percentOff)}% less time than estimated`}
+                      <p className={`shrink-0 text-sm font-medium ${accuracyColor(row.percentOff)}`}>
+                        {accuracyText(row.percentOff)}
                       </p>
                     </div>
                   ))}
