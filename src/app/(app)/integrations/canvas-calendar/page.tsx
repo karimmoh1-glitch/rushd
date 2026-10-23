@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth/dal";
 import { feedAvailable } from "@/lib/feed/service";
 import { formatDateInZone } from "@/lib/time/zone";
 import { FeedControls } from "./feed-controls";
+import { PageHeader } from "@/components/page-section";
 
 export const metadata: Metadata = { title: "Canvas calendar feed" };
 export const maxDuration = 60;
@@ -12,7 +13,7 @@ export const maxDuration = 60;
 const STEPS = [
   "In Canvas, open Calendar (left menu).",
   "At the bottom of the right sidebar, choose Calendar Feed.",
-  "Copy the link it shows (it ends in .ics) and paste it below.",
+  "Copy the link it shows (it ends in .ics) and paste it into Calendar feed link.",
 ];
 
 export default async function CanvasCalendarPage() {
@@ -30,39 +31,47 @@ export default async function CanvasCalendarPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <header>
-        <Link href="/integrations/canvas" className="text-sm text-muted-foreground hover:text-foreground">Canvas</Link>
-        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Canvas calendar feed</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          For schools that turn off Canvas access tokens. Your calendar feed lists every assignment and due date, and works
-          everywhere. Rushd only reads it.
-        </p>
-      </header>
+    <div className="space-y-8">
+      <PageHeader
+        back={{ href: "/settings#integrations", label: "Settings" }}
+        title="Canvas calendar feed"
+        description={
+          <>
+            For schools that turn off Canvas access tokens. Your calendar feed lists every assignment and due date, and works
+            everywhere. Rushd only reads it.
+          </>
+        }
+      />
 
       {!feed ? (
-        <section className="space-y-5">
-          <ol className="space-y-2 text-sm">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+          <ol className="space-y-5">
             {STEPS.map((step, index) => (
-              <li key={step} className="flex gap-3">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border font-mono text-[11px]">{index + 1}</span>
-                {step}
+              <li key={step} className="flex gap-3 text-[15px] leading-relaxed">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-strong font-mono text-xs text-muted-foreground">{index + 1}</span>
+                <span className="pt-0.5">{step}</span>
               </li>
             ))}
+            <li className="pl-10 text-sm text-muted-foreground">
+              Have a Canvas access token instead?{" "}
+              <Link href="/integrations/canvas" className="text-foreground underline underline-offset-4">Connect Canvas directly</Link>.
+            </li>
           </ol>
-          {feedAvailable() ? (
-            <FeedControls connected={false} />
-          ) : (
-            <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">Calendar import isn&apos;t set up on this server yet.</p>
-          )}
-          <ul className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
-            <li>The feed link is private to you, so Rushd stores it encrypted, like a password.</li>
-            <li>It shows what&apos;s due, not what you&apos;ve turned in: check things off in Rushd as you finish them.</li>
-            <li>Rushd re-reads it every day. You can disconnect anytime.</li>
-          </ul>
-        </section>
+          <div className="space-y-4 rounded-xl bg-card p-5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07]">
+            {feedAvailable() ? (
+              <FeedControls connected={false} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Calendar import isn&apos;t set up on this server yet.</p>
+            )}
+            <ul className="space-y-1.5 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground">
+              <li>The feed link is private to you, so Rushd stores it encrypted, like a password.</li>
+              <li>It shows what&apos;s due, not what you&apos;ve turned in: check things off in Rushd as you finish them.</li>
+              <li>Rushd re-reads it every day. You can disconnect anytime.</li>
+            </ul>
+          </div>
+        </div>
       ) : (
-        <section className="space-y-6">
+        <section className="max-w-2xl space-y-6 rounded-xl bg-card p-5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07]">
           <div className="space-y-1 text-sm">
             <p>
               Connected to {feed.host}. {count} upcoming assignment{count === 1 ? "" : "s"}.{" "}

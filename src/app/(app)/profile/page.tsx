@@ -7,7 +7,7 @@ import { buildInsights, type SessionRecord } from "@/lib/insights/build-insights
 import { CHALLENGE_OPTIONS } from "@/lib/validation/onboarding";
 import { logEvent } from "@/lib/analytics/log-event";
 import { formatDuration } from "@/lib/format";
-import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader, Panel, StatTile } from "@/components/page-section";
 
 export const metadata: Metadata = {
   title: "Academic Profile",
@@ -51,17 +51,6 @@ function describeStudent(grade: number | null | undefined, school: string | null
   return parts.join(" · ");
 }
 
-function StatCard({ value, label }: { value: React.ReactNode; label: string }) {
-  return (
-    <Card>
-      <CardContent className="py-4">
-        <p className="text-2xl font-semibold">{value}</p>
-        <p className="text-sm text-muted-foreground">{label}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
 function SubjectCard({
   heading,
   headingColor,
@@ -76,24 +65,12 @@ function SubjectCard({
   note: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardContent className="py-4">
-        <p className={`text-xs font-semibold tracking-wide ${headingColor} uppercase`}>
-          {heading}
-        </p>
-        <p className="mt-1 flex items-center gap-2 font-medium">
-          <span
-            aria-hidden="true"
-            className="h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: classColor }}
-          />
-          {subjectName}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {note}
-        </p>
-      </CardContent>
-    </Card>
+    <div style={{ ["--course" as string]: classColor }} className="relative overflow-hidden rounded-lg bg-surface-2 py-3 pl-4 pr-3">
+      <span aria-hidden="true" className="course-rule absolute inset-y-0 left-0 w-1" />
+      <p className={`text-xs font-semibold uppercase tracking-wide ${headingColor}`}>{heading}</p>
+      <p className="mt-1 font-medium">{subjectName}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{note}</p>
+    </div>
   );
 }
 
@@ -158,153 +135,137 @@ export default async function ProfilePage() {
     completionText = `${Math.round(insights.overallCompletionRate * 100)}%`;
   }
 
+  const name = profile?.displayName?.trim();
+
   return (
-    <div className="space-y-10">
-      <div>
-        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
-          {profile?.displayName ?? "Your"}&apos;s Academic Profile
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {describeStudent(profile?.grade, profile?.school)}
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title={name ? `${name}'s academic profile` : "Your academic profile"}
+        description={describeStudent(profile?.grade, profile?.school)}
+      />
 
       {challenge && (
-        <div>
-          <Card className="border-primary/40 bg-accent/30">
-            <CardContent className="flex items-start gap-3 py-4">
-              <Target className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-medium">
-                  Your biggest challenge: {challenge.label}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {CHALLENGE_ADVICE[challenge.value]}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex items-start gap-3 rounded-xl bg-signal-soft/60 px-4 py-4 ring-1 ring-signal/30 sm:px-5">
+          <Target className="mt-0.5 h-5 w-5 shrink-0 text-signal-ink" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-medium">Your biggest challenge: {challenge.label}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{CHALLENGE_ADVICE[challenge.value]}</p>
+          </div>
         </div>
       )}
 
-      <div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard value={classes.length} label="Active classes" />
-          <StatCard value={availableDays} label="Days available to study" />
-          <StatCard value={formatDuration(weeklyAvailableMinutes)} label="Available per week" />
-          <StatCard value={completionText} label="Sessions completed" />
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile value={classes.length} label="Active courses" />
+        <StatTile value={availableDays} label="Days available to study" />
+        <StatTile value={formatDuration(weeklyAvailableMinutes)} label="Available per week" />
+        <StatTile value={completionText} label="Sessions completed" />
       </div>
 
-      <div>
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold">
-            <GraduationCap className="h-4 w-4 text-primary" aria-hidden="true" />
-            Your classes
-          </h2>
-          {classes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No classes yet —{" "}
-              <Link href="/courses" className="underline underline-offset-4">
-                add your first one
-              </Link>
-              .
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {classes.map((course) => (
-                <span
-                  key={course.id}
-                  className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm"
+      <Panel
+        id="classes"
+        icon={GraduationCap}
+        title="Your courses"
+        aside={
+          <Link href="/courses" className="text-sm text-muted-foreground hover:text-foreground">
+            Courses
+          </Link>
+        }
+      >
+        {classes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No courses yet —{" "}
+            <Link href="/courses" className="underline underline-offset-4">
+              add your first one
+            </Link>
+            .
+          </p>
+        ) : (
+          <ul className="flex flex-wrap gap-2">
+            {classes.map((course) => (
+              <li key={course.id} style={{ ["--course" as string]: course.color }}>
+                <Link
+                  href={`/courses/${course.id}`}
+                  className="course-tint flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm ring-1 ring-border transition-colors hover:ring-border-strong"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: course.color }}
-                  />
+                  <span aria-hidden="true" className="course-rule h-2 w-2 shrink-0 rounded-full" />
                   {course.name}
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
 
       {subjects && (
-        <div>
-          <section>
-            <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold">
-              <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
-              Strongest and toughest subjects
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <SubjectCard
-                heading="Strongest"
-                headingColor="text-success"
-                classColor={subjects.strongest.classColor}
-                subjectName={subjects.strongest.className}
-                note="Rarely feels harder than expected."
-              />
-              <SubjectCard
-                heading="Most difficult"
-                headingColor="text-warning"
-                classColor={subjects.hardest.classColor}
-                subjectName={subjects.hardest.className}
-                note={<>Felt harder than expected {Math.round(subjects.hardest.harderShare * 100)}% of the time.</>}
-              />
-            </div>
-          </section>
-        </div>
+        <Panel id="subjects" icon={TrendingUp} title="Strongest and toughest subjects">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SubjectCard
+              heading="Strongest"
+              headingColor="text-success"
+              classColor={subjects.strongest.classColor}
+              subjectName={subjects.strongest.className}
+              note="Rarely feels harder than expected."
+            />
+            <SubjectCard
+              heading="Most difficult"
+              headingColor="text-warning"
+              classColor={subjects.hardest.classColor}
+              subjectName={subjects.hardest.className}
+              note={<>Felt harder than expected {Math.round(subjects.hardest.harderShare * 100)}% of the time.</>}
+            />
+          </div>
+        </Panel>
       )}
 
-      <div>
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold">
-            <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
-            Work habits
-          </h2>
-          {insights.busiestDay || insights.timeOfDay ? (
-            <div className="space-y-2 text-sm text-muted-foreground">
-              {insights.busiestDay && (
-                <p>
-                  <span className="font-medium text-foreground">{insights.busiestDay.dayLabel}</span> is
-                  your busiest study day.
-                </p>
-              )}
-              {insights.timeOfDay && (
-                <p>
-                  You complete{" "}
-                  <span className="font-medium text-foreground">
-                    {Math.round(insights.timeOfDay.beforeRate * 100)}%
-                  </span>{" "}
-                  of sessions started before 6 PM, vs{" "}
-                  <span className="font-medium text-foreground">
-                    {Math.round(insights.timeOfDay.afterRate * 100)}%
-                  </span>{" "}
-                  after.
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Log a few more study sessions and Rushd will start noticing your patterns. See{" "}
-              <Link href="/mastery/habits" className="underline underline-offset-4">
-                Insights
-              </Link>{" "}
-              for the full breakdown.
-            </p>
-          )}
-        </section>
-      </div>
+      <Panel
+        id="habits"
+        icon={Clock}
+        title="Work habits"
+        aside={
+          <Link href="/mastery/habits" className="text-sm text-muted-foreground hover:text-foreground">
+            Progress
+          </Link>
+        }
+      >
+        {insights.busiestDay || insights.timeOfDay ? (
+          <div className="space-y-2 text-sm text-muted-foreground">
+            {insights.busiestDay && (
+              <p>
+                <span className="font-medium text-foreground">{insights.busiestDay.dayLabel}</span> is
+                your busiest study day.
+              </p>
+            )}
+            {insights.timeOfDay && (
+              <p>
+                You complete{" "}
+                <span className="font-medium text-foreground">
+                  {Math.round(insights.timeOfDay.beforeRate * 100)}%
+                </span>{" "}
+                of sessions started before 6 PM, vs{" "}
+                <span className="font-medium text-foreground">
+                  {Math.round(insights.timeOfDay.afterRate * 100)}%
+                </span>{" "}
+                after.
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Log a few more study sessions and Rushd will start noticing your patterns. See{" "}
+            <Link href="/mastery/habits" className="underline underline-offset-4">
+              Progress
+            </Link>{" "}
+            for the full breakdown.
+          </p>
+        )}
+      </Panel>
 
-      <div>
-        <Link
-          href="/how-rushd-thinks"
-          className="block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-        >
-          See how Rushd calculates all of this →
-        </Link>
-      </div>
+      <Link
+        href="/how-rushd-thinks"
+        className="block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+      >
+        See how Rushd calculates all of this →
+      </Link>
     </div>
   );
 }

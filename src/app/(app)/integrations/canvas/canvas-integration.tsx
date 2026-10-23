@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ChevronLeft, RefreshCw, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -51,6 +51,10 @@ export function CanvasIntegration({
   return (
     <div className="space-y-10">
       <header className="max-w-2xl">
+        <Link href="/settings#integrations" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          Settings
+        </Link>
         <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Canvas</h1>
         <p className="mt-2 text-base text-muted-foreground">
           {view
