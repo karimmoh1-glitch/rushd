@@ -25,10 +25,14 @@ import { CLASS_COLORS, DEFAULT_CLASS_COLOR } from "@/lib/class-colors";
 import { PRIORITY_LABELS } from "@/lib/priority";
 import { cn } from "@/lib/utils";
 import type { ClassInput } from "@/lib/validation/classes";
+import { COURSE_LEVELS, levelLabel, type CatalogCourse, type CourseLevelValue } from "@/lib/courses/catalog";
+import { CourseSearch } from "./course-search";
 
 export interface ClassDialogInitialData extends ClassInput {
   id: string;
 }
+
+const NO_LEVEL = "NONE";
 
 function submitLabel(pending: boolean, editing: boolean): string {
   if (pending) return "Saving…";
@@ -40,18 +44,22 @@ export function ClassDialog({
   open,
   onOpenChange,
   initialData,
+  timeZone,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: ClassDialogInitialData;
+  /** The student's time zone, which term dates and plans use. */
+  timeZone?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         {/* The key gives each course (or "new") its own fresh form state. */}
         <ClassDialogForm
           key={initialData?.id ?? "new"}
           initialData={initialData}
+          timeZone={timeZone}
           onDone={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -61,30 +69,51 @@ export function ClassDialog({
 
 function ClassDialogForm({
   initialData,
+  timeZone,
   onDone,
 }: {
   initialData?: ClassDialogInitialData;
+  timeZone?: string;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState(initialData?.name ?? "");
   const [teacher, setTeacher] = useState(initialData?.teacher ?? "");
   const [period, setPeriod] = useState(initialData?.period ?? "");
-  const [color, setColor] = useState<string>(
-    initialData?.color ?? DEFAULT_CLASS_COLOR,
-  );
-  const [priority, setPriority] = useState<ClassInput["priority"]>(
-    initialData?.priority ?? "MEDIUM",
-  );
+  const [color, setColor] = useState<string>(initialData?.color ?? DEFAULT_CLASS_COLOR);
+  const [priority, setPriority] = useState<ClassInput["priority"]>(initialData?.priority ?? "MEDIUM");
+  const [level, setLevel] = useState<CourseLevelValue | null>(initialData?.level ?? null);
+  const [code, setCode] = useState(initialData?.code ?? "");
+  const [institution, setInstitution] = useState(initialData?.institution ?? "");
+  const [subject, setSubject] = useState(initialData?.subject ?? "");
+  const [termStart, setTermStart] = useState(initialData?.termStart ?? "");
+  const [termEnd, setTermEnd] = useState(initialData?.termEnd ?? "");
+  const [weeklyHours, setWeeklyHours] = useState(initialData?.weeklyHours ? String(initialData.weeklyHours) : "");
+  const [error, setError] = useState<string | null>(null);
+
+  // Picking a suggestion fills in what we know about that course.
+  function pickCourse(course: CatalogCourse) {
+    setName(course.title);
+    setSubject(course.subject);
+    if (!level) setLevel(course.level);
+  }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    setError(null);
     const input: ClassInput = {
       name,
       teacher: teacher || undefined,
       period: period || undefined,
       color,
       priority,
+      level: level ?? undefined,
+      code,
+      institution,
+      subject,
+      termStart,
+      termEnd,
+      weeklyHours: weeklyHours ? Number(weeklyHours) : undefined,
     };
 
     startTransition(async () => {
@@ -96,6 +125,8 @@ function ClassDialogForm({
       }
 
       if ("error" in result) {
+        // Shown next to the form as well as in a toast, so screen readers hear it.
+        setError(result.error);
         toast.error(result.error);
         return;
       }
@@ -109,21 +140,52 @@ function ClassDialogForm({
       <DialogHeader>
         <DialogTitle>{initialData ? "Edit course" : "Add a course"}</DialogTitle>
         <DialogDescription>
-          Name, color, and priority are used to build your plan.
+          Search for your course or type your own. Only the name is required.
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4 py-4">
         <div className="space-y-2">
-          <Label htmlFor="class-name">Name</Label>
+          <Label htmlFor="class-level">Level</Label>
+          <Select value={level ?? NO_LEVEL} onValueChange={(value) => setLevel(!value || value === NO_LEVEL ? null : (value as CourseLevelValue))}>
+            <SelectTrigger id="class-level">
+              <SelectValue>{(value: string) => (value === NO_LEVEL ? "Not set" : levelLabel(value as CourseLevelValue))}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_LEVEL}>Not set</SelectItem>
+              {COURSE_LEVELS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="class-name">Course</Label>
+          <CourseSearch value={name} level={level} onChange={setName} onPick={pickCourse} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="class-code">Course code (optional)</Label>
+            <Input id="class-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="e.g. CHEM 101" maxLength={30} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="class-subject">Subject (optional)</Label>
+            <Input id="class-subject" value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="e.g. Science" maxLength={60} />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="class-institution">School (optional)</Label>
           <Input
-            id="class-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="e.g. AP Chemistry"
-            maxLength={80}
-            required
-            autoFocus
+            id="class-institution"
+            value={institution}
+            onChange={(event) => setInstitution(event.target.value)}
+            placeholder="e.g. Lincoln High School"
+            maxLength={120}
           />
         </div>
 
@@ -148,6 +210,45 @@ function ClassDialogForm({
             />
           </div>
         </div>
+
+        <details className="rounded-lg border border-border px-3 py-2" open={Boolean(termStart || termEnd || weeklyHours)}>
+          <summary className="cursor-pointer text-sm font-medium">Term and study time (optional)</summary>
+          <div className="space-y-4 pb-1 pt-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="class-term-start">Term starts</Label>
+                <Input id="class-term-start" type="date" value={termStart} onChange={(event) => setTermStart(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="class-term-end">Term ends</Label>
+                <Input id="class-term-end" type="date" value={termEnd} onChange={(event) => setTermEnd(event.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="class-weekly-hours">Study time you want for this course</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="class-weekly-hours"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={40}
+                  step={1}
+                  value={weeklyHours}
+                  onChange={(event) => setWeeklyHours(event.target.value)}
+                  className="w-24"
+                  aria-describedby="class-weekly-hours-unit"
+                />
+                <span id="class-weekly-hours-unit" className="text-sm text-muted-foreground">hours a week</span>
+              </div>
+            </div>
+            {timeZone && (
+              <p className="text-xs text-muted-foreground">
+                Dates use your time zone ({timeZone}). You can change it in Settings.
+              </p>
+            )}
+          </div>
+        </details>
 
         <div className="space-y-2">
           <Label>Color</Label>
@@ -187,6 +288,12 @@ function ClassDialogForm({
             </SelectContent>
           </Select>
         </div>
+
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
       </div>
 
       <DialogFooter>

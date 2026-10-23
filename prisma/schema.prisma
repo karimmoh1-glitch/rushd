@@ -129,6 +129,17 @@ model StudyAvailability {
 // Academic structure
 // ---------------------------------------------------------------------------
 
+enum CourseLevel {
+  MIDDLE_SCHOOL
+  HIGH_SCHOOL
+  AP
+  IB
+  DUAL_ENROLLMENT
+  COMMUNITY_COLLEGE
+  UNIVERSITY
+  OTHER
+}
+
 enum Priority {
   LOW
   MEDIUM
@@ -144,6 +155,15 @@ model Class {
   color     String   @default("#2563eb")
   priority  Priority @default(MEDIUM)
   archived  Boolean  @default(false)
+  // Course details (all optional, so courses from Canvas/Teams/onboarding
+  // keep working without them).
+  level       CourseLevel?
+  institution String?
+  subject     String?
+  code        String? // e.g. "CHEM 101"; as the school writes it
+  termStart   DateTime? @db.Date
+  termEnd     DateTime? @db.Date
+  weeklyHours Int? // the student's own study-time goal for this course
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

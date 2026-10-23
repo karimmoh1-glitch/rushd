@@ -16,6 +16,7 @@ import {
 import { setClassArchived, deleteClass } from "@/server/actions/classes";
 import { ClassDialog } from "./class-dialog";
 import type { ClassInput } from "@/lib/validation/classes";
+import { levelLabel } from "@/lib/courses/catalog";
 
 const PRIORITY_LABEL: Record<ClassInput["priority"], string> = {
   LOW: "Low priority",
@@ -30,12 +31,31 @@ export interface ClassCardData extends ClassInput {
   examCount: number;
 }
 
-export function ClassCard({ data }: { data: ClassCardData }) {
+/** "Aug 25" from "2026-08-25", without time-zone shifts. */
+function shortDate(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+function courseDetails(data: ClassCardData): string {
+  const parts: string[] = [];
+  const level = levelLabel(data.level);
+  if (level) parts.push(level);
+  if (data.code) parts.push(data.code);
+  if (data.institution) parts.push(data.institution);
+  if (data.termStart && data.termEnd) parts.push(`${shortDate(data.termStart)} – ${shortDate(data.termEnd)}`);
+  else if (data.termEnd) parts.push(`Ends ${shortDate(data.termEnd)}`);
+  return parts.join(" · ");
+}
+
+export function ClassCard({ data, timeZone }: { data: ClassCardData; timeZone?: string }) {
   const [editOpen, setEditOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   // "Ms. Lee · Period 3", or a dash when neither is set.
   const details = [data.teacher, data.period].filter(Boolean).join(" · ") || "—";
+  // "AP · CHEM 101 · Lincoln High · Aug 25 – Dec 18", only the parts that are set.
+  const courseLine = courseDetails(data);
   // A course with work in it can't be deleted, only archived.
   const hasWork = data.assignmentCount > 0 || data.examCount > 0;
 
@@ -87,6 +107,7 @@ export function ClassCard({ data }: { data: ClassCardData }) {
               {data.assignmentCount} assignment{data.assignmentCount === 1 ? "" : "s"},{" "}
               {data.examCount} exam{data.examCount === 1 ? "" : "s"}
             </p>
+            {courseLine && <p className="truncate text-xs text-muted-foreground">{courseLine}</p>}
           </div>
 
           <DropdownMenu>
@@ -124,6 +145,7 @@ export function ClassCard({ data }: { data: ClassCardData }) {
       <ClassDialog
         open={editOpen}
         onOpenChange={setEditOpen}
+        timeZone={timeZone}
         initialData={{
           id: data.id,
           name: data.name,
@@ -131,6 +153,13 @@ export function ClassCard({ data }: { data: ClassCardData }) {
           period: data.period,
           color: data.color,
           priority: data.priority,
+          level: data.level,
+          code: data.code,
+          institution: data.institution,
+          subject: data.subject,
+          termStart: data.termStart,
+          termEnd: data.termEnd,
+          weeklyHours: data.weeklyHours,
         }}
       />
     </>

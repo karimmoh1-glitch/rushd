@@ -5,6 +5,8 @@ import { ClassCard, type ClassCardData } from "./class-card";
 import { AddClassButton } from "./add-class-button";
 import Link from "next/link";
 import { PathEmpty } from "@/components/brand/path-empty";
+import { toDateInput } from "@/lib/courses/service";
+import { resolveTimeZone } from "@/lib/time/zone";
 
 export const metadata: Metadata = {
   title: "Courses",
@@ -18,6 +20,13 @@ interface ClassRecord {
   color: string;
   priority: ClassCardData["priority"];
   archived: boolean;
+  level: ClassCardData["level"] | null;
+  code: string | null;
+  institution: string | null;
+  subject: string | null;
+  termStart: Date | null;
+  termEnd: Date | null;
+  weeklyHours: number | null;
   _count: { assignments: number; exams: number };
 }
 
@@ -30,6 +39,13 @@ function toCardData(course: ClassRecord): ClassCardData {
     color: course.color,
     priority: course.priority,
     archived: course.archived,
+    level: course.level ?? undefined,
+    code: course.code ?? undefined,
+    institution: course.institution ?? undefined,
+    subject: course.subject ?? undefined,
+    termStart: toDateInput(course.termStart),
+    termEnd: toDateInput(course.termEnd),
+    weeklyHours: course.weeklyHours ?? undefined,
     assignmentCount: course._count.assignments,
     examCount: course._count.exams,
   };
@@ -37,6 +53,7 @@ function toCardData(course: ClassRecord): ClassCardData {
 
 export default async function ClassesPage() {
   const user = await requireUser();
+  const timeZone = resolveTimeZone(user.profile?.timezone);
 
   const classes = await db.class.findMany({
     where: { userId: user.id },
@@ -49,6 +66,13 @@ export default async function ClassesPage() {
       color: true,
       priority: true,
       archived: true,
+      level: true,
+      code: true,
+      institution: true,
+      subject: true,
+      termStart: true,
+      termEnd: true,
+      weeklyHours: true,
       _count: { select: { assignments: true, exams: true } },
     },
   });
@@ -65,7 +89,7 @@ export default async function ClassesPage() {
             Your courses, with their assignments, materials, and rubrics.
           </p>
         </div>
-        <AddClassButton />
+        <AddClassButton timeZone={timeZone} />
       </div>
 
       {classes.length === 0 ? (
@@ -76,7 +100,7 @@ export default async function ClassesPage() {
       ) : (
         <div className="space-y-3">
           {active.map((course) => (
-            <ClassCard key={course.id} data={toCardData(course)} />
+            <ClassCard key={course.id} data={toCardData(course)} timeZone={timeZone} />
           ))}
         </div>
       )}
@@ -88,7 +112,7 @@ export default async function ClassesPage() {
           </h2>
           <div className="space-y-3">
             {archived.map((course) => (
-              <ClassCard key={course.id} data={toCardData(course)} />
+              <ClassCard key={course.id} data={toCardData(course)} timeZone={timeZone} />
             ))}
           </div>
         </div>
