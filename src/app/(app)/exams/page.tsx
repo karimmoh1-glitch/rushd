@@ -2,6 +2,7 @@ import { aiEnabled } from "@/lib/env";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
+import { currentTime } from "@/lib/time/now";
 import { pulseOf } from "@/lib/planning/pulse";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
@@ -58,6 +59,7 @@ function NoClassesYet() {
 
 export default async function ExamsPage() {
   const user = await requireUser();
+  const now = await currentTime();
   const timeZone = resolveTimeZone(user.profile?.timezone);
 
   const [classes, exams, plan] = await Promise.all([
@@ -81,15 +83,13 @@ export default async function ExamsPage() {
         class: { select: { name: true, color: true } },
       },
     }),
-    generatePlanForUser(user.id),
+    generatePlanForUser(user.id, now),
   ]);
   const pulseById = new Map(plan.scored.map((scored) => [scored.item.id, pulseOf(scored.score)]));
   function toRow(exam: ExamRecord): ExamRowData {
     return toRowData(exam, pulseById.get(exam.id) ?? null);
   }
 
-  // This page renders fresh on every request, so reading the clock here is fine.
-  const now = new Date();
   const upcoming = exams.filter((exam) => exam.examAt.getTime() >= now.getTime());
   const past = exams.filter((exam) => exam.examAt.getTime() < now.getTime());
 

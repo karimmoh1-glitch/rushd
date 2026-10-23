@@ -28,6 +28,8 @@ export type UserPlan = PlanResult & {
   learning: LearningOverview;
   /** Mastery summary per course id (courses with confirmed topics only). */
   masteryByClass: Map<string, MasterySummary>;
+  /** The student's active "skip today" / "not this week" overrides. */
+  exclusions: PlanExclusion[];
 };
 
 /**
@@ -227,5 +229,6 @@ export async function generatePlanForUser(
     timeZone: context.timeZone,
     learning: context.learning,
     masteryByClass: context.masteryByClass,
+    exclusions: context.exclusions ?? [],
   };
 }

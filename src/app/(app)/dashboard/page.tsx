@@ -366,6 +366,18 @@ function buildNextAssessment(plan: UserPlan, exams: ExamListItem[], now: Date, t
   };
 }
 
+/** The highest-ranked item, skipping anything the student said "not today"
+ * or "not this week" to. Undefined when there's nothing left to suggest. */
+function pickNextUp(plan: UserPlan, today: string): ScoredItem | undefined {
+  const putOff = new Set<string>();
+  for (const exclusion of plan.exclusions) {
+    if ((exclusion.type === "skip" && exclusion.date === today) || (exclusion.type === "not_this_week" && exclusion.date > today)) {
+      putOff.add(`${exclusion.kind}:${exclusion.itemId}`);
+    }
+  }
+  return plan.scored.find((scored) => !putOff.has(`${scored.item.kind}:${scored.item.id}`));
+}
+
 /** Minutes of work that can't fit before their deadlines. */
 function totalShortfallMinutes(plan: UserPlan): number {
   let total = 0;
@@ -434,8 +446,8 @@ export default async function DashboardPage() {
     return scored ? explainScore(scored, now, plan.scored, tz) : [];
   }
 
-  // The One Thing to do next
-  const next = plan.scored[0];
+  // The One Thing to do next: the top-ranked work the student hasn't put off today.
+  const next = pickNextUp(plan, today);
   let nextBlock: ScheduledSession | undefined;
   let nextReasons: string[] = [];
   if (next) {

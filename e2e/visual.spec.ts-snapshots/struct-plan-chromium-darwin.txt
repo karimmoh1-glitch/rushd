@@ -8,6 +8,18 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
             p .mt-1 text-sm text-muted-foreground 
           div .flex flex-wrap gap-2 
             a .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 href=/settings#planning
+        section .flex items-start gap-3 rounded-xl bg-card px-4 py-3 shadow-(--shadow-card) ring-1 ring-foreground/[0.07] sm:px-5 
+          svg .lucide lucide-arrow-right-left mt-0.5 h-4 w-4 shrink-0 text-teal 
+            path . 
+            path . 
+            path . 
+            path . 
+          div .min-w-0 flex-1 
+            h2 .text-[13px] font-semibold tracking-tight 
+            ul .mt-1 space-y-1 text-sm text-foreground/85 
+              li . 
+              li . 
+          button .group/button inline-flex items-center justify-center rounded-full border border-transparent bg-clip-padding font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-7 gap-1 px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 -my-1 shrink-0 type=button
         dl .grid grid-cols-2 gap-x-6 gap-y-4 border-y border-border py-5 sm:grid-cols-4 
           div . 
             dt .text-xs text-muted-foreground 
@@ -22,17 +34,11 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
             dt .text-xs text-muted-foreground 
             dd .mt-1 font-mono text-2xl font-semibold tabular-nums 
         ol .space-y-6 
-          li .grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6 aria-label=Today, Oct #
+          li .grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6 aria-label=Today, Oct #
             div .md:pt-2 
               div .flex items-baseline justify-between gap-2 md:block 
                 p .font-semibold text-brand-ink 
                 p .text-xs text-muted-foreground 
-            p .text-sm text-muted-foreground md:pt-2 
-          li .grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6 aria-label=Tomorrow, Oct #
-            div .md:pt-2 
-              div .flex items-baseline justify-between gap-2 md:block 
-                p .font-semibold 
-                p .text-xs text-muted-foreground 
               p .mt-1 font-mono text-xs tabular-nums text-muted-foreground 
               div .mt-2 h-1 w-full overflow-hidden rounded-full bg-muted 
                 div .h-full rounded-full bg-brand 
@@ -44,47 +50,10 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
                 span .w-1 shrink-0 rounded-full 
                 div .min-w-0 flex-1 
                   p .truncate text-sm font-medium 
-                  p .mt-0.5 truncate text-xs text-muted-foreground 
-                div .flex shrink-0 items-center gap-1 
-                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Why Lab report is here type=button
-                    svg .lucide lucide-info h-3.5 w-3.5 
-                      circle . 
-                      path . 
-                      path . 
-                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Actions for Lab report type=button
-                    svg .lucide lucide-ellipsis h-4 w-4 
-                      circle . 
-                      circle . 
-                      circle . 
-              li .group flex items-stretch gap-3 rounded-lg border bg-card px-3 py-2.5 transition-[opacity,background-color] sm:gap-4 border-border 
-                div .w-[4.75rem] shrink-0 font-mono text-xs leading-5 tabular-nums 
-                  span .block text-foreground 
-                  span .block text-muted-foreground 
-                span .w-1 shrink-0 rounded-full 
-                div .min-w-0 flex-1 
-                  p .truncate text-sm font-medium 
-                  p .mt-0.5 truncate text-xs text-muted-foreground 
-                div .flex shrink-0 items-center gap-1 
-                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Why Lab report is here type=button
-                    svg .lucide lucide-info h-3.5 w-3.5 
-                      circle . 
-                      path . 
-                      path . 
-                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Actions for Lab report type=button
-                    svg .lucide lucide-ellipsis h-4 w-4 
-                      circle . 
-                      circle . 
-                      circle . 
-              li .group flex items-stretch gap-3 rounded-lg border bg-card px-3 py-2.5 transition-[opacity,background-color] sm:gap-4 border-border 
-                div .w-[4.75rem] shrink-0 font-mono text-xs leading-5 tabular-nums 
-                  span .block text-foreground 
-                  span .block text-muted-foreground 
-                span .w-1 shrink-0 rounded-full 
-                div .min-w-0 flex-1 
-                  p .truncate text-sm font-medium 
                     span .text-muted-foreground 
                   p .mt-0.5 truncate text-xs text-muted-foreground 
-                div .flex shrink-0 items-center gap-1 
+                  p .mt-1 line-clamp-2 text-xs text-foreground/75 
+                div .flex shrink-0 items-start gap-1 
                   button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Why Biology quiz is here type=button
                     svg .lucide lucide-info h-3.5 w-3.5 
                       circle . 
@@ -95,19 +64,27 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
                       circle . 
                       circle . 
                       circle . 
-          li .grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6 aria-label=Saturday, Oct #
-            div .md:pt-2 
-              div .flex items-baseline justify-between gap-2 md:block 
-                p .font-semibold 
-                p .text-xs text-muted-foreground 
-            p .text-sm text-muted-foreground md:pt-2 
-          li .grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6 aria-label=Sunday, Oct #
-            div .md:pt-2 
-              div .flex items-baseline justify-between gap-2 md:block 
-                p .font-semibold 
-                p .text-xs text-muted-foreground 
-            p .text-sm text-muted-foreground md:pt-2 
-          li .grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6 aria-label=Monday, Oct #
+              li .group flex items-stretch gap-3 rounded-lg border bg-card px-3 py-2.5 transition-[opacity,background-color] sm:gap-4 border-border 
+                div .w-[4.75rem] shrink-0 font-mono text-xs leading-5 tabular-nums 
+                  span .block text-foreground 
+                  span .block text-muted-foreground 
+                span .w-1 shrink-0 rounded-full 
+                div .min-w-0 flex-1 
+                  p .truncate text-sm font-medium 
+                  p .mt-0.5 truncate text-xs text-muted-foreground 
+                  p .mt-1 line-clamp-2 text-xs text-foreground/75 
+                div .flex shrink-0 items-start gap-1 
+                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Why Lab report is here type=button
+                    svg .lucide lucide-info h-3.5 w-3.5 
+                      circle . 
+                      path . 
+                      path . 
+                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Actions for Lab report type=button
+                    svg .lucide lucide-ellipsis h-4 w-4 
+                      circle . 
+                      circle . 
+                      circle . 
+          li .grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6 aria-label=Tomorrow, Oct #
             div .md:pt-2 
               div .flex items-baseline justify-between gap-2 md:block 
                 p .font-semibold 
@@ -125,7 +102,8 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
                   p .truncate text-sm font-medium 
                     span .text-muted-foreground 
                   p .mt-0.5 truncate text-xs text-muted-foreground 
-                div .flex shrink-0 items-center gap-1 
+                  p .mt-1 line-clamp-2 text-xs text-foreground/75 
+                div .flex shrink-0 items-start gap-1 
                   button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Why Biology quiz is here type=button
                     svg .lucide lucide-info h-3.5 w-3.5 
                       circle . 
@@ -143,20 +121,32 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
                 span .w-1 shrink-0 rounded-full 
                 div .min-w-0 flex-1 
                   p .truncate text-sm font-medium 
-                    span .text-muted-foreground 
                   p .mt-0.5 truncate text-xs text-muted-foreground 
-                div .flex shrink-0 items-center gap-1 
-                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Why Biology quiz is here type=button
+                  p .mt-1 line-clamp-2 text-xs text-foreground/75 
+                div .flex shrink-0 items-start gap-1 
+                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Why Lab report is here type=button
                     svg .lucide lucide-info h-3.5 w-3.5 
                       circle . 
                       path . 
                       path . 
-                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Actions for Biology quiz type=button
+                  button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-7 in-data-[slot=button-group]:rounded-lg aria-label=Actions for Lab report type=button
                     svg .lucide lucide-ellipsis h-4 w-4 
                       circle . 
                       circle . 
                       circle . 
-          li .grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6 aria-label=Tuesday, Oct #
+          li .grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6 aria-label=Saturday, Oct #
+            div .md:pt-2 
+              div .flex items-baseline justify-between gap-2 md:block 
+                p .font-semibold 
+                p .text-xs text-muted-foreground 
+            p .text-sm text-muted-foreground md:pt-2 
+          li .grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6 aria-label=Sunday, Oct #
+            div .md:pt-2 
+              div .flex items-baseline justify-between gap-2 md:block 
+                p .font-semibold 
+                p .text-xs text-muted-foreground 
+            p .text-sm text-muted-foreground md:pt-2 
+          li .grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6 aria-label=Monday, Oct #
             div .md:pt-2 
               div .flex items-baseline justify-between gap-2 md:block 
                 p .font-semibold 
@@ -165,7 +155,7 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
               div .mt-2 h-1 w-full overflow-hidden rounded-full bg-muted 
                 div .h-full rounded-full bg-brand 
             p .text-sm text-muted-foreground rounded-lg border border-dashed border-border px-4 py-3 md:pt-3 
-          li .grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6 aria-label=Wednesday, Oct #
+          li .grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6 aria-label=Tuesday, Oct #
             div .md:pt-2 
               div .flex items-baseline justify-between gap-2 md:block 
                 p .font-semibold 
@@ -174,6 +164,22 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
               div .mt-2 h-1 w-full overflow-hidden rounded-full bg-muted 
                 div .h-full rounded-full bg-brand 
             p .text-sm text-muted-foreground rounded-lg border border-dashed border-border px-4 py-3 md:pt-3 
+          li .grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6 aria-label=Wednesday, Oct #
+            div .md:pt-2 
+              div .flex items-baseline justify-between gap-2 md:block 
+                p .font-semibold 
+                p .text-xs text-muted-foreground 
+              p .mt-1 font-mono text-xs tabular-nums text-muted-foreground 
+              div .mt-2 h-1 w-full overflow-hidden rounded-full bg-muted 
+                div .h-full rounded-full bg-brand 
+            p .text-sm text-muted-foreground rounded-lg border border-dashed border-border px-4 py-3 md:pt-3 
+        div .rounded-lg border border-border p-4 
+          div .flex items-center justify-between gap-3 
+            p .flex items-center gap-1.5 text-sm font-medium 
+              svg .lucide lucide-trending-up h-4 w-4 text-primary 
+                path . 
+                path . 
+            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border bg-clip-padding font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 type=button
         section . 
           h2 .mb-1 text-base font-semibold 
           p .mb-3 text-sm text-muted-foreground 
@@ -210,6 +216,9 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
           summary .cursor-pointer list-none font-medium marker:hidden 
             span .ml-2 text-muted-foreground group-open:hidden 
           ul .mt-4 space-y-2 text-muted-foreground 
+            li . 
+            li . 
+            li . 
             li . 
             li . 
             li . 

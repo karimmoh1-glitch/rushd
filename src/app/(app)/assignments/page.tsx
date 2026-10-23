@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth/dal";
 import { resolveTimeZone } from "@/lib/time/zone";
 import { AssignmentRow, type AssignmentRowData } from "./assignment-row";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
+import { currentTime } from "@/lib/time/now";
 import { pulseOf } from "@/lib/planning/pulse";
 import { AddAssignmentButton } from "./add-assignment-button";
 
@@ -95,6 +96,7 @@ function NoAssignmentsYet() {
 
 export default async function AssignmentsPage() {
   const user = await requireUser();
+  const now = await currentTime();
 
   const [classes, assignments, plan] = await Promise.all([
     db.class.findMany({
@@ -122,7 +124,7 @@ export default async function AssignmentsPage() {
         class: { select: { name: true, color: true } },
       },
     }),
-    generatePlanForUser(user.id),
+    generatePlanForUser(user.id, now),
   ]);
   const pulseById = new Map(plan.scored.map((scored) => [scored.item.id, pulseOf(scored.score)]));
   const timeZone = resolveTimeZone(user.profile?.timezone);
