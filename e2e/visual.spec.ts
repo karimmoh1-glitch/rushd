@@ -48,6 +48,8 @@ test("public interactions: ranked week and exam plan", async ({ page }) => {
 
 /** Tag, classes, and accessible attributes of every element in <body>, in order; no text. */
 async function structure(page: Page): Promise<string> {
+  // Wait for real content, not a loading skeleton (its timing depends on the database).
+  await expect(page.locator('[aria-label^="Loading"]')).toHaveCount(0, { timeout: 15_000 });
   return page.evaluate(() => {
     const out: string[] = [];
     const walk = (el: Element, depth: number) => {

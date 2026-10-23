@@ -133,6 +133,9 @@ test("study session: start, persists across navigation, completes with an edited
   // schedule today — avoids ambiguity if this item also happens to appear
   // in "One Thing" or Today's plan on the dashboard).
   await page.getByRole("link", { name: "Assignments", exact: true }).click();
+  // Today has its own "Add assignment" button: wait for the new page first.
+  await expect(page).toHaveURL(/\/assignments/);
+  await expect(page.getByRole("heading", { name: "Assignments", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "Add assignment" }).click();
   await page.getByLabel("Title").fill("Session test assignment");
   const dueInput = page.getByLabel("Due");
