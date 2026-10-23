@@ -37,6 +37,14 @@ describe("fallbackParseQuickAdd", () => {
     expect(new Date(tomorrow.dueAt!).toDateString()).toBe(expected.toDateString());
   });
 
+  it("recognizes 'yesterday' as overdue work, not part of the title", () => {
+    const draft = fallbackParseQuickAdd("AP U.S. History: reading notes yesterday 30m", [], NOW);
+    const expected = new Date(NOW);
+    expected.setDate(NOW.getDate() - 1);
+    expect(new Date(draft.dueAt!).toDateString()).toBe(expected.toDateString());
+    expect(draft.title.toLowerCase()).not.toContain("yesterday");
+  });
+
   it("resolves a weekday name to the next occurrence, today if it matches", () => {
     // NOW is Saturday (day 6). Asking for "Saturday" should resolve to today.
     const draft = fallbackParseQuickAdd("Essay due Saturday", [], NOW);

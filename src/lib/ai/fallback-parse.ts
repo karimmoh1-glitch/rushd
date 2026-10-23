@@ -65,6 +65,9 @@ function extractDate(text: string, now: Date): { date: Date | null; remaining: s
   if (/\btoday\b/.test(lower)) {
     return { date: endOfDay(now), remaining: stripMatch(text, "today") };
   }
+  if (/\byesterday\b/.test(lower)) {
+    return { date: endOfDay(addDays(now, -1)), remaining: stripMatch(text, "yesterday") };
+  }
   if (/\btomorrow\b/.test(lower)) {
     return { date: endOfDay(addDays(now, 1)), remaining: stripMatch(text, "tomorrow") };
   }

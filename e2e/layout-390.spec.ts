@@ -61,6 +61,7 @@ test("signed-in pages fit a 390px screen", async ({ browser }) => {
   const ids = await seedReviewData(email);
 
   const paths = [
+    "/dashboard", "/plan", "/mastery", "/tutor",
     "/assignments", `/assignments/${ids.assignmentId}`, "/exams", "/courses", "/practice", `/practice/${ids.assessmentId}`,
     "/mastery/habits", "/settings", "/more", "/profile", "/integrations/canvas", "/integrations/canvas-calendar",
     "/integrations/teams", "/upgrade", "/admin", "/admin/ai", "/admin/growth",

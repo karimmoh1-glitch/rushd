@@ -35,7 +35,8 @@ const NAV_ITEMS = [
   { href: "/assignments", label: "Assignments", icon: ListChecks },
   { href: "/tutor", label: "Tutor", icon: MessageSquareText, ai: true },
   { href: "/practice", label: "Practice", icon: PenLine, ai: true },
-  { href: "/mastery", label: "Mastery", icon: Target, ai: true },
+  // Mastery works without AI (practice with your own questions feeds it).
+  { href: "/mastery", label: "Mastery", icon: Target },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
