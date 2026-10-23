@@ -28,7 +28,7 @@ test("main screens have no axe violations in light or dark", async ({ browser })
     await page.getByLabel("Your assignments and tests this week, one per line").fill("AP Chemistry: lab report tomorrow 2h\nAP Chemistry quiz in 3 days\nEnglish essay in 5 days 1h");
     await page.getByRole("button", { name: "Add and rank" }).click();
     await expect(page.getByRole("heading", { name: "What's due this week?" })).toBeHidden({ timeout: 15_000 });
-    pages.push(["/dashboard", "dashboard"], ["/courses", "courses"], ["/assignments", "assignments"]);
+    pages.push(["/dashboard", "dashboard"], ["/courses", "courses"], ["/assignments", "assignments"], ["/settings", "settings"]);
     const results: string[] = [];
     for (const [path, name] of pages) {
       await page.goto(path);

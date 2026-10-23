@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import type { AssignmentInput } from "@/lib/validation/assignments";
+import { IdSchema } from "@/lib/validation/import";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 import {
   createAssignmentForUser,
@@ -57,6 +58,7 @@ export async function setAssignmentStatus(
 
 export async function deleteAssignment(id: string): Promise<ActionResult> {
   const user = await requireUserOrThrow();
+  if (!IdSchema.safeParse(id).success) return { error: "Assignment not found." };
 
   const result = await db.assignment.deleteMany({
     where: { id, userId: user.id },

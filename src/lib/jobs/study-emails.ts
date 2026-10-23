@@ -9,6 +9,7 @@ import { getStreak } from "@/lib/streak/load";
 import { emailConfigured, sendEmail, type EmailMessage } from "@/lib/email/send";
 import { unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { streakNudgeEmail, weeklyDigestEmail, type DigestItem } from "@/lib/email/templates";
+import { log } from "@/lib/log";
 
 // Study emails for students who turned them on. The Sunday digest goes out when
 // it's Sunday where the student lives; the streak nudge only in their late
@@ -138,7 +139,7 @@ export async function sendWeeklyDigests(budgetMs: number, deps: EmailJobDeps = {
         else await release(student.userId, { lastDigestAt: student.lastDigestAt });
       } catch (error) {
         // One student's problem never stops the others; they're retried next run.
-        console.error("[email] digest failed", (error as Error)?.name ?? typeof error);
+        log.error("email.digest_failed", { err: error });
         report.failed++;
         await release(student.userId, { lastDigestAt: student.lastDigestAt });
       }
@@ -192,7 +193,7 @@ export async function sendStreakNudges(budgetMs: number, deps: EmailJobDeps = {}
         else await release(student.userId, { lastNudgeAt: student.lastNudgeAt });
       } catch (error) {
         // One student's problem never stops the others; they're retried next run.
-        console.error("[email] nudge failed", (error as Error)?.name ?? typeof error);
+        log.error("email.nudge_failed", { err: error });
         report.failed++;
         await release(student.userId, { lastNudgeAt: student.lastNudgeAt });
       }

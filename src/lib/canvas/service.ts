@@ -16,6 +16,7 @@ import {
 import { loadPlanningContext } from "@/lib/planning/generate-for-user";
 import { generatePlan } from "@/lib/planning/schedule";
 import type { WorkItem } from "@/lib/planning/types";
+import { log } from "@/lib/log";
 
 // The Canvas integration: connect, choose courses, preview a sync, apply it,
 // disconnect. Security: userId always comes from the caller's session (never
@@ -66,7 +67,7 @@ function fail(error: unknown): Failure {
     return { ok: false, error: message, code: error.code };
   }
   // Only log the error's type, never the object (it could contain a request).
-  console.error("[canvas] unexpected error", (error as Error)?.name ?? typeof error);
+  log.error("canvas.unexpected_error", { err: error });
   return { ok: false, error: "Something went wrong talking to Canvas. Please try again." };
 }
 

@@ -8,6 +8,7 @@ import { VaultError } from "./token-vault";
 import { safeCanvasUrl } from "./mapping";
 import { htmlToText, parseRubric, type CanvasAnnouncement, type CanvasModule, type CanvasPage } from "./content";
 import { loadSecret, markNeedsReauth, type ServiceResult } from "./service";
+import { log } from "@/lib/log";
 
 // Copies one course's content (modules, pages, assignment descriptions and
 // rubrics, recent announcements) into CourseModule and CourseMaterial. Only
@@ -308,7 +309,7 @@ export async function syncCourseContent(
       return { ok: false, error: "Your saved Canvas connection can't be used. Please reconnect.", code: error.code };
     }
     // Only log the error's type, never the object.
-    console.error("[canvas-content] unexpected error", (error as Error)?.name ?? typeof error);
+    log.error("canvas_content.unexpected_error", { err: error });
     return { ok: false, error: "Something went wrong reading this course from Canvas. Please try again." };
   } finally {
     await client?.close();

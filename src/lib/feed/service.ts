@@ -6,6 +6,7 @@ import { decryptToken, encryptToken, isVaultConfigured, VaultError } from "@/lib
 import { resolveTimeZone } from "@/lib/time/zone";
 import { parseCanvasFeed, parseFeedUrl, type FeedAssignment } from "./ics";
 import { FeedError, fetchFeedText, type FetchFeedText } from "./fetch-feed";
+import { log } from "@/lib/log";
 
 // Canvas through the calendar feed, for schools that turn off access tokens.
 // Read-only, and every query is scoped to the session's userId. The feed only
@@ -37,7 +38,7 @@ function fail(error: unknown): { ok: false; error: string; code?: string } {
     return { ok: false, error: "Calendar import isn't available on this server yet.", code: error.code };
   }
   // Only log the error's type, never the object.
-  console.error("[feed] unexpected error", (error as Error)?.name ?? typeof error);
+  log.error("feed.unexpected_error", { err: error });
   return { ok: false, error: "Something went wrong reading that calendar. Try again." };
 }
 

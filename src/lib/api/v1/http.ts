@@ -2,6 +2,7 @@ import "server-only";
 import type * as z from "zod";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { clientIpFromHeaders } from "@/server/actions/client-ip";
 import { verifyAccessToken } from "@/lib/api/v1/tokens";
 
 // Plumbing shared by every /api/v1 route: one error shape, CORS for
@@ -94,11 +95,9 @@ export function errorResponse(request: Request, error: ApiError): Response {
   return json(request, { error: { code: error.code, message: error.message } }, error.status, error.headers);
 }
 
-/** The caller's IP for rate limiting, the same way the web's getClientIp reads it. */
+/** The caller's IP for rate limiting, with the web's trusted-header rules (src/server/actions/client-ip.ts). */
 export function clientIp(request: Request): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor === null) return "local";
-  return forwardedFor.split(",")[0].trim();
+  return clientIpFromHeaders(request.headers);
 }
 
 export async function enforceRateLimit(key: string, max: number, windowMs = 15 * 60 * 1000): Promise<void> {

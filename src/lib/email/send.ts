@@ -1,4 +1,5 @@
 import "server-only";
+import { log } from "@/lib/log";
 
 // Outgoing email through Resend's HTTP API (no SDK). Off until RESEND_API_KEY
 // and EMAIL_FROM are set; every caller checks emailConfigured() and degrades
@@ -38,10 +39,10 @@ export async function sendEmail(msg: EmailMessage, fetchImpl: typeof fetch = fet
       }),
       signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) console.error("[email] send failed", response.status);
+    if (!response.ok) log.error("email.send_rejected", { status: response.status });
     return response.ok;
   } catch (error) {
-    console.error("[email] send failed", (error as Error)?.name ?? typeof error);
+    log.error("email.send_failed", { err: error });
     return false;
   }
 }

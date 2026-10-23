@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth/dal";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { getCohorts, getGrowth, getRecurring } from "@/lib/analytics/funnel";
@@ -21,6 +22,9 @@ function rate(r: { active: number; eligible: number }): string {
 }
 
 export default async function AdminGrowthPage() {
+  // Checked here, not only in the layout: a client-side navigation between
+  // admin pages renders the page segment without re-running the layout.
+  await requireAdmin();
   const [growth, cohorts, inquiries, recurring] = await Promise.all([
     getGrowth(30),
     getCohorts(8),

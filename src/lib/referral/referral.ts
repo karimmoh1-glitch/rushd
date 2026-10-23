@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { BONUS_MESSAGES, CODE_RE, MAX_FRIENDS } from "./constants";
+import { log } from "@/lib/log";
 
 // Invite a friend: when the friend does a real study action, both get
 // BONUS_MESSAGES more tutor messages every month. The inviter's bonus counts
@@ -56,7 +57,7 @@ export async function attachReferral(newUserId: string, code: string | undefined
     if (!referrer || referrer.id === newUserId) return;
     await db.referral.create({ data: { referrerId: referrer.id, referredId: newUserId } });
   } catch (error) {
-    console.error("[referral] attach failed", (error as Error)?.name ?? typeof error);
+    log.error("referral.attach_failed", { err: error });
   }
 }
 

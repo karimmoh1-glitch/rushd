@@ -1,6 +1,6 @@
 import * as z from "zod";
 import { LoginSchema } from "@/lib/validation/auth";
-import { verifyCredentials } from "@/lib/auth/credentials";
+import { LOGIN_ACCOUNT_LIMIT, verifyCredentials } from "@/lib/auth/credentials";
 import { issueTokenPair } from "@/lib/api/v1/tokens";
 import { ApiError, clientIp, enforceRateLimit, handle, json, preflight, readBody } from "@/lib/api/v1/http";
 import { logEvent } from "@/lib/analytics/log-event";
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     const { email, password, deviceName } = await readBody(request, BodySchema);
     // The web login's own bucket, so the two can't be combined for more guesses.
     await enforceRateLimit(`login:${ip}:${email}`, 10);
+    await enforceRateLimit(`login-account:${email}`, LOGIN_ACCOUNT_LIMIT.max, LOGIN_ACCOUNT_LIMIT.windowMs);
 
     const user = await verifyCredentials(email, password);
     if (!user) throw new ApiError(401, "invalid_credentials", "Invalid email or password.");

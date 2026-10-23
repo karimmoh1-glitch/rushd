@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
+import { IdSchema } from "@/lib/validation/import";
 import { ExamSchema, type ExamInput } from "@/lib/validation/exams";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
@@ -51,6 +52,7 @@ export async function updateExam(
   input: ExamInput,
 ): Promise<ActionResult> {
   const user = await requireUserOrThrow();
+  if (!IdSchema.safeParse(id).success) return { error: "Exam not found." };
   const parsed = ExamSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -81,6 +83,7 @@ export async function updateExam(
 
 export async function deleteExam(id: string): Promise<ActionResult> {
   const user = await requireUserOrThrow();
+  if (!IdSchema.safeParse(id).success) return { error: "Exam not found." };
 
   const result = await db.exam.deleteMany({ where: { id, userId: user.id } });
   if (result.count === 0) return { error: "Exam not found." };

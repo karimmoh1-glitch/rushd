@@ -50,7 +50,8 @@ export const metadata: Metadata = {
     title: "Rushd: your personal AI study agent",
     description:
       "Rushd learns your classes, quizzes you, finds exactly what you don't understand, recommends what to watch and practice, and tells you what to study next.",
-    url: "/",
+    // No url here: pages inherit openGraph, and a fixed "/" made every
+    // shared page (pricing, tools, ...) claim to be the homepage.
   },
   twitter: { card: "summary_large_image" },
   description:

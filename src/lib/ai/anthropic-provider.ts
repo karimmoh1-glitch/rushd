@@ -4,6 +4,7 @@ import { env, aiEnabled } from "@/lib/env";
 import { QuickAddDraftSchema, ExtractedAssignmentListSchema, GeneratedQuestionListSchema } from "./schemas";
 import { readCallUsage, type AIProvider, type CallUsage, type ExtractedAssignment, type ImageInput, type PracticeGenerationInput } from "./provider";
 import type { ClassRef } from "./fallback-parse";
+import { log } from "@/lib/log";
 
 // A small, fast, cheap model: both tasks here are structured extraction, not conversation.
 const MODEL = "claude-haiku-4-5-20251001";
@@ -178,7 +179,7 @@ export const anthropicProvider: AIProvider = {
       if (!parsed.success) return null;
       return parsed.data;
     } catch (error) {
-      console.error("[ai] quick-add parse failed, falling back", (error as Error)?.name ?? typeof error);
+      log.error("ai.quick_add_failed_fallback", { err: error });
       return null;
     }
   },
@@ -225,7 +226,7 @@ export const anthropicProvider: AIProvider = {
       if (!parsed.success) return null;
       return parsed.data.assignments;
     } catch (error) {
-      console.error("[ai] image extraction failed, falling back to manual entry", (error as Error)?.name ?? typeof error);
+      log.error("ai.image_extraction_failed_fallback", { err: error });
       return null;
     }
   },

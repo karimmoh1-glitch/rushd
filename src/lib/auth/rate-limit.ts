@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
+import { log } from "@/lib/log";
 
 // Fixed-window rate limiter backed by Postgres, so a limit holds across every
 // serverless instance (an in-process Map resets per instance and per deploy).
@@ -47,7 +48,7 @@ export async function checkRateLimit(
   } catch (error) {
     // Fail open: a limiter outage must not lock every student out. The
     // underlying action still needs the database, so it fails on its own.
-    console.error("rate limit check failed", error instanceof Error ? error.name : "unknown");
+    log.warn("rate_limit.check_failed_open", { err: error });
     return { allowed: true };
   }
 }

@@ -11,6 +11,8 @@ import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 import { assertOwnsClass } from "@/server/actions/class-ownership";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { ImportItemsSchema } from "@/lib/validation/import";
 
 export type ExtractResult =
   | { status: "ok"; assignments: ExtractedAssignment[] }
@@ -21,6 +23,8 @@ export type ExtractResult =
  * checked in memory, sent to the AI, then dropped (see docs/PRIVACY.md). */
 export async function extractFromScreenshots(formData: FormData): Promise<ExtractResult> {
   const user = await requireUserOrThrow();
+  const rate = await checkRateLimit(`import-extract:${user.id}`, { max: 20, windowMs: 60 * 60 * 1000 });
+  if (!rate.allowed) return { status: "error", error: "That's a lot of screenshots this hour. Try again in a bit." };
 
   const files: File[] = [];
   for (const entry of formData.getAll("images")) {
@@ -78,11 +82,14 @@ export type CommitResult = { error: string } | { success: true; created: number 
 
 /** Saves the assignments and exams the student confirmed on the review screen.
  * Every classId is re-checked against the owner, even though it came from us. */
-export async function commitImportedAssignments(items: ImportItem[]): Promise<CommitResult> {
+export async function commitImportedAssignments(input: ImportItem[]): Promise<CommitResult> {
   const user = await requireUserOrThrow();
+  const rate = await checkRateLimit(`import-commit:${user.id}`, { max: 20, windowMs: 60 * 60 * 1000 });
+  if (!rate.allowed) return { error: "That's a lot of importing at once. Try again in a bit." };
 
-  if (items.length === 0) return { error: "Nothing to add." };
-  if (items.length > 40) return { error: "Too many items at once." };
+  const parsed = ImportItemsSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Some items couldn't be read." };
+  const items = parsed.data;
 
   // Check each distinct class once.
   const classIds = new Set<string>();

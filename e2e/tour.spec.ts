@@ -173,6 +173,7 @@ test("design tour", async ({ browser }) => {
     ["/courses", "m-courses"],
     ["/plan", "m-plan"],
     ["/more", "m-more"],
+    ["/settings", "m-settings"],
   ] as const) {
     await page.goto(path);
     await shoot(page, name);

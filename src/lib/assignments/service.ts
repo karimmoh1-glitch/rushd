@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { AssignmentSchema, type AssignmentInput } from "@/lib/validation/assignments";
+import { IdSchema } from "@/lib/validation/import";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 import { assertOwnsClass } from "@/server/actions/class-ownership";
@@ -73,6 +74,7 @@ export async function updateAssignmentForUser(
   input: AssignmentInput,
 ): Promise<ServiceResult> {
   const user = { id: userId };
+  if (!IdSchema.safeParse(id).success) return { error: "Assignment not found." };
   const parsed = AssignmentSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -141,6 +143,8 @@ export async function setAssignmentStatusForUser(
   status: AssignmentInput["status"],
 ): Promise<ServiceResult> {
   const user = { id: userId };
+  if (!IdSchema.safeParse(id).success) return { error: "Assignment not found." };
+  if (!AssignmentSchema.shape.status.safeParse(status).success) return { error: "Invalid status." };
 
   const existing = await db.assignment.findFirst({
     where: { id, userId: user.id },

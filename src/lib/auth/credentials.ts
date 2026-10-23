@@ -5,6 +5,11 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 // The one email + password check, shared by the web login form and the
 // native-app token endpoint (/api/v1/auth/token), so both behave the same.
 
+/** Sign-in attempts on one account from all addresses together: 30 per 15 minutes.
+ * Shared by the web login and the native-app token endpoint, so a botnet spread
+ * over many addresses still gets few guesses at one password. */
+export const LOGIN_ACCOUNT_LIMIT = { max: 30, windowMs: 15 * 60 * 1000 };
+
 // A throwaway hash, made once, for logins to accounts that don't exist.
 let dummyHashPromise: Promise<string> | undefined;
 function dummyHash() {

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
-import { verifyCredentials } from "@/lib/auth/credentials";
+import { LOGIN_ACCOUNT_LIMIT, verifyCredentials } from "@/lib/auth/credentials";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { SignupSchema, LoginSchema } from "@/lib/validation/auth";
@@ -122,8 +122,14 @@ export async function login(
 
   const { email, password } = parsed.data;
 
-  const rate = await checkRateLimit(`login:${await getClientIp()}:${email}`);
-  if (!rate.allowed) {
+  // Per address+account (normal typos), and per account from anywhere, so a
+  // botnet spread over many addresses still gets few guesses at one password.
+  // Applies to emails without an account too, so it reveals nothing.
+  const [rate, accountRate] = await Promise.all([
+    checkRateLimit(`login:${await getClientIp()}:${email}`),
+    checkRateLimit(`login-account:${email}`, LOGIN_ACCOUNT_LIMIT),
+  ]);
+  if (!rate.allowed || !accountRate.allowed) {
     return { message: "Too many attempts. Try again in a few minutes." };
   }
 

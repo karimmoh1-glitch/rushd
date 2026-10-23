@@ -8,6 +8,8 @@ import { Prisma } from "@/generated/prisma/client";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { deleteUserAccount } from "@/lib/data-rights/delete-account";
 import {
   ProfileSettingsSchema,
   AvailabilitySettingsSchema,
@@ -106,6 +108,11 @@ export async function changePassword(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
+  // A borrowed or stolen session must not be able to guess the current password.
+  const rate = await checkRateLimit(`change-password:${user.id}`, { max: 5 });
+  if (!rate.allowed) {
+    return { error: "Too many attempts. Try again in a few minutes." };
+  }
 
   const record = await db.user.findUnique({
     where: { id: user.id },
@@ -142,7 +149,8 @@ export async function deleteAccount(confirmText: string): Promise<ActionResult> 
     return { error: 'Type "DELETE" to confirm.' };
   }
 
-  await db.user.delete({ where: { id: user.id } });
+  const result = await deleteUserAccount(user.id);
+  if (!result.ok) return { error: result.error };
   await deleteSession();
   redirect("/");
 }
