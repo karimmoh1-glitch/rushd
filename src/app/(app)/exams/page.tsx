@@ -114,7 +114,7 @@ export default async function ExamsPage() {
         <PathEmpty title="No exams yet.">
           Add a test, quiz, or final and Rushd plans your prep time before it, more of it as the date gets closer.
           <div className="mt-4">
-            <AddExamButton classes={classes} variant="outline" />
+            <AddExamButton classes={classes} variant="outline" label="Add your first exam" />
           </div>
         </PathEmpty>
       </EmptyCard>
