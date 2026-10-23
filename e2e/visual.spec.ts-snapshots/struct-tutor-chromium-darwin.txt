@@ -10,22 +10,58 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
         section .flex min-h-[70vh] flex-col aria-label=Tutor conversation
           header .space-y-3 border-b border-border pb-4 
             div . 
-              h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-              p .mt-1 text-sm text-muted-foreground 
-            div .flex flex-wrap gap-3 
-              label .space-y-1 text-xs text-muted-foreground 
-                select .block h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground 
+              h1 .font-display text-[1.75rem] leading-tight tracking-tight 
+              p .mt-1 max-w-prose text-sm text-muted-foreground 
+            div .grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap 
+              label .min-w-0 space-y-1 text-xs text-muted-foreground 
+                select .block h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground sm:w-auto sm:max-w-64 
                   option . 
                   option . 
-              label .space-y-1 text-xs text-muted-foreground 
-                select .block h-9 max-w-64 rounded-md border border-input bg-background px-2 text-sm text-foreground 
-                  option . 
-                  option . 
-            fieldset .flex flex-wrap gap-1.5 
-              legend .sr-only 
-              button .rounded-md border px-3 py-1.5 text-sm transition-colors border-foreground/30 bg-muted text-foreground aria-pressed=true type=button
-              button .rounded-md border px-3 py-1.5 text-sm transition-colors border-border text-muted-foreground hover:text-foreground aria-pressed=false type=button
-              button .rounded-md border px-3 py-1.5 text-sm transition-colors border-border text-muted-foreground hover:text-foreground aria-pressed=false type=button
+            div .flex flex-wrap items-center gap-1.5 text-xs role=group aria-label=Using: All courses, no course selected
+              span .text-muted-foreground 
+              span .inline-flex h-6 items-center rounded-full px-2.5 ring-1 ring-inset bg-foreground/[0.06] font-medium text-foreground ring-foreground/15 
+              span .inline-flex h-6 items-center rounded-full px-2.5 ring-inset text-muted-foreground ring-border border border-dashed border-border-strong ring-0 
           div .flex-1 space-y-6 py-6 
+            section .rounded-xl bg-card shadow-(--shadow-card) ring-1 ring-foreground/[0.07] p-5 sm:p-6 
+              h2 .font-display tracking-tight text-xl 
+              p .mt-1 max-w-prose text-sm text-muted-foreground 
+              div .mt-4 grid gap-5 md:grid-cols-2 
+                div . 
+                  h3 .flex items-center gap-2 text-sm font-semibold 
+                    svg .lucide lucide-rotate-ccw h-4 w-4 text-muted-foreground 
+                      path . 
+                      path . 
+                  p .mt-2 text-sm text-muted-foreground 
+                div .space-y-4 
+                  div . 
+                    h3 .flex items-center gap-2 text-sm font-semibold 
+                      svg .lucide lucide-book-open-check h-4 w-4 text-muted-foreground 
+                        path . 
+                        path . 
+                        path . 
+                    ul .mt-1 -mx-3 
+                      li . 
+                        a .group flex min-h-11 items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted focus-visible:bg-muted aria-label=Practice: Biology href=/courses/:id/practice
+                          span .flex min-w-0 items-center gap-2 
+                            span .h-2 w-2 shrink-0 rounded-full bg-[var(--course)] 
+                            span .truncate 
+                          svg .lucide lucide-arrow-right h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground 
+                            path . 
+                            path . 
+                  div . 
+                    h3 .flex items-center gap-2 text-sm font-semibold 
+                      svg .lucide lucide-list-checks h-4 w-4 text-muted-foreground 
+                        path . 
+                        path . 
+                        path . 
+                        path . 
+                        path . 
+                    ul .mt-1 -mx-3 
+                      li . 
+                        a .group flex min-h-11 items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted focus-visible:bg-muted aria-label=Mistakes: Biology href=/courses/:id/mistakes
+                          span .truncate 
+                          span .flex shrink-0 items-center gap-2 text-xs text-muted-foreground 
+                            svg .lucide lucide-arrow-right h-4 w-4 group-hover:text-foreground 
+                              path . 
+                              path . 
             div . 
-          p .rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground 

@@ -520,7 +520,7 @@ export function TutorWorkspace({
               </label>}
             </div>
           )}
-          <p className="flex flex-wrap items-center gap-1.5 text-xs" aria-label={`Using: ${chips.join(", ")}`}>
+          <div role="group" className="flex flex-wrap items-center gap-1.5 text-xs" aria-label={`Using: ${chips.join(", ")}`}>
             <span className="text-muted-foreground" aria-hidden="true">Using</span>
             {chips.map((chip, i) => (
               <span
@@ -535,7 +535,7 @@ export function TutorWorkspace({
                 {chip}
               </span>
             ))}
-          </p>
+          </div>
           {enabled && <fieldset className="flex flex-wrap gap-1.5">
             <legend className="sr-only">Mode</legend>
             {MODES.map((option) => (
