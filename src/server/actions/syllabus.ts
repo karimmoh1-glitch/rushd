@@ -27,6 +27,9 @@ export async function previewSyllabusAction(formData: FormData): Promise<Preview
   if (typeof classId !== "string" || !classId || classId.length > 64) return { status: "error", error: "Choose a course first." };
   const file = formData.get("file");
   const text = formData.get("text");
+  // "When did week 1 start?" from the review screen, to place "Week N" dates.
+  const rawStart = formData.get("termStart");
+  const termStart = typeof rawStart === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawStart) ? rawStart : null;
 
   if (file instanceof File && file.size > 0) {
     // Checked before reading the body into memory.
@@ -36,7 +39,7 @@ export async function previewSyllabusAction(formData: FormData): Promise<Preview
     return result.ok ? { status: "ok", preview: result.preview } : { status: "error", error: result.error };
   }
   if (typeof text === "string" && text.trim()) {
-    const result = await previewSyllabus(user.id, { classId, text });
+    const result = await previewSyllabus(user.id, { classId, text, termStart });
     return result.ok ? { status: "ok", preview: result.preview } : { status: "error", error: result.error };
   }
   return { status: "error", error: "Upload your syllabus or paste its text." };

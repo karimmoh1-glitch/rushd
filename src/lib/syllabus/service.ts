@@ -39,6 +39,8 @@ export interface PreviewInput {
   /** Pasted text, or the text of an uploaded file. */
   text?: string | null;
   file?: { bytes: Uint8Array; name: string } | null;
+  /** A week-1 start the student typed on the review screen (YYYY-MM-DD). */
+  termStart?: string | null;
 }
 
 export interface SyllabusPreview {
@@ -57,6 +59,8 @@ export interface SyllabusPreview {
   duplicates: Record<string, { title: string; date: string; kind: "assignment" | "exam" }>;
   /** Topic ids already in the course's topic map. */
   existingTopics: string[];
+  /** The week-1 start the student typed, when this preview used one. */
+  termStartOverride: string | null;
 }
 
 export type PreviewResult = { ok: true; preview: SyllabusPreview } | { ok: false; error: string };
@@ -121,7 +125,14 @@ export async function previewSyllabus(userId: string, input: PreviewInput, deps:
   }
   if (text.replace(/\s/g, "").length < MIN_TEXT_CHARS) return { ok: false, error: "That's too short to be a syllabus. Paste the whole thing, or upload the file." };
 
-  const options = { today: localDateKey(now, timeZone), termStart: toDateInput(course.termStart) ?? null, termEnd: toDateInput(course.termEnd) ?? null };
+  const courseStart = toDateInput(course.termStart) ?? null;
+  const courseEnd = toDateInput(course.termEnd) ?? null;
+  const override = input.termStart && /^\d{4}-\d{2}-\d{2}$/.test(input.termStart) ? input.termStart : null;
+  const options = {
+    today: localDateKey(now, timeZone),
+    termStart: override ?? courseStart,
+    termEnd: override ? (courseEnd && courseEnd > override ? courseEnd : null) : courseEnd,
+  };
   let draft: SyllabusDraft | null = null;
   const aiNotes: string[] = [];
   if (deps.aiAvailable ?? aiEnabled) {
@@ -170,9 +181,10 @@ export async function previewSyllabus(userId: string, input: PreviewInput, deps:
       sourceName,
       pages,
       truncated,
-      current: { termStart: options.termStart, termEnd: options.termEnd, code: course.code, teacher: course.teacher },
+      current: { termStart: courseStart, termEnd: courseEnd, code: course.code, teacher: course.teacher },
       duplicates,
       existingTopics,
+      termStartOverride: override,
     },
   };
 }

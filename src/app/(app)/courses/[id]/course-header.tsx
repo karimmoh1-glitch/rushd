@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageSquareText } from "lucide-react";
+import { FileUp, MessageSquareText } from "lucide-react";
 import { db } from "@/lib/db";
 import { aiEnabled } from "@/lib/env";
 import { formatDateKey, localDateKey } from "@/lib/time/zone";
@@ -87,6 +87,10 @@ export function CourseHeader({ course, timeZone, now }: { course: CourseHeaderDa
               weeklyHours: course.weeklyHours ?? undefined,
             }}
           />
+          <Link href={`/courses/${course.id}/syllabus`} className={buttonVariants({ variant: "outline" })}>
+            <FileUp className="h-4 w-4" aria-hidden="true" />
+            Import syllabus
+          </Link>
           {canvas && <SyncContentButton classId={course.id} />}
           {aiEnabled && (
             <Link href={`/tutor?classId=${course.id}`} className={buttonVariants({ variant: "outline" })}>

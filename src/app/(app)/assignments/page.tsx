@@ -26,6 +26,7 @@ interface AssignmentRecord {
   canvasUrl: string | null;
   estimatedByRushd: boolean;
   canvasRemovedAt: Date | null;
+  importOrigin: "SYLLABUS" | null;
   class: { name: string; color: string };
 }
 
@@ -46,6 +47,7 @@ function toRowData(assignment: AssignmentRecord, pulse: number | null): Assignme
     canvasUrl: assignment.canvasUrl,
     estimatedByRushd: assignment.estimatedByRushd,
     canvasRemoved: assignment.canvasRemovedAt !== null,
+    fromSyllabus: assignment.importOrigin === "SYLLABUS",
     pulse,
   };
 }
@@ -116,6 +118,7 @@ export default async function AssignmentsPage() {
         canvasUrl: true,
         estimatedByRushd: true,
         canvasRemovedAt: true,
+        importOrigin: true,
         class: { select: { name: true, color: true } },
       },
     }),

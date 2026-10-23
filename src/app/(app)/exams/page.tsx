@@ -21,6 +21,7 @@ interface ExamRecord {
   prepMinutes: number;
   priority: ExamRowData["priority"];
   notes: string | null;
+  importOrigin: "SYLLABUS" | null;
   class: { name: string; color: string };
 }
 
@@ -37,6 +38,7 @@ function toRowData(exam: ExamRecord, pulse: number | null): ExamRowData {
     notes: exam.notes ?? undefined,
     className: exam.class.name,
     classColor: exam.class.color,
+    fromSyllabus: exam.importOrigin === "SYLLABUS",
   };
 }
 
@@ -75,6 +77,7 @@ export default async function ExamsPage() {
         prepMinutes: true,
         priority: true,
         notes: true,
+        importOrigin: true,
         class: { select: { name: true, color: true } },
       },
     }),

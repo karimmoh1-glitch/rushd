@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Link2, Pencil, Plus } from "lucide-react";
@@ -278,6 +279,7 @@ function TopicItem({
             <h3 className={cn("text-sm font-medium", !topic.parentId && "text-[15px]")}>{topic.title}</h3>
             <MasteryChip status={topic.status} />
             {topic.due && <span className="text-xs font-medium text-signal-ink">Review due</span>}
+            {topic.sourceLabel !== "Added by you" && <span className="text-xs text-muted-foreground">{topic.sourceLabel}</span>}
           </div>
           {estimateLine(topic) && <p className="mt-1 text-xs text-muted-foreground">{estimateLine(topic)}</p>}
           <p className="mt-1 text-sm text-muted-foreground">{topic.explanation}</p>
@@ -336,7 +338,11 @@ export function TopicsEditor({ courseId, topics, proposed }: { courseId: string;
         <AddTopicForm courseId={courseId} parents={roots} />
         {topics.length === 0 ? (
           <PathEmpty title="No topics yet">
-            Add the units or concepts from your syllabus or class notes. Rushd doesn&apos;t guess your course&apos;s topics.
+            Add the units or concepts from your syllabus or class notes. Rushd doesn&apos;t guess your course&apos;s topics.{" "}
+            <Link href={`/courses/${courseId}/syllabus`} className="font-medium text-foreground underline underline-offset-4">
+              Import your syllabus
+            </Link>{" "}
+            to pull them from its schedule — you check each one first.
           </PathEmpty>
         ) : (
           <ul className="divide-y divide-border border-t border-border">

@@ -13,6 +13,7 @@ export const SETUP_EVENTS = [
   "canvas_synced",
   "canvas_feed_connected",
   "teams_synced",
+  "syllabus_import_confirmed",
 ];
 
 /** Real studying: the same list the streak counts. */

@@ -609,7 +609,7 @@ export function parseSyllabus(input: string, options: ParseOptions): SyllabusDra
     const type = assessmentType(titleText || segment);
     const title = titleText || capitalize(type);
     const decision = decideDate(segmentTokens, lineTokens, rowDate, week, anchor, ctx);
-    if (decision.week && !anchor) usedWeeksWithoutAnchor = true;
+    if (decision.week && !decision.date && !anchor) usedWeeksWithoutAnchor = true;
     const titleConfidence: Confidence = isGenericTitle(title) ? "medium" : "high";
     let confidence = minConfidence(titleConfidence, decision.confidence);
     if (decision.issues.length > 0 && confidence === "high") confidence = "medium";
