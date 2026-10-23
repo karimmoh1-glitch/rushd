@@ -97,7 +97,7 @@ export function TodayPlanItem({
         {assignmentId && (
           <span className="flex h-8 w-8 items-center justify-center">
             <Checkbox
-              onCheckedChange={(v) => v === true && complete()}
+              onCheckedChange={(checked) => checked === true && complete()}
               disabled={pending}
               aria-label={`Mark "${title}" done`}
             />
