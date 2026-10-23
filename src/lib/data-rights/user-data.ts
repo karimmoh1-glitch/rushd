@@ -37,6 +37,7 @@ export const USER_DATA: UserDataSource[] = [
   { key: "planItems", model: "planItem" },
   { key: "studySessions", model: "studySession" },
   { key: "scheduleBlocks", model: "scheduleBlock" },
+  { key: "planOverrides", model: "planOverride" },
   { key: "notifications", model: "notification" },
   { key: "feedback", model: "feedback" },
   { key: "events", model: "event" },

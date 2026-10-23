@@ -37,7 +37,7 @@ export async function syncTeams(): Promise<Result<TeamsSyncSummary>> {
     return { error: result.error };
   }
   await logEvent(user.id, "teams_synced", { ...result.value });
-  await regeneratePlanSnapshot(user.id).catch(() => {});
+  await regeneratePlanSnapshot(user.id, "sync").catch(() => {});
   revalidateAll();
   return { success: true, value: result.value };
 }

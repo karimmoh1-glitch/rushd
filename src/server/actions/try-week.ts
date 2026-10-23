@@ -115,6 +115,6 @@ export async function importTriedWeek(raw: unknown): Promise<TryImportResult> {
 
   await logEvent(user.id, "try_week_imported", { count: items.length });
   await logEvent(user.id, "assignment_created", { count: items.length, via: "try_week" });
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "assignment_added");
   return { success: true, created: items.length };
 }

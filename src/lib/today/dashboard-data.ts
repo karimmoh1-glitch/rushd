@@ -29,6 +29,7 @@ export interface AssignmentListItem {
 
 export interface ExamListItem {
   id: string;
+  classId: string;
   title: string;
   examAt: Date;
   class: { name: string; color: string };
@@ -74,7 +75,7 @@ export async function loadDashboardData(userId: string, now: Date, viewPropertie
       db.class.findMany({
         where: { userId, archived: false },
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, color: true, weeklyHours: true },
+        select: { id: true, name: true, color: true, weeklyHours: true, termEnd: true, archiveSuggestionDismissedAt: true },
       }),
       generatePlanForUser(userId, now),
       db.assignment.findMany({
@@ -93,7 +94,7 @@ export async function loadDashboardData(userId: string, now: Date, viewPropertie
         where: { userId, examAt: { gte: now }, class: { archived: false } },
         orderBy: { examAt: "asc" },
         take: COMING_UP_LIMIT,
-        select: { id: true, title: true, examAt: true, class: { select: { name: true, color: true } } },
+        select: { id: true, classId: true, title: true, examAt: true, class: { select: { name: true, color: true } } },
       }),
       db.assignment.count({ where: { ...notDone, dueAt: { lt: now } } }),
       db.assignment.count({ where: { ...notDone, dueAt: { gte: now, lt: weekFromNow } } }),
@@ -251,4 +252,24 @@ export function totalShortfallMinutes(plan: UserPlan): number {
     total += minutes;
   }
   return total;
+}
+
+/** The highest-ranked item, skipping anything the student said "not today"
+ * or "not this week" to. Undefined when there's nothing left to suggest.
+ * `kinds` limits it to what the caller can act on (the native app can't run
+ * a topic review yet). */
+export function pickNextUp(
+  plan: UserPlan,
+  today: string,
+  kinds: ReadonlySet<ScoredItem["item"]["kind"]> | null = null,
+): ScoredItem | undefined {
+  const putOff = new Set<string>();
+  for (const exclusion of plan.exclusions) {
+    if ((exclusion.type === "skip" && exclusion.date === today) || (exclusion.type === "not_this_week" && exclusion.date > today)) {
+      putOff.add(`${exclusion.kind}:${exclusion.itemId}`);
+    }
+  }
+  return plan.scored.find(
+    (scored) => !putOff.has(`${scored.item.kind}:${scored.item.id}`) && (kinds === null || kinds.has(scored.item.kind)),
+  );
 }

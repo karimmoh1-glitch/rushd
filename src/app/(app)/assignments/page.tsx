@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth/dal";
 import { resolveTimeZone } from "@/lib/time/zone";
 import { AssignmentRow, type AssignmentRowData } from "./assignment-row";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
+import { currentTime } from "@/lib/time/now";
 import { pulseOf } from "@/lib/planning/pulse";
 import { AddAssignmentButton } from "./add-assignment-button";
 
@@ -22,6 +23,7 @@ interface AssignmentRecord {
   priority: AssignmentRowData["priority"];
   status: AssignmentRowData["status"];
   notes: string | null;
+  weightPercent: number | null;
   source: NonNullable<AssignmentRowData["source"]>;
   canvasUrl: string | null;
   estimatedByRushd: boolean;
@@ -40,6 +42,7 @@ function toRowData(assignment: AssignmentRecord, pulse: number | null): Assignme
     priority: assignment.priority,
     status: assignment.status,
     notes: assignment.notes ?? undefined,
+    weightPercent: assignment.weightPercent,
     className: assignment.class.name,
     classColor: assignment.class.color,
     source: assignment.source,
@@ -93,6 +96,7 @@ function NoAssignmentsYet() {
 
 export default async function AssignmentsPage() {
   const user = await requireUser();
+  const now = await currentTime();
 
   const [classes, assignments, plan] = await Promise.all([
     db.class.findMany({
@@ -112,6 +116,7 @@ export default async function AssignmentsPage() {
         priority: true,
         status: true,
         notes: true,
+        weightPercent: true,
         source: true,
         canvasUrl: true,
         estimatedByRushd: true,
@@ -119,7 +124,7 @@ export default async function AssignmentsPage() {
         class: { select: { name: true, color: true } },
       },
     }),
-    generatePlanForUser(user.id),
+    generatePlanForUser(user.id, now),
   ]);
   const pulseById = new Map(plan.scored.map((scored) => [scored.item.id, pulseOf(scored.score)]));
   const timeZone = resolveTimeZone(user.profile?.timezone);

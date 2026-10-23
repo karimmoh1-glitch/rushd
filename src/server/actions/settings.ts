@@ -75,7 +75,7 @@ export async function updateAvailability(
   }
   await db.$transaction(steps);
 
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "availability_changed");
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   return { success: true };
@@ -93,7 +93,7 @@ export async function updatePlanningPreferences(
     where: { userId: user.id },
     data: parsed.data,
   });
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "availability_changed");
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   revalidatePath("/plan");

@@ -105,6 +105,25 @@ test("main screens have no axe violations in light or dark", async ({ browser })
     await check("mistakes");
     await page.goto("/mastery");
     await check("mastery");
+    // Today and the schedule with learning data on them: the readiness
+    // estimate, the biggest gap, review blocks two days later, and a
+    // "What changed" note after a skip.
+    await page.goto("/dashboard");
+    await check("dashboard with learning");
+    const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    later.setHours(10, 0, 0, 0);
+    await context.addCookies([{ name: "rushd-test-now", value: later.toISOString(), url: new URL(page.url()).origin }]);
+    await page.goto("/dashboard");
+    const skip = page.getByRole("region", { name: "Today", exact: true }).getByRole("button", { name: /^Skip ".*" today$/ }).first();
+    if (await skip.count()) {
+      await skip.click();
+      await page.waitForTimeout(1500);
+      await page.goto("/dashboard");
+    }
+    await check("dashboard two days later");
+    await page.goto("/plan");
+    await check("plan two days later");
+    await context.clearCookies({ name: "rushd-test-now" });
     expect(results).toEqual([]);
     await context.close();
   }

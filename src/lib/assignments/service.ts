@@ -58,13 +58,14 @@ export async function createAssignmentForUser(
       priority: data.priority,
       status: data.status,
       notes: data.notes || null,
+      weightPercent: data.weightPercent ?? null,
       completedAt: data.status === "COMPLETED" ? new Date() : null,
     },
     select: { id: true },
   });
 
   await logEvent(user.id, "assignment_created", { assignmentId: created.id });
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "assignment_added");
   return { success: true, id: created.id };
 }
 
@@ -125,15 +126,19 @@ export async function updateAssignmentForUser(
       priority: data.priority,
       status: data.status,
       notes: data.notes || null,
+      weightPercent: data.weightPercent,
       completedAt: completedAtFor(data.status, existing.status),
     },
   });
   if (result.count === 0) return { error: "Assignment not found." };
 
-  if (data.status === "COMPLETED" && existing.status !== "COMPLETED") {
+  const newlyCompleted = data.status === "COMPLETED" && existing.status !== "COMPLETED";
+  if (newlyCompleted) {
     await onAssignmentCompleted(user.id, id);
   }
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, newlyCompleted ? "assignment_completed" : estimateUnchanged ? "other" : "estimate_changed", {
+    estimateChanged: estimateUnchanged ? [] : [`assignment:${id}`],
+  });
   return { success: true };
 }
 
@@ -161,9 +166,10 @@ export async function setAssignmentStatusForUser(
     data: { status, completedAt },
   });
 
-  if (status === "COMPLETED" && existing.status !== "COMPLETED") {
+  const newlyCompleted = status === "COMPLETED" && existing.status !== "COMPLETED";
+  if (newlyCompleted) {
     await onAssignmentCompleted(user.id, id);
   }
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, newlyCompleted ? "assignment_completed" : "other");
   return { success: true };
 }

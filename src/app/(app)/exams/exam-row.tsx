@@ -122,6 +122,7 @@ export function ExamRow({
           prepMinutes: data.prepMinutes,
           priority: data.priority,
           notes: data.notes,
+          weightPercent: data.weightPercent,
         }}
       />
     </>

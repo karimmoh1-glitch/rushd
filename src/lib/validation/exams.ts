@@ -10,6 +10,14 @@ export const ExamSchema = z.object({
     .min(15, "Estimate at least 15 minutes.")
     .max(3000, "Estimate 3000 minutes or less."),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
+  /** Share of the course grade, in percent, when the student knows it. */
+  weightPercent: z
+    .number()
+    .int("Use a whole percent.")
+    .min(1, "Weight is at least 1%.")
+    .max(100, "Weight is at most 100%.")
+    .nullable()
+    .optional(),
   notes: z.string().trim().max(2000, "Notes are too long (max 2000 characters).").optional(),
 });
 

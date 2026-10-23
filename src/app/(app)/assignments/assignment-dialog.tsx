@@ -131,6 +131,7 @@ function AssignmentDialogForm({
     initialData?.status ?? "NOT_STARTED",
   );
   const [notes, setNotes] = useState(initialData?.notes ?? "");
+  const [weight, setWeight] = useState(initialData?.weightPercent ? String(initialData.weightPercent) : "");
 
   // Fields Canvas controls are shown read-only and greyed out.
   const lockedFieldClass = managedByCanvas ? "bg-muted text-muted-foreground" : undefined;
@@ -150,6 +151,7 @@ function AssignmentDialogForm({
       priority,
       status,
       notes: notes || undefined,
+      weightPercent: weight.trim() ? Number(weight) : null,
     };
 
     startTransition(async () => {
@@ -288,6 +290,27 @@ function AssignmentDialogForm({
                 <SelectItem value="COMPLETED">Completed</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="assignment-weight">Share of grade (optional)</Label>
+            <div className="relative">
+              <Input
+                id="assignment-weight"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={100}
+                step={1}
+                value={weight}
+                onChange={(event) => setWeight(event.target.value)}
+                placeholder="e.g. 10"
+                className="pr-8"
+              />
+              <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">%</span>
+            </div>
           </div>
         </div>
 

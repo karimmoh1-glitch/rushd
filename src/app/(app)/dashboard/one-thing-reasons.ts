@@ -20,7 +20,9 @@ export function buildOneThingReasons(
 ): string[] {
   const reasons = explainScore(scored, now, allScored, timeZone);
 
-  if (estimateInfo.adjusted) {
+  // explainScore already states the pace adjustment when the planner made one;
+  // review blocks are sized from topics, not estimates.
+  if (estimateInfo.adjusted && !scored.item.estimateNote && scored.item.kind !== "review") {
     const direction = estimateInfo.percentOff > 0 ? "longer" : "faster";
     reasons.push(
       `Rushd predicts this will take ${formatDuration(scored.item.remainingMinutes)} — your ${scored.item.className} work usually runs ${Math.abs(estimateInfo.percentOff)}% ${direction} than estimated (you entered ${formatDuration(scored.item.rawEstimatedMinutes)}).`,

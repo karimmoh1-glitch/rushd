@@ -132,7 +132,9 @@ describe("server action hardening (integration)", { timeout: 120_000 }, () => {
     const user = await signedIn("Events");
     await logPlanItemInteraction("hacked" as never, "x".repeat(100_000), "assignment");
     await logPlanItemInteraction("completed", "item-1", "assignment");
-    const names = (await db.event.findMany({ where: { userId: user.id }, select: { name: true } })).map((e) => e.name);
-    expect(names).toEqual(["plan_item_completed"]);
+    await logPlanItemInteraction("completed", "item-2", "assignment", "sideways" as never);
+    const names = (await db.event.findMany({ where: { userId: user.id }, select: { name: true } })).map((e) => e.name).sort();
+    // Only the valid call is logged; completing also counts as a recommended task done.
+    expect(names).toEqual(["plan_item_completed", "recommended_task_completed"]);
   });
 });

@@ -114,7 +114,7 @@ export async function applyCanvasSync(): Promise<CanvasActionResult<SyncReport>>
     removed: summary.removed,
     coursesFailed: summary.coursesFailed,
   });
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "sync");
   revalidateAll();
   return { success: true, data: result.value };
 }
@@ -130,7 +130,7 @@ export async function disconnectCanvas(
   const result = await disconnectService(user.id, parsed.data);
   if (!result.ok) return { error: result.error };
   await logEvent(user.id, "canvas_disconnected", { removedAssignments: result.value.removedAssignments });
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "sync");
   revalidateAll();
   return { success: true, data: result.value };
 }

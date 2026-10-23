@@ -4,8 +4,10 @@ import Link from "next/link";
 import { AlertTriangle, Upload } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth/dal";
+import type { UserPlan } from "@/lib/planning/generate-for-user";
 import { dateKey, explainScore } from "@/lib/planning";
-import { formatDateInZone, formatMinuteOfDay, zonedParts } from "@/lib/time/zone";
+import type { ScheduledSession } from "@/lib/planning/types";
+import { formatDateInZone, formatDateKey, formatMinuteOfDay, zonedParts } from "@/lib/time/zone";
 import { dueStatus, formatDueDate, formatDuration } from "@/lib/format";
 import type { SessionRecord } from "@/lib/insights/build-insights";
 import { cn } from "@/lib/utils";
@@ -27,7 +29,22 @@ import { StreakPath } from "./streak";
 import { getStreak } from "@/lib/streak/load";
 import { encodeStreakCard } from "@/lib/share/streak-card";
 import { getOrCreateReferralCode } from "@/lib/referral/referral";
-import type { ScheduledSession } from "@/lib/planning/types";
+import { currentTime } from "@/lib/time/now";
+import { latestChangeNote, rollPlanForward } from "@/lib/planning/snapshots";
+import {
+  assessReadiness,
+  coursesToSuggestArchiving,
+  dateColumnKey,
+  pickBiggestGap,
+  type GapCandidate,
+} from "@/lib/planning/outcomes";
+import { calendarDaysBetween } from "@/lib/time/zone";
+import { WhatChanged } from "@/components/planning/what-changed";
+import { Panel } from "./panel";
+import { ArchiveSuggestion } from "./archive-suggestion";
+import { ReadinessPanel, type NextAssessment } from "./readiness-panel";
+import { LearningPanel, type CourseMasteryRow } from "./learning-panel";
+
 import {
   buildComingUpRows,
   buildNextUpReasons,
@@ -35,8 +52,10 @@ import {
   describeBlockTime,
   loadDashboardData,
   minutesStudiedThisWeek,
+  pickNextUp,
   totalShortfallMinutes,
   type ComingUpRow,
+  type ExamListItem,
   type WeekDayBar,
 } from "@/lib/today/dashboard-data";
 
@@ -59,6 +78,8 @@ interface LastCheck {
   createdAt: Date;
 }
 
+// ---------- Loading data ----------
+
 // ---------- Preparing data ----------
 
 function greeting(hour: number): string {
@@ -78,11 +99,61 @@ async function buildStreakShareUrl(userId: string, currentStreak: number, studie
   return `${appUrl}/s/${token}`;
 }
 
+/** Open work due in the next 7 days (overdue included) and how much of it is placed. */
+function workRemainingThisWeek(plan: UserPlan, now: Date, tz: string, today: string) {
+  let dueMinutes = 0;
+  let items = 0;
+  for (const scored of plan.scored) {
+    if (scored.item.kind === "review") continue;
+    if (calendarDaysBetween(scored.item.dueAt, now, tz) > 6) continue;
+    dueMinutes += scored.item.remainingMinutes;
+    items++;
+  }
+  let reviewMinutes = 0;
+  for (const session of plan.sessions) {
+    if (session.item.kind === "review" && session.scheduledDate >= today) reviewMinutes += session.scheduledMinutes;
+  }
+  return { dueMinutes, items, reviewMinutes };
+}
+
+/** The earliest upcoming exam, with a readiness estimate from its course's topics. */
+function buildNextAssessment(plan: UserPlan, exams: ExamListItem[], now: Date, tz: string): NextAssessment | null {
+  const exam = exams[0];
+  if (!exam) return null;
+  const course = plan.learning.courses.find((c) => c.id === exam.classId);
+  const scored = plan.scored.find((s) => s.item.kind === "exam" && s.item.id === exam.id);
+  let plannedPrepMinutes = 0;
+  for (const session of plan.sessions) {
+    if (session.item.kind === "exam" && session.item.id === exam.id) plannedPrepMinutes += session.scheduledMinutes;
+  }
+  const neededPrepMinutes = scored?.item.remainingMinutes ?? 0;
+  const daysLeft = Math.max(0, calendarDaysBetween(exam.examAt, now, tz));
+  return {
+    examId: exam.id,
+    classId: exam.classId,
+    title: exam.title,
+    className: exam.class.name,
+    classColor: exam.class.color,
+    examAt: exam.examAt,
+    daysLeft,
+    plannedPrepMinutes,
+    neededPrepMinutes,
+    readiness: assessReadiness({
+      className: exam.class.name,
+      daysLeft,
+      topics: (course?.learning.topics ?? []).map((t) => ({ id: t.id, title: t.title, estimate: t.estimate })),
+      plannedPrepMinutes,
+      neededPrepMinutes,
+      shortMinutes: plan.unscheduledMinutesByItem[exam.id] ?? 0,
+    }),
+  };
+}
+
 // ---------- Page ----------
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const now = new Date();
+  const now = await currentTime();
   const {
     classes,
     plan,
@@ -101,6 +172,11 @@ export default async function DashboardPage() {
 
   const tz = plan.timeZone;
   const today = dateKey(now, tz);
+
+  // Keep the plan history current (a new day may have left a block missed), then
+  // read the latest "what changed".
+  await rollPlanForward(user.id, plan, now);
+  const changeNote = await latestChangeNote(user.id, now, tz, true);
   const history: SessionRecord[] = sessionHistory.map((row) => ({
     ...row,
     status: row.status as "COMPLETED" | "ABANDONED",
@@ -132,8 +208,8 @@ export default async function DashboardPage() {
     return scored ? explainScore(scored, now, plan.scored, tz) : [];
   }
 
-  // The One Thing to do next
-  const next = plan.scored[0];
+  // The One Thing to do next: the top-ranked work the student hasn't put off today.
+  const next = pickNextUp(plan, today);
   let nextBlock: ScheduledSession | undefined;
   let nextReasons: string[] = [];
   if (next) {
@@ -149,7 +225,37 @@ export default async function DashboardPage() {
     weekMinutes += day.minutes;
   }
   const shortfallMinutes = totalShortfallMinutes(plan);
+  const remaining = workRemainingThisWeek(plan, now, tz, today);
   const courseTime = studyTimeByCourse(classes, weekSessions);
+
+  // Outcomes: readiness for the next exam, the biggest gap, mastery by course.
+  const nextAssessment = buildNextAssessment(plan, exams, now, tz);
+  const activeIds = new Set(classes.map((c) => c.id));
+  const activeLearning = plan.learning.courses.filter((c) => activeIds.has(c.id));
+  const examDaysByClass = new Map<string, number>();
+  for (const exam of exams) {
+    if (!examDaysByClass.has(exam.classId)) examDaysByClass.set(exam.classId, Math.max(0, calendarDaysBetween(exam.examAt, now, tz)));
+  }
+  const gapCandidates: GapCandidate[] = activeLearning.flatMap((course) =>
+    course.learning.topics.map((topic) => ({
+      topicId: topic.id,
+      title: topic.title,
+      classId: course.id,
+      className: course.name,
+      classColor: course.color,
+      estimate: topic.estimate,
+      remediation: topic.remediation,
+    })),
+  );
+  const gap = pickBiggestGap(gapCandidates, examDaysByClass);
+  const masteryRows: CourseMasteryRow[] = activeLearning
+    .filter((course) => plan.masteryByClass.has(course.id))
+    .map((course) => ({ id: course.id, name: course.name, color: course.color, mastery: plan.masteryByClass.get(course.id)! }));
+  const hasEvidence = gapCandidates.some((c) => c.estimate.answers > 0);
+  const archiveSuggestions = coursesToSuggestArchiving(
+    classes.map((c) => ({ id: c.id, name: c.name, archived: false, termEnd: dateColumnKey(c.termEnd), archiveSuggestionDismissedAt: c.archiveSuggestionDismissedAt })),
+    today,
+  );
 
   const name = user.profile?.displayName?.trim();
   const hasWork = plan.scored.length > 0;
@@ -180,6 +286,17 @@ export default async function DashboardPage() {
 
       {canvasConnection?.status === "NEEDS_REAUTH" && <CanvasReconnectBanner />}
 
+      {archiveSuggestions.map((course) => (
+        <ArchiveSuggestion
+          key={course.id}
+          classId={course.id}
+          name={course.name}
+          endedLabel={formatDateKey(course.termEnd!, { month: "short", day: "numeric" })}
+        />
+      ))}
+
+      {changeNote && <WhatChanged planId={changeNote.planId} sentences={changeNote.sentences} />}
+
       {next && (
         <NextUp
           itemId={next.item.id}
@@ -195,7 +312,7 @@ export default async function DashboardPage() {
         />
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem] lg:items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem] lg:items-start">
         <div className="space-y-6">
           <Panel
             id="today-heading"
@@ -237,6 +354,8 @@ export default async function DashboardPage() {
             )}
           </Panel>
 
+          {nextAssessment && <ReadinessPanel next={nextAssessment} tz={tz} now={now} />}
+
           <Panel
             id="coming-up-heading"
             title="Coming up"
@@ -260,10 +379,20 @@ export default async function DashboardPage() {
 
         <div className="stagger-enter space-y-6">
           {hasWork && !noAvailability && (
-            <ThisWeekSection week={week} weekMinutes={weekMinutes} shortfallMinutes={shortfallMinutes} />
+            <ThisWeekSection
+              week={week}
+              weekMinutes={weekMinutes}
+              shortfallMinutes={shortfallMinutes}
+              dueMinutes={remaining.dueMinutes}
+              dueItems={remaining.items}
+              reviewMinutes={remaining.reviewMinutes}
+            />
+          )}
+          {classes.length > 0 && (masteryRows.length > 0 || !aiEnabled) && (
+            <LearningPanel gap={gap} courses={masteryRows} hasEvidence={hasEvidence} />
           )}
           {classes.length > 0 && <CourseTimeSection rows={courseTime} />}
-          {aiEnabled && <LearningSection review={review} lastCheck={lastCheck} tz={tz} />}
+          {aiEnabled && masteryRows.length === 0 && <LearningSection review={review} lastCheck={lastCheck} tz={tz} />}
         </div>
       </div>
 
@@ -273,31 +402,6 @@ export default async function DashboardPage() {
 }
 
 // ---------- Page sections ----------
-
-/** A titled card on the Today page. */
-function Panel({
-  id,
-  title,
-  aside,
-  children,
-}: {
-  id: string;
-  title: string;
-  aside?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section aria-labelledby={id} className="rounded-xl bg-card px-4 py-3.5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07] sm:px-5 sm:py-4">
-      <div className="flex min-h-7 items-center justify-between gap-3 pb-1.5">
-        <h2 id={id} className="text-[15px] font-semibold tracking-tight">
-          {title}
-        </h2>
-        {aside}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 function CanvasReconnectBanner() {
   return (
@@ -475,11 +579,19 @@ function ThisWeekSection({
   week,
   weekMinutes,
   shortfallMinutes,
+  dueMinutes,
+  dueItems,
+  reviewMinutes,
 }: {
   week: WeekDayBar[];
   weekMinutes: number;
   shortfallMinutes: number;
+  dueMinutes: number;
+  dueItems: number;
+  reviewMinutes: number;
 }) {
+  let availableMinutes = 0;
+  for (const day of week) availableMinutes += day.availableMinutes;
   let busiest: WeekDayBar | undefined;
   for (const day of week) {
     if (day.minutes > 0 && (!busiest || day.minutes > busiest.minutes)) busiest = day;
@@ -488,9 +600,26 @@ function ThisWeekSection({
     <Panel
       id="week-heading"
       title="This week"
-      aside={<span className="text-sm tabular-nums text-muted-foreground">{formatDuration(weekMinutes)} planned</span>}
+      aside={
+        <span className="text-sm tabular-nums text-muted-foreground">
+          {formatDuration(weekMinutes)} of {formatDuration(availableMinutes)}
+        </span>
+      }
     >
       <div className="pt-2">
+        <p className="mb-3 text-sm">
+          {dueItems === 0 ? (
+            <span className="text-muted-foreground">Nothing is due in the next 7 days.</span>
+          ) : (
+            <>
+              <span className="font-medium tabular-nums">{formatDuration(dueMinutes)}</span>
+              <span className="text-muted-foreground">
+                {" "}of work due in the next 7 days ({dueItems} {dueItems === 1 ? "item" : "items"})
+              </span>
+            </>
+          )}
+          {reviewMinutes > 0 && <span className="text-muted-foreground">, plus {formatDuration(reviewMinutes)} of review.</span>}
+        </p>
         <WorkloadBars days={week} />
         {busiest && (
           <p className="mt-3 text-xs text-muted-foreground">

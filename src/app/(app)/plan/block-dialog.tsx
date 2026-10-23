@@ -68,9 +68,11 @@ export function BlockDialog({
       return;
     }
     setError(null);
+    if (block.kind === "review") return; // review blocks can't be pinned (the menu doesn't offer it)
+    const kind = block.kind;
     startTransition(async () => {
       const result = await pinBlock({
-        kind: block.kind,
+        kind,
         itemId: block.itemId,
         date,
         startMinute,
@@ -81,7 +83,8 @@ export function BlockDialog({
         setError(result.error);
         return;
       }
-      toast.success("Block placed. Rushd will plan around it.");
+      if (result.risk) toast.warning(result.risk);
+      else toast.success("Block placed. Rushd will plan around it.");
       onOpenChange(false);
     });
   }

@@ -159,6 +159,36 @@ test("design tour", async ({ browser }) => {
   await page.goto(calcUrl);
   await shoot(page, "d-course-page-learning");
 
+  // An exam for the course (with its share of the grade), then two days later
+  // (the server clock moves for this browser only, see src/lib/time/now.ts):
+  // reviews are due, readiness and the biggest gap show on Today.
+  await page.goto("/exams");
+  await page.locator("#main-content").getByRole("button", { name: "Add exam" }).first().click();
+  const examDialog = page.getByRole("dialog");
+  await examDialog.getByLabel("Title").fill("Unit 2 test");
+  await examDialog.getByRole("combobox", { name: "Course" }).click();
+  await page.getByRole("option", { name: "AP Calculus AB" }).click();
+  const examAt = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000);
+  examAt.setHours(9, 0, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  await examDialog.getByLabel("Date").fill(`${examAt.getFullYear()}-${pad(examAt.getMonth() + 1)}-${pad(examAt.getDate())}T09:00`);
+  await examDialog.getByLabel("Share of grade (optional)").fill("20");
+  await page.screenshot({ path: `${OUT}/d-exam-dialog.png` });
+  await examDialog.getByRole("button", { name: "Add exam" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  later.setHours(16, 0, 0, 0);
+  await context.addCookies([{ name: "rushd-test-now", value: later.toISOString(), url: new URL(page.url()).origin }]);
+  await page.goto("/dashboard");
+  await shoot(page, "d-today-outcomes");
+  const skip = page.getByRole("region", { name: "Today", exact: true }).getByRole("button", { name: /^Skip ".*" today$/ }).first();
+  if (await skip.count()) {
+    await skip.click();
+    await page.waitForTimeout(1500);
+    await page.goto("/dashboard");
+  }
+  await shoot(page, "d-today-changed");
+
   for (const [path, name] of [
     ["/assignments", "d-assignments"],
     ["/exams", "d-exams"],

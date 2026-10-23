@@ -135,7 +135,7 @@ export async function commitImportedAssignments(input: ImportItem[]): Promise<Co
   await db.$transaction(inserts);
 
   await logEvent(user.id, "assignment_confirmed", { count: items.length });
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "assignment_added");
 
   return { success: true, created: items.length };
 }

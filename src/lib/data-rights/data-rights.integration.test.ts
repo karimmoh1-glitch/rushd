@@ -20,6 +20,7 @@ async function seedEverything(userId: string, otherUserId: string) {
   });
   await db.studyAvailability.create({ data: { userId, dayOfWeek: 1, startMinute: 900, endMinute: 1020 } });
   await db.scheduleBlock.create({ data: { userId, assignmentId: assignment.id, localDate: "2026-11-02", startMinute: 900, durationMinutes: 30 } });
+  await db.planOverride.create({ data: { userId, kind: "SKIP_DAY", assignmentId: assignment.id, localDate: "2026-11-02" } });
   await db.notification.create({ data: { userId, type: "OVERDUE_WORK", title: "Due soon", body: "Lab report" } });
   await db.feedback.create({ data: { userId, context: "plan", rating: 5, message: "useful" } });
   await db.event.create({ data: { userId, name: "signup" } });

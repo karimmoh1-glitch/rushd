@@ -1,8 +1,8 @@
-import type { ReasonCode } from "@/lib/planning/types";
+import type { ReasonCode, WorkKind } from "@/lib/planning/types";
 
 export interface AgendaBlock {
   key: string;
-  kind: "assignment" | "exam";
+  kind: WorkKind;
   itemId: string;
   title: string;
   className: string;
@@ -17,6 +17,10 @@ export interface AgendaBlock {
   reasons: string[];
   fromCanvas: boolean;
   dueLabel: string;
+  /** The block is today (so "Skip today" applies). */
+  isToday: boolean;
+  /** The student's own estimate (assignment minutes or exam prep), for "Change estimate". */
+  estimateMinutes: number;
 }
 
 export interface AgendaDay {

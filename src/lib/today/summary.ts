@@ -13,6 +13,7 @@ import {
   describeBlockTime,
   loadDashboardData,
   minutesStudiedThisWeek,
+  pickNextUp,
   totalShortfallMinutes,
 } from "@/lib/today/dashboard-data";
 
@@ -21,6 +22,13 @@ import {
 // show the same next step, blocks, deadlines, and week.
 
 type ItemKind = "assignment" | "exam";
+
+// Topic reviews (planner blocks of kind "review") aren't in the app yet: it
+// can only start sessions for assignments and exams, so they're left out here.
+const APP_KINDS: ReadonlySet<"assignment" | "exam" | "review"> = new Set(["assignment", "exam"]);
+function isAppKind(kind: string): kind is ItemKind {
+  return kind === "assignment" || kind === "exam";
+}
 
 export interface TodaySummary {
   timeZone: string;
@@ -99,8 +107,8 @@ export async function getTodaySummary(userId: string, now = new Date()): Promise
   };
 
   let nextUp: TodaySummary["nextUp"] = null;
-  const next = plan.scored[0];
-  if (next) {
+  const next = pickNextUp(plan, today, APP_KINDS);
+  if (next && isAppKind(next.item.kind)) {
     const block: ScheduledSession | undefined = plan.sessions.find((session) => session.item.id === next.item.id);
     nextUp = {
       itemId: next.item.id,
@@ -117,7 +125,10 @@ export async function getTodaySummary(userId: string, now = new Date()): Promise
     };
   }
 
-  const todaySessions = plan.sessions.filter((session) => session.scheduledDate === today);
+  const todaySessions = plan.sessions.filter(
+    (session): session is ScheduledSession & { item: { kind: ItemKind } } =>
+      session.scheduledDate === today && isAppKind(session.item.kind),
+  );
   let plannedMinutesToday = 0;
   for (const session of todaySessions) plannedMinutesToday += session.scheduledMinutes;
   const laterSession = plan.sessions.find((session) => session.scheduledDate > today);

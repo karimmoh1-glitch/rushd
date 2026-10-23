@@ -5,14 +5,16 @@ import * as z from "zod";
 import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { logEvent } from "@/lib/analytics/log-event";
-import { addDaysToKey, diffDateKeys, localDateKey, localMinuteOfDay, resolveTimeZone } from "@/lib/time/zone";
+import { addDaysToKey, diffDateKeys, localDateKey, localMinuteOfDay, resolveTimeZone, zonedTimeToUtc } from "@/lib/time/zone";
 import { PLANNING_HORIZON_DAYS } from "@/lib/planning/constants";
 import type { Prisma } from "@/generated/prisma/client";
+import { regeneratePlanSnapshot } from "@/server/actions/plans";
+import { formatDueDate } from "@/lib/format";
 
 // A block the student pins, moves or resizes is saved as a ScheduleBlock row
 // that the planner treats as fixed. Every write is scoped to the session user.
 
-export type ScheduleActionResult = { error: string } | { success: true };
+export type ScheduleActionResult = { error: string } | { success: true; risk?: string };
 
 const BlockSchema = z
   .object({
@@ -74,15 +76,18 @@ export async function pinBlock(input: z.infer<typeof BlockSchema>): Promise<Sche
   }
 
   // The item must exist, belong to this student, and still be open.
+  let dueAt: Date;
   if (block.kind === "assignment") {
     const owned = await db.assignment.findFirst({
       where: { id: block.itemId, userId: user.id, status: { not: "COMPLETED" } },
-      select: { id: true },
+      select: { id: true, dueAt: true },
     });
     if (!owned) return { error: "That assignment isn't open any more." };
+    dueAt = owned.dueAt;
   } else {
-    const owned = await db.exam.findFirst({ where: { id: block.itemId, userId: user.id }, select: { id: true } });
+    const owned = await db.exam.findFirst({ where: { id: block.itemId, userId: user.id }, select: { id: true, examAt: true } });
     if (!owned) return { error: "That exam no longer exists." };
+    dueAt = owned.examAt;
   }
 
   // Compare against the student's other blocks that day (not the one being moved).
@@ -124,7 +129,16 @@ export async function pinBlock(input: z.infer<typeof BlockSchema>): Promise<Sche
   }
 
   await logEvent(user.id, eventName, { kind: block.kind });
+  await logEvent(user.id, "override_applied", { type: block.blockId ? "move" : "pin", kind: block.kind, itemId: block.itemId });
+  await regeneratePlanSnapshot(user.id, "block_moved");
   revalidate();
+
+  // The student may place a block anywhere; say so when it lands after the deadline.
+  const blockEndsAt = zonedTimeToUtc(block.date, blockEnd, timeZone);
+  if (dueAt.getTime() > now.getTime() && blockEndsAt.getTime() > dueAt.getTime()) {
+    const what = block.kind === "exam" ? "the exam" : "the deadline";
+    return { success: true, risk: `Heads up: this block ends after ${what} (${formatDueDate(dueAt, timeZone, now)}).` };
+  }
   return { success: true };
 }
 
@@ -133,6 +147,8 @@ export async function unpinBlock(blockId: string): Promise<ScheduleActionResult>
   if (typeof blockId !== "string" || blockId.length > 64) return { error: "Invalid block." };
   const result = await db.scheduleBlock.deleteMany({ where: { id: blockId, userId: user.id } });
   if (result.count === 0) return { error: "That block no longer exists." };
+  await logEvent(user.id, "override_applied", { type: "unpin" });
+  await regeneratePlanSnapshot(user.id, "block_moved");
   revalidate();
   return { success: true };
 }
@@ -147,6 +163,7 @@ export async function clearPinnedBlocks(): Promise<ScheduleActionResult & { clea
     where: { userId: user.id, localDate: { gte: today } },
   });
   await logEvent(user.id, "schedule_blocks_cleared", { count: result.count });
+  await regeneratePlanSnapshot(user.id, "block_moved");
   revalidate();
   return { success: true, cleared: result.count };
 }

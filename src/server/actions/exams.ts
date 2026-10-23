@@ -37,12 +37,13 @@ export async function createExam(input: ExamInput): Promise<ActionResult> {
       prepMinutes: data.prepMinutes,
       priority: data.priority,
       notes: data.notes || null,
+      weightPercent: data.weightPercent ?? null,
     },
     select: { id: true },
   });
 
   await logEvent(user.id, "exam_created", { examId: created.id });
-  await regeneratePlanSnapshot(user.id);
+  await regeneratePlanSnapshot(user.id, "exam_added");
   revalidateExamPages();
   return { success: true };
 }
@@ -72,6 +73,7 @@ export async function updateExam(
       prepMinutes: data.prepMinutes,
       priority: data.priority,
       notes: data.notes || null,
+      weightPercent: data.weightPercent,
     },
   });
   if (result.count === 0) return { error: "Exam not found." };

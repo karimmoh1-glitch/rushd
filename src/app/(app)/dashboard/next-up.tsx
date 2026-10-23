@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
 import { StartSessionButton } from "@/components/start-session-button";
+import { StartPracticeButton } from "@/components/learning/start-practice-button";
 import { formatDuration } from "@/lib/format";
 import { PulseBadge } from "@/components/brand/pulse-badge";
 
@@ -25,7 +26,7 @@ export function NextUp({
 }: {
   pulse: number;
   itemId: string;
-  itemKind: "assignment" | "exam";
+  itemKind: "assignment" | "exam" | "review";
   assignmentId: string | null;
   title: string;
   className: string;
@@ -45,7 +46,7 @@ export function NextUp({
         toast.error(result.error);
         return;
       }
-      await logPlanItemInteraction("completed", itemId, itemKind);
+      await logPlanItemInteraction("completed", itemId, itemKind, "next_up");
       toast.success("Marked done.");
     });
   }
@@ -92,13 +93,17 @@ export function NextUp({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2 [&>button]:flex-1 md:[&>button]:flex-none">
-          <StartSessionButton
-            target={assignmentId ? { assignmentId } : { examId: itemId }}
-            source="PLANNED"
-            label="Start session"
-            size="lg"
-            variant="signal"
-          />
+          {itemKind === "review" ? (
+            <StartPracticeButton classId={itemId} mode="review" label="Start review" size="lg" variant="signal" />
+          ) : (
+            <StartSessionButton
+              target={assignmentId ? { assignmentId } : { examId: itemId }}
+              source="PLANNED"
+              label="Start session"
+              size="lg"
+              variant="signal"
+            />
+          )}
           {assignmentId && (
             <Button onClick={complete} disabled={pending} size="lg" variant="outline">
               <Check className="h-4 w-4" />

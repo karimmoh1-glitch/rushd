@@ -2,6 +2,15 @@ import "server-only";
 import type { WorkItem } from "./types";
 import { adjustEstimate, type EstimationProfile } from "@/lib/estimation/build-estimation-profile";
 
+interface ClassFields {
+  name: string;
+  color: string;
+  priority: "LOW" | "MEDIUM" | "HIGH";
+  /** Local date keys for the course's term, when set (see outcomes.dateColumnKey). */
+  termStart?: string | null;
+  termEnd?: string | null;
+}
+
 interface AssignmentRow {
   id: string;
   classId: string;
@@ -10,7 +19,9 @@ interface AssignmentRow {
   estimatedMinutes: number;
   priority: "LOW" | "MEDIUM" | "HIGH";
   status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
-  class: { name: string; color: string; priority: "LOW" | "MEDIUM" | "HIGH" };
+  /** Share of the grade in percent; null when unknown. Undefined = not loaded. */
+  weightPercent?: number | null;
+  class: ClassFields;
 }
 
 interface ExamRow {
@@ -20,14 +31,11 @@ interface ExamRow {
   examAt: Date;
   prepMinutes: number;
   priority: "LOW" | "MEDIUM" | "HIGH";
-  class: { name: string; color: string; priority: "LOW" | "MEDIUM" | "HIGH" };
+  weightPercent?: number | null;
+  class: ClassFields;
 }
 
-interface EstimateFields {
-  remainingMinutes: number;
-  rawEstimatedMinutes: number;
-  estimateAdjusted: boolean;
-}
+type EstimateFields = Pick<WorkItem, "remainingMinutes" | "rawEstimatedMinutes" | "estimateAdjusted" | "estimateNote">;
 
 /** The estimate fields of a WorkItem. Without a profile, the raw estimate is used as is. */
 function estimateFields(
@@ -39,11 +47,24 @@ function estimateFields(
     return { remainingMinutes: rawMinutes, rawEstimatedMinutes: rawMinutes, estimateAdjusted: false };
   }
   const adjusted = adjustEstimate(rawMinutes, className, estimationProfile);
-  return {
+  const fields: EstimateFields = {
     remainingMinutes: adjusted.minutes,
     rawEstimatedMinutes: rawMinutes,
     estimateAdjusted: adjusted.adjusted,
   };
+  if (adjusted.adjusted && adjusted.source !== "none") {
+    const sampleSize =
+      adjusted.source === "class"
+        ? (estimationProfile.byClass.find((c) => c.className === className)?.sampleSize ?? 0)
+        : estimationProfile.overallSampleSize;
+    fields.estimateNote = { percentOff: adjusted.percentOff, sampleSize, source: adjusted.source };
+  }
+  return fields;
+}
+
+function termOf(cls: ClassFields): WorkItem["term"] {
+  if (cls.termStart === undefined && cls.termEnd === undefined) return undefined;
+  return { start: cls.termStart ?? null, end: cls.termEnd ?? null };
 }
 
 /**
@@ -60,7 +81,7 @@ export function buildWorkItems(
   const workItems: WorkItem[] = [];
 
   for (const assignment of assignments) {
-    workItems.push({
+    const item: WorkItem = {
       kind: "assignment",
       id: assignment.id,
       classId: assignment.classId,
@@ -71,11 +92,15 @@ export function buildWorkItems(
       classPriority: assignment.class.priority,
       dueAt: assignment.dueAt,
       ...estimateFields(assignment.estimatedMinutes, assignment.class.name, estimationProfile),
-    });
+    };
+    if (assignment.weightPercent !== undefined) item.weightPercent = assignment.weightPercent;
+    const term = termOf(assignment.class);
+    if (term) item.term = term;
+    workItems.push(item);
   }
 
   for (const exam of exams) {
-    workItems.push({
+    const item: WorkItem = {
       kind: "exam",
       id: exam.id,
       classId: exam.classId,
@@ -86,7 +111,11 @@ export function buildWorkItems(
       classPriority: exam.class.priority,
       dueAt: exam.examAt,
       ...estimateFields(exam.prepMinutes, exam.class.name, estimationProfile),
-    });
+    };
+    if (exam.weightPercent !== undefined) item.weightPercent = exam.weightPercent;
+    const term = termOf(exam.class);
+    if (term) item.term = term;
+    workItems.push(item);
   }
 
   return workItems;

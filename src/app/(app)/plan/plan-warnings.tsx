@@ -6,6 +6,29 @@ import type { PlanWarning, ScoredItem } from "@/lib/planning/types";
 
 type Shortfall = Extract<PlanWarning, { type: "DEADLINE_SHORTFALL" }>;
 type Overloaded = Extract<PlanWarning, { type: "OVERLOADED_DAY" }>;
+type OutsideTerm = Extract<PlanWarning, { type: "OUTSIDE_TERM" }>;
+
+const OVERRIDE_NOTE: Record<NonNullable<Shortfall["override"]>, string> = {
+  skip: "short because you skipped it today",
+  not_this_week: "short because you moved it out of this week",
+};
+
+/** Work Rushd didn't plan because it falls outside its course's term dates. */
+function OutsideTermNote({ items }: { items: OutsideTerm[] }) {
+  if (items.length === 0) return null;
+  return (
+    <p className="rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
+      Not planned, because it falls outside the course&apos;s term dates:{" "}
+      {items.slice(0, 3).map((item, index) => (
+        <span key={`${item.kind}:${item.itemId}`}>
+          {index > 0 && ", "}
+          <span className="font-medium text-foreground">{item.title}</span> ({item.className})
+        </span>
+      ))}
+      {items.length > 3 && ` and ${items.length - 3} more`}. Check the term on the course page if that&apos;s wrong.
+    </p>
+  );
+}
 
 /** Says honestly what doesn't fit before its deadline, where the crunch lands,
  * and what to do first, instead of quietly over-filling days or dropping work. */
@@ -42,8 +65,9 @@ export function PlanWarnings({
     );
   }
 
+  const outside = warnings.filter((warning): warning is OutsideTerm => warning.type === "OUTSIDE_TERM");
   const shortfalls = warnings.filter((warning): warning is Shortfall => warning.type === "DEADLINE_SHORTFALL");
-  if (shortfalls.length === 0) return null;
+  if (shortfalls.length === 0) return <OutsideTermNote items={outside} />;
   const days = warnings.filter((warning): warning is Overloaded => warning.type === "OVERLOADED_DAY");
 
   let totalShort = 0;
@@ -57,6 +81,8 @@ export function PlanWarnings({
   const firstUp = sortedShortfalls.slice(0, 3);
 
   return (
+    <>
+    <OutsideTermNote items={outside} />
     <section className="rounded-xl border border-warning/40 bg-warning/5 p-4 sm:p-5" aria-labelledby="overload-heading">
       <div className="flex gap-3">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
@@ -78,7 +104,7 @@ export function PlanWarnings({
                     <span className="text-muted-foreground">
                       {" "}
                       · {shortfall.overdue ? "overdue" : `due ${formatDueDate(shortfall.dueAt, timeZone)}`} ·{" "}
-                      {formatDuration(shortfall.shortMinutes)} short
+                      {formatDuration(shortfall.shortMinutes)} {shortfall.override ? OVERRIDE_NOTE[shortfall.override] : "short"}
                     </span>
                   </li>
                 ))}
@@ -116,5 +142,6 @@ export function PlanWarnings({
         </div>
       </div>
     </section>
+    </>
   );
 }
