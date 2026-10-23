@@ -20,16 +20,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClass, updateClass } from "@/server/actions/classes";
+import { createClass, createClasses, updateClass } from "@/server/actions/classes";
 import { CLASS_COLORS, DEFAULT_CLASS_COLOR } from "@/lib/class-colors";
 import { PRIORITY_LABELS } from "@/lib/priority";
 import { cn } from "@/lib/utils";
 import type { ClassInput } from "@/lib/validation/classes";
-import { COURSE_LEVELS, levelLabel, type CatalogCourse, type CourseLevelValue } from "@/lib/courses/catalog";
+import { COURSE_LEVELS, catalogRecord, levelLabel, type CatalogRecord, type CourseLevelValue } from "@/lib/courses/catalog";
+import { normalize } from "@/lib/courses/catalog/search";
+import { colorFor, toClassInput, type PickedCourse } from "@/lib/courses/picked";
+import { CoursePicker, type OwnCourseSummary } from "@/components/course/course-picker";
 import { CourseSearch } from "./course-search";
 
 export interface ClassDialogInitialData extends ClassInput {
   id: string;
+}
+
+/** What the add dialog knows about the student, for ranking and the multi-course picker. */
+export interface CourseContext {
+  studentLevel: CourseLevelValue | null;
+  popularIds: string[];
+  ownCourses: OwnCourseSummary[];
 }
 
 const NO_LEVEL = "NONE";
@@ -45,36 +55,114 @@ export function ClassDialog({
   onOpenChange,
   initialData,
   timeZone,
+  context,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: ClassDialogInitialData;
   /** The student's time zone, which term dates and plans use. */
   timeZone?: string;
+  context?: CourseContext;
 }) {
+  // Adding offers a multi-course mode; editing is always one course.
+  const [multi, setMulti] = useState(false);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setMulti(false);
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto">
-        {/* The key gives each course (or "new") its own fresh form state. */}
-        <ClassDialogForm
-          key={initialData?.id ?? "new"}
-          initialData={initialData}
-          timeZone={timeZone}
-          onDone={() => onOpenChange(false)}
-        />
+        {multi && !initialData ? (
+          <MultiCourseForm context={context} onDone={() => onOpenChange(false)} onSingle={() => setMulti(false)} />
+        ) : (
+          /* The key gives each course (or "new") its own fresh form state. */
+          <ClassDialogForm
+            key={initialData?.id ?? "new"}
+            initialData={initialData}
+            timeZone={timeZone}
+            studentLevel={context?.studentLevel ?? null}
+            onDone={() => onOpenChange(false)}
+            onMulti={initialData ? undefined : () => setMulti(true)}
+          />
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Add several courses at once with the command-palette picker. */
+function MultiCourseForm({ context, onDone, onSingle }: { context?: CourseContext; onDone: () => void; onSingle: () => void }) {
+  const [pending, startTransition] = useTransition();
+  const [picked, setPicked] = useState<PickedCourse[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const existing = context?.ownCourses.filter((course) => !course.archived).length ?? 0;
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (picked.length === 0) return;
+    setError(null);
+    const inputs = picked.map((course, index) => toClassInput(course, colorFor(existing + index)));
+    startTransition(async () => {
+      const result = await createClasses(inputs);
+      if ("error" in result) {
+        setError(result.error);
+        toast.error(result.error);
+        return;
+      }
+      toast.success(picked.length === 1 ? "Course added." : `${picked.length} courses added.`);
+      onDone();
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <DialogHeader>
+        <DialogTitle>Add courses</DialogTitle>
+        <DialogDescription>Add as many as you like. Details like your school and term can be added to each course after.</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-3 py-4">
+        <CoursePicker
+          studentLevel={context?.studentLevel ?? null}
+          selected={picked}
+          onAdd={(course) => setPicked((current) => (current.some((c) => c.key === course.key) ? current : [...current, course]))}
+          onRemove={(key) => setPicked((current) => current.filter((course) => course.key !== key))}
+          popularIds={context?.popularIds}
+          ownCourses={context?.ownCourses}
+          autoFocus
+        />
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
+      <DialogFooter className="gap-2 sm:justify-between">
+        <Button type="button" variant="ghost" onClick={onSingle}>
+          Add one with details
+        </Button>
+        <Button type="submit" disabled={pending || picked.length === 0}>
+          {pending ? "Adding…" : picked.length > 1 ? `Add ${picked.length} courses` : "Add course"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
 function ClassDialogForm({
   initialData,
   timeZone,
+  studentLevel,
   onDone,
+  onMulti,
 }: {
   initialData?: ClassDialogInitialData;
   timeZone?: string;
+  studentLevel: CourseLevelValue | null;
   onDone: () => void;
+  onMulti?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState(initialData?.name ?? "");
@@ -89,13 +177,22 @@ function ClassDialogForm({
   const [termStart, setTermStart] = useState(initialData?.termStart ?? "");
   const [termEnd, setTermEnd] = useState(initialData?.termEnd ?? "");
   const [weeklyHours, setWeeklyHours] = useState(initialData?.weeklyHours ? String(initialData.weeklyHours) : "");
+  const [catalogId, setCatalogId] = useState<string | null>(initialData?.catalogId ?? null);
   const [error, setError] = useState<string | null>(null);
 
   // Picking a suggestion fills in what we know about that course.
-  function pickCourse(course: CatalogCourse) {
+  function pickCourse(course: CatalogRecord, shownLevel: CourseLevelValue) {
     setName(course.title);
     setSubject(course.subject);
-    if (!level) setLevel(course.level);
+    setCatalogId(course.id);
+    if (!level) setLevel(shownLevel);
+  }
+
+  function changeName(next: string) {
+    setName(next);
+    // A new course whose name no longer contains the picked title is a custom course.
+    const picked = catalogRecord(catalogId);
+    if (!initialData && picked && !normalize(next).includes(normalize(picked.title))) setCatalogId(null);
   }
 
   function handleSubmit(event: React.FormEvent) {
@@ -114,6 +211,7 @@ function ClassDialogForm({
       termStart,
       termEnd,
       weeklyHours: weeklyHours ? Number(weeklyHours) : undefined,
+      catalogId: catalogId ?? undefined,
     };
 
     startTransition(async () => {
@@ -141,6 +239,14 @@ function ClassDialogForm({
         <DialogTitle>{initialData ? "Edit course" : "Add a course"}</DialogTitle>
         <DialogDescription>
           Search for your course or type your own. Only the name is required.
+          {onMulti && (
+            <>
+              {" "}
+              <button type="button" onClick={onMulti} className="font-medium text-foreground underline underline-offset-4">
+                Add several at once
+              </button>
+            </>
+          )}
         </DialogDescription>
       </DialogHeader>
 
@@ -164,7 +270,7 @@ function ClassDialogForm({
 
         <div className="space-y-2">
           <Label htmlFor="class-name">Course</Label>
-          <CourseSearch value={name} level={level} onChange={setName} onPick={pickCourse} />
+          <CourseSearch value={name} level={level ?? studentLevel} onChange={changeName} onPick={pickCourse} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

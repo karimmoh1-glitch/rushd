@@ -1,0 +1,402 @@
+import type { CourseLevelValue } from "../levels";
+import type { CatalogRecord, Subject } from "../types";
+import { records, type Row } from "./build";
+
+// Generic college course templates. Titles only: every institution numbers,
+// scopes, and sequences these differently, so there are no codes, no
+// prerequisites, and no syllabi here. Students add their school, code, and
+// real work themselves. Source: SOURCES["rushd-template"].
+
+const UPDATED = "2026-10-22";
+
+function template(prefix: string, levels: CourseLevelValue[], subject: Subject, rows: (Row | string)[]): CatalogRecord[] {
+  return records({ prefix, subject, levels, kind: "template", source: "rushd-template", updatedAt: UPDATED }, rows);
+}
+
+/** First- and second-year courses taught at universities, community colleges, and in dual enrollment. */
+const INTRO: CourseLevelValue[] = ["UNIVERSITY", "COMMUNITY_COLLEGE", "ASSOCIATE", "DUAL_ENROLLMENT"];
+/** Upper-division undergraduate courses. */
+const UG: CourseLevelValue[] = ["UNIVERSITY"];
+/** Courses in associate-degree and career programs (also at community colleges). */
+const ASSOC: CourseLevelValue[] = ["ASSOCIATE", "COMMUNITY_COLLEGE"];
+const GRAD: CourseLevelValue[] = ["GRADUATE"];
+const PRO: CourseLevelValue[] = ["PROFESSIONAL"];
+
+export const COLLEGE_INTRO_COURSES: CatalogRecord[] = [
+  ...template("col", INTRO, "Math", [
+    { title: "College Algebra", aliases: ["Col Alg"] },
+    { title: "Precalculus (College)", aliases: ["Precalc", "College Precalculus"] },
+    { title: "Calculus I", aliases: ["Calc 1", "Calc I", "Calculus 1", "Single Variable Calculus"], descriptor: "Limits and derivatives" },
+    { title: "Calculus II", aliases: ["Calc 2", "Calc II", "Calculus 2"], descriptor: "Integration techniques and series" },
+    { title: "Calculus III", aliases: ["Calc 3", "Calc III", "Multivariable Calculus", "Multivariable Calc", "Vector Calculus"], descriptor: "Multivariable" },
+    { title: "Introduction to Statistics", aliases: ["Intro Stats", "Elementary Statistics", "Stats 101"] },
+    { title: "Linear Algebra", aliases: ["Lin Alg", "Linalg", "Matrix Algebra"] },
+    { title: "Differential Equations", aliases: ["Diff Eq", "DiffEq", "ODEs", "Ordinary Differential Equations"] },
+    { title: "Discrete Mathematics", aliases: ["Discrete Math", "Discrete Structures"] },
+    { title: "Business Calculus", aliases: ["Applied Calculus", "Calculus for Business"] },
+    { title: "Quantitative Reasoning", aliases: ["Math for Liberal Arts", "Contemporary Math"] },
+  ]),
+  ...template("col", INTRO, "Science", [
+    { title: "General Chemistry I", aliases: ["Gen Chem 1", "Gen Chem I", "Chem 1", "General Chemistry 1"] },
+    { title: "General Chemistry II", aliases: ["Gen Chem 2", "Gen Chem II", "Chem 2", "General Chemistry 2"] },
+    { title: "Organic Chemistry I", aliases: ["Orgo 1", "Orgo", "O Chem 1", "OChem", "Organic Chem 1", "Organic Chemistry 1"] },
+    { title: "Organic Chemistry II", aliases: ["Orgo 2", "O Chem 2", "OChem 2", "Organic Chem 2", "Organic Chemistry 2"] },
+    { title: "General Biology I", aliases: ["Bio 1", "Intro Biology", "General Biology 1", "Principles of Biology"] },
+    { title: "General Biology II", aliases: ["Bio 2", "General Biology 2"] },
+    { title: "Physics I (Algebra-Based)", aliases: ["College Physics 1", "Physics 1"], descriptor: "Algebra-based" },
+    { title: "Physics II (Algebra-Based)", aliases: ["College Physics 2", "Physics 2"], descriptor: "Algebra-based" },
+    { title: "Physics I (Calculus-Based)", aliases: ["University Physics 1", "Physics for Engineers 1", "Mechanics"], descriptor: "Calculus-based mechanics" },
+    { title: "Physics II (Calculus-Based)", aliases: ["University Physics 2", "Physics for Engineers 2", "Electricity and Magnetism"], descriptor: "Calculus-based E&M" },
+    { title: "Human Anatomy and Physiology I", aliases: ["A&P 1", "Anatomy and Physiology 1", "A and P 1"] },
+    { title: "Human Anatomy and Physiology II", aliases: ["A&P 2", "Anatomy and Physiology 2", "A and P 2"] },
+    { title: "Microbiology", aliases: ["Micro", "Micro Bio"] },
+    { title: "Introduction to Environmental Science", aliases: ["Environmental Science", "Env Sci"] },
+    { title: "Introduction to Geology", aliases: ["Geology", "Physical Geology"] },
+    { title: "Introduction to Astronomy", aliases: ["Astronomy", "Astro"] },
+    { title: "Nutrition", aliases: ["Intro to Nutrition", "Human Nutrition"] },
+  ]),
+  ...template("col", INTRO, "Computer Science", [
+    { title: "Introduction to Computer Science", aliases: ["Intro to CS", "CS1", "CS 1", "Intro CS"] },
+    { title: "Introduction to Programming", aliases: ["Programming 1", "Intro to Programming", "Python Programming"] },
+    { title: "Data Structures", aliases: ["DS", "Data Structures and Algorithms", "DSA", "CS2"] },
+    { title: "Computer Organization", aliases: ["Computer Systems", "Machine Organization"] },
+  ]),
+  ...template("col", INTRO, "English", [
+    { title: "English Composition I", aliases: ["English 101", "Comp 1", "First-Year Writing", "College Writing", "Composition 1"] },
+    { title: "English Composition II", aliases: ["English 102", "Comp 2", "Composition 2", "Research Writing"] },
+    { title: "Introduction to Literature", aliases: ["Intro to Lit"] },
+    { title: "Public Speaking", aliases: ["Speech", "Oral Communication", "Speech Communication"] },
+    { title: "Technical Writing", aliases: ["Tech Writing", "Professional Writing"] },
+  ]),
+  ...template("col", INTRO, "History and Social Studies", [
+    { title: "US History I", aliases: ["American History 1", "U.S. History to 1877"] },
+    { title: "US History II", aliases: ["American History 2", "U.S. History since 1877"] },
+    { title: "Western Civilization I", aliases: ["Western Civ 1", "Western Civ"] },
+    { title: "Western Civilization II", aliases: ["Western Civ 2"] },
+    { title: "World Civilizations", aliases: ["World History (College)"] },
+    { title: "American Government", aliases: ["Intro to American Government", "US Government", "Political Science 101"] },
+    { title: "Introduction to Sociology", aliases: ["Intro to Sociology", "Sociology 101", "Soc 101"] },
+    { title: "Introduction to Anthropology", aliases: ["Cultural Anthropology", "Anthro"] },
+    { title: "Introduction to International Relations", aliases: ["International Relations", "IR"] },
+  ]),
+  ...template("col", INTRO, "Psychology", [
+    { title: "Introduction to Psychology", aliases: ["Intro to Psych", "Psych 101", "General Psychology", "Intro Psych"] },
+    { title: "Lifespan Development", aliases: ["Developmental Psychology", "Human Growth and Development"] },
+  ]),
+  ...template("col", INTRO, "Economics", [
+    { title: "Principles of Microeconomics", aliases: ["Micro Econ", "Microeconomics", "Econ 101", "Intro Micro"] },
+    { title: "Principles of Macroeconomics", aliases: ["Macro Econ", "Macroeconomics", "Econ 102", "Intro Macro"] },
+  ]),
+  ...template("col", INTRO, "Business", [
+    { title: "Introduction to Business", aliases: ["Intro to Business", "Business 101"] },
+    { title: "Financial Accounting", aliases: ["Accounting 1", "Principles of Accounting I", "Intro Accounting"] },
+    { title: "Managerial Accounting", aliases: ["Accounting 2", "Principles of Accounting II"] },
+    { title: "Business Statistics", aliases: ["Business Stats"] },
+    { title: "Business Law", aliases: ["Legal Environment of Business"] },
+    { title: "Principles of Marketing", aliases: ["Marketing", "Intro to Marketing"] },
+    { title: "Principles of Management", aliases: ["Management", "Intro to Management"] },
+  ]),
+  ...template("col", INTRO, "Humanities", [
+    { title: "Introduction to Philosophy", aliases: ["Intro to Philosophy", "Philosophy 101"] },
+    { title: "Ethics", aliases: ["Intro to Ethics", "Moral Philosophy"] },
+    { title: "Introduction to Logic", aliases: ["Logic", "Critical Thinking"] },
+    { title: "Art History Survey I", aliases: ["Art History 1", "Art History"] },
+    { title: "Music Appreciation (College)", aliases: ["Music Appreciation"] },
+    { title: "World Religions", aliases: ["Religious Studies", "Intro to Religion"] },
+  ]),
+  ...template("col", INTRO, "World Languages", [
+    { title: "Elementary Spanish I", aliases: ["Spanish 101", "Beginning Spanish"] },
+    { title: "Elementary Spanish II", aliases: ["Spanish 102"] },
+    { title: "Intermediate Spanish I", aliases: ["Spanish 201"] },
+    { title: "Elementary French I", aliases: ["French 101", "Beginning French"] },
+    { title: "Elementary French II", aliases: ["French 102"] },
+    { title: "Elementary German I", aliases: ["German 101"] },
+    { title: "Elementary Arabic I", aliases: ["Arabic 101", "Beginning Arabic"] },
+    { title: "Elementary Chinese I", aliases: ["Chinese 101", "Mandarin 101"] },
+    { title: "Elementary Japanese I", aliases: ["Japanese 101"] },
+    { title: "American Sign Language I (College)", aliases: ["ASL 101"] },
+  ]),
+  ...template("col", INTRO, "Education", [{ title: "Introduction to Education", aliases: ["Foundations of Education"] }]),
+  ...template("col", INTRO, "Health and Medicine", [{ title: "Medical Terminology", aliases: ["Med Term"] }, { title: "Personal Health", aliases: ["Health and Wellness"] }]),
+];
+
+export const ASSOCIATE_COURSES: CatalogRecord[] = [
+  ...template("assoc", ASSOC, "Health and Medicine", [
+    { title: "Fundamentals of Nursing", aliases: ["Nursing Fundamentals", "Nursing 1"] },
+    { title: "Medical-Surgical Nursing", aliases: ["Med Surg", "Med-Surg Nursing"] },
+    { title: "Pharmacology for Nursing", aliases: ["Pharmacology", "Pharm"] },
+    { title: "Maternal and Newborn Nursing", aliases: ["OB Nursing", "Maternity Nursing"] },
+    { title: "Pediatric Nursing", aliases: ["Peds Nursing"] },
+    { title: "Mental Health Nursing", aliases: ["Psych Nursing"] },
+    { title: "Introduction to Radiography", aliases: ["Radiologic Technology"] },
+    { title: "Dental Hygiene Fundamentals", aliases: ["Dental Hygiene"] },
+    { title: "Emergency Medical Technician", aliases: ["EMT", "EMT Basic"] },
+    { title: "Phlebotomy", aliases: ["Phlebotomy Technician"] },
+    { title: "Medical Coding and Billing", aliases: ["Medical Billing", "Medical Coding"] },
+  ]),
+  ...template("assoc", ASSOC, "Technology", [
+    { title: "Introduction to Information Technology", aliases: ["Intro to IT", "IT Fundamentals"] },
+    { title: "Networking Fundamentals", aliases: ["Networking", "Computer Networking Basics"] },
+    { title: "Cybersecurity Fundamentals", aliases: ["Intro to Cybersecurity", "Network Security"] },
+    { title: "Computer Applications", aliases: ["Microsoft Office", "Computer Literacy"] },
+    { title: "Database Fundamentals", aliases: ["Intro to Databases", "SQL"] },
+    { title: "Web Development Fundamentals", aliases: ["Web Development", "HTML and CSS"] },
+  ]),
+  ...template("assoc", ASSOC, "Business", [
+    { title: "Business Communication", aliases: ["Business Writing"] },
+    { title: "Introduction to Entrepreneurship", aliases: ["Entrepreneurship", "Small Business Management"] },
+    { title: "Payroll Accounting", aliases: ["Payroll"] },
+    { title: "Introduction to Supply Chain Management", aliases: ["Supply Chain", "Logistics"] },
+  ]),
+  ...template("assoc", ASSOC, "Law", [
+    { title: "Introduction to Criminal Justice", aliases: ["Criminal Justice", "Intro to CJ"] },
+    { title: "Introduction to Paralegal Studies", aliases: ["Paralegal", "Legal Studies"] },
+    { title: "Criminology", aliases: ["Intro to Criminology"] },
+  ]),
+  ...template("assoc", ASSOC, "Education", [
+    { title: "Child Growth and Development", aliases: ["Child Development"] },
+    { title: "Introduction to Early Childhood Education", aliases: ["Early Childhood Education", "ECE"] },
+  ]),
+  ...template("assoc", ASSOC, "Engineering", [
+    { title: "Engineering Graphics", aliases: ["CAD", "Technical Drawing", "Drafting"] },
+    { title: "Electrical Fundamentals", aliases: ["DC Circuits", "Electronics Fundamentals"] },
+    { title: "Welding Fundamentals", aliases: ["Welding"] },
+    { title: "HVAC Fundamentals", aliases: ["HVAC"] },
+    { title: "Automotive Technology Fundamentals", aliases: ["Automotive Technology", "Auto Tech"] },
+  ]),
+];
+
+export const UNDERGRADUATE_COURSES: CatalogRecord[] = [
+  ...template("ug", UG, "Math", [
+    { title: "Real Analysis", aliases: ["Analysis", "Intro to Analysis", "Advanced Calculus"] },
+    { title: "Abstract Algebra", aliases: ["Modern Algebra", "Algebra (Groups and Rings)"] },
+    { title: "Probability", aliases: ["Probability Theory", "Intro to Probability"] },
+    { title: "Mathematical Statistics", aliases: ["Math Stats"] },
+    { title: "Numerical Analysis", aliases: ["Numerical Methods"] },
+    { title: "Complex Analysis", aliases: ["Complex Variables"] },
+    { title: "Topology", aliases: ["Point-Set Topology"] },
+    { title: "Number Theory", aliases: ["Elementary Number Theory"] },
+    { title: "Partial Differential Equations", aliases: ["PDEs", "PDE"] },
+    { title: "Introduction to Proofs", aliases: ["Proofs", "Transition to Higher Math", "Mathematical Reasoning"] },
+  ]),
+  ...template("ug", UG, "Computer Science", [
+    { title: "Algorithms", aliases: ["Design and Analysis of Algorithms", "Algos"] },
+    { title: "Computer Architecture", aliases: ["Comp Arch", "Computer Organization and Architecture"] },
+    { title: "Operating Systems", aliases: ["OS"] },
+    { title: "Database Systems", aliases: ["Databases", "DB"] },
+    { title: "Computer Networks", aliases: ["Networking", "Networks"] },
+    { title: "Software Engineering", aliases: ["SWE", "Software Design"] },
+    { title: "Theory of Computation", aliases: ["Automata", "Formal Languages and Automata", "ToC"] },
+    { title: "Programming Languages", aliases: ["PL", "Principles of Programming Languages"] },
+    { title: "Compilers", aliases: ["Compiler Design", "Compiler Construction"] },
+    { title: "Introduction to Machine Learning", aliases: ["Machine Learning", "ML"], descriptor: "Undergraduate" },
+    { title: "Artificial Intelligence", aliases: ["AI", "Intro to AI"] },
+    { title: "Computer Graphics", aliases: ["Graphics"] },
+    { title: "Computer Security", aliases: ["Security", "Cybersecurity"] },
+    { title: "Systems Programming", aliases: ["Systems"] },
+    { title: "Human-Computer Interaction", aliases: ["HCI", "UX"] },
+  ]),
+  ...template("ug", UG, "Science", [
+    { title: "Classical Mechanics", aliases: ["Intermediate Mechanics", "Analytical Mechanics"] },
+    { title: "Electromagnetism", aliases: ["Electricity and Magnetism (Upper Level)", "E&M"] },
+    { title: "Quantum Mechanics", aliases: ["Quantum", "QM", "Quantum Physics"], descriptor: "Undergraduate" },
+    { title: "Thermal Physics", aliases: ["Statistical Mechanics", "Thermodynamics and Statistical Mechanics"] },
+    { title: "Modern Physics", aliases: ["Intro to Modern Physics"] },
+    { title: "Physical Chemistry", aliases: ["P Chem", "PChem"] },
+    { title: "Analytical Chemistry", aliases: ["Quantitative Analysis", "Quant"] },
+    { title: "Inorganic Chemistry", aliases: ["Inorganic Chem"] },
+    { title: "Biochemistry", aliases: ["Biochem"] },
+    { title: "Cell Biology", aliases: ["Cell Bio"] },
+    { title: "Genetics", aliases: ["Intro to Genetics"] },
+    { title: "Molecular Biology", aliases: ["Molecular Bio"] },
+    { title: "Ecology", aliases: ["Intro to Ecology"] },
+    { title: "Evolution", aliases: ["Evolutionary Biology"] },
+    { title: "Human Physiology", aliases: ["Physiology"] },
+    { title: "Neuroscience", aliases: ["Intro to Neuroscience", "Neuro"] },
+  ]),
+  ...template("ug", UG, "Engineering", [
+    { title: "Statics", aliases: ["Engineering Statics"] },
+    { title: "Dynamics", aliases: ["Engineering Dynamics"] },
+    { title: "Mechanics of Materials", aliases: ["Strength of Materials", "Mech of Materials"] },
+    { title: "Engineering Thermodynamics", aliases: ["Thermodynamics", "Thermo"] },
+    { title: "Fluid Mechanics", aliases: ["Fluids"] },
+    { title: "Circuit Analysis I", aliases: ["Circuits 1", "Circuits", "Electric Circuits"] },
+    { title: "Signals and Systems", aliases: ["Signals"] },
+    { title: "Digital Logic Design", aliases: ["Digital Logic", "Digital Design"] },
+    { title: "Materials Science", aliases: ["Intro to Materials Science"] },
+    { title: "Control Systems", aliases: ["Controls", "Feedback Control"] },
+    { title: "Heat Transfer" },
+    { title: "Engineering Design", aliases: ["Intro to Engineering Design", "Senior Design"] },
+  ]),
+  ...template("ug", UG, "Economics", [
+    { title: "Intermediate Microeconomics", aliases: ["Intermediate Micro"] },
+    { title: "Intermediate Macroeconomics", aliases: ["Intermediate Macro"] },
+    { title: "Econometrics", aliases: ["Intro to Econometrics", "Metrics"], descriptor: "Undergraduate" },
+    { title: "Game Theory" },
+    { title: "Money and Banking" },
+    { title: "International Economics", aliases: ["International Trade"] },
+  ]),
+  ...template("ug", UG, "Business", [
+    { title: "Corporate Finance", aliases: ["Financial Management", "Finance"], descriptor: "Undergraduate" },
+    { title: "Investments", aliases: ["Intro to Investments"] },
+    { title: "Organizational Behavior", aliases: ["OB"] },
+    { title: "Operations Management", aliases: ["Operations", "OM"] },
+    { title: "Intermediate Accounting", aliases: ["Intermediate Accounting I"] },
+    { title: "Business Strategy", aliases: ["Strategic Management", "Capstone Strategy"] },
+  ]),
+  ...template("ug", UG, "Psychology", [
+    { title: "Research Methods in Psychology", aliases: ["Research Methods", "Psych Research Methods"] },
+    { title: "Statistics for Psychology", aliases: ["Psych Stats", "Statistics for the Behavioral Sciences"] },
+    { title: "Cognitive Psychology", aliases: ["Cognition"] },
+    { title: "Abnormal Psychology", aliases: ["Psychopathology"] },
+    { title: "Social Psychology", aliases: ["Social Psych"] },
+    { title: "Biological Psychology", aliases: ["Biopsychology", "Physiological Psychology"] },
+  ]),
+  ...template("ug", UG, "Humanities", [
+    { title: "Shakespeare", aliases: ["Shakespeare Studies"] },
+    { title: "World Literature", aliases: ["World Lit"] },
+    { title: "History of Philosophy", aliases: ["Ancient Philosophy", "Modern Philosophy"] },
+    { title: "Political Philosophy", aliases: ["Political Theory"] },
+  ]),
+  ...template("ug", UG, "History and Social Studies", [
+    { title: "Comparative Politics", aliases: ["Comparative Government"] },
+    { title: "Constitutional Law (Undergraduate)", aliases: ["Constitutional Law", "Con Law"] },
+    { title: "Research Methods in Social Science", aliases: ["Social Science Research Methods"] },
+  ]),
+  ...template("ug", UG, "Health and Medicine", [
+    { title: "Pathophysiology", aliases: ["Patho"] },
+    { title: "Introduction to Epidemiology", aliases: ["Epidemiology", "Epi"] },
+    { title: "Introduction to Public Health", aliases: ["Public Health"] },
+    { title: "Health Assessment", aliases: ["Physical Assessment"] },
+  ]),
+  ...template("ug", UG, "World Languages", [
+    { title: "Intermediate French I", aliases: ["French 201"] },
+    { title: "Intermediate Arabic I", aliases: ["Arabic 201"] },
+    { title: "Intermediate Chinese I", aliases: ["Chinese 201", "Mandarin 201"] },
+  ]),
+];
+
+export const GRADUATE_COURSES: CatalogRecord[] = [
+  ...template("grad", GRAD, "Computer Science", [
+    { title: "Machine Learning (Graduate)", aliases: ["Graduate Machine Learning", "Grad ML", "ML", "Machine Learning"], descriptor: "Graduate" },
+    { title: "Deep Learning", aliases: ["Neural Networks", "DL"] },
+    { title: "Natural Language Processing", aliases: ["NLP"] },
+    { title: "Computer Vision", aliases: ["CV"] },
+    { title: "Reinforcement Learning", aliases: ["RL"] },
+    { title: "Advanced Algorithms", aliases: ["Graduate Algorithms", "Grad Algorithms"] },
+    { title: "Distributed Systems", aliases: ["Distributed Computing"] },
+    { title: "Advanced Operating Systems", aliases: ["Graduate OS"] },
+    { title: "Probabilistic Graphical Models", aliases: ["PGM", "Graphical Models"] },
+    { title: "Optimization", aliases: ["Convex Optimization", "Optimization Methods"] },
+  ]),
+  ...template("grad", GRAD, "Math", [
+    { title: "Real Analysis (Graduate)", aliases: ["Measure Theory", "Graduate Real Analysis"], descriptor: "Graduate" },
+    { title: "Algebra (Graduate)", aliases: ["Graduate Algebra"], descriptor: "Graduate" },
+    { title: "Functional Analysis" },
+    { title: "Stochastic Processes", aliases: ["Stochastic Calculus"] },
+    { title: "Statistical Inference", aliases: ["Theory of Statistics", "Graduate Statistics"] },
+  ]),
+  ...template("grad", GRAD, "Science", [
+    { title: "Quantum Mechanics (Graduate)", aliases: ["Graduate Quantum", "Grad QM"], descriptor: "Graduate" },
+    { title: "Classical Electrodynamics", aliases: ["Electrodynamics", "Jackson E&M"] },
+    { title: "Statistical Mechanics (Graduate)", aliases: ["Graduate Stat Mech"], descriptor: "Graduate" },
+    { title: "Advanced Organic Chemistry", aliases: ["Graduate Organic"] },
+    { title: "Advanced Biochemistry", aliases: ["Graduate Biochemistry"] },
+  ]),
+  ...template("grad", GRAD, "Economics", [
+    { title: "Microeconomic Theory", aliases: ["Graduate Micro", "Micro Theory"] },
+    { title: "Macroeconomic Theory", aliases: ["Graduate Macro", "Macro Theory"] },
+    { title: "Econometrics (Graduate)", aliases: ["Graduate Econometrics"], descriptor: "Graduate" },
+  ]),
+  ...template("grad", GRAD, "Health and Medicine", [
+    { title: "Biostatistics", aliases: ["Biostats"] },
+    { title: "Epidemiology (Graduate)", aliases: ["Graduate Epidemiology", "Epi Methods"], descriptor: "Graduate" },
+    { title: "Gross Anatomy", aliases: ["Medical Anatomy", "Anatomy"] },
+    { title: "Medical Physiology", aliases: ["Physiology (Medical)"] },
+    { title: "Medical Biochemistry", aliases: ["Biochemistry (Medical)"] },
+    { title: "Pharmacology (Medical)", aliases: ["Medical Pharmacology"] },
+    { title: "Pathology", aliases: ["General Pathology"] },
+    { title: "Advanced Pathophysiology", aliases: ["Advanced Patho"] },
+    { title: "Advanced Health Assessment", aliases: ["Advanced Physical Assessment"] },
+  ]),
+  ...template("grad", GRAD, "Law", [
+    { title: "Contracts", aliases: ["Contract Law"] },
+    { title: "Torts", aliases: ["Tort Law"] },
+    { title: "Civil Procedure", aliases: ["Civ Pro"] },
+    { title: "Constitutional Law", aliases: ["Con Law (Law School)"] },
+    { title: "Criminal Law", aliases: ["Crim Law"] },
+    { title: "Property", aliases: ["Property Law"] },
+    { title: "Legal Research and Writing", aliases: ["LRW", "Legal Writing"] },
+    { title: "Evidence", aliases: ["Evidence Law"] },
+  ]),
+  ...template("grad", GRAD, "Business", [
+    { title: "Managerial Economics", aliases: ["MBA Economics"] },
+    { title: "Financial Accounting (MBA)", aliases: ["MBA Accounting"] },
+    { title: "Corporate Finance (MBA)", aliases: ["MBA Finance"] },
+    { title: "Marketing Management", aliases: ["MBA Marketing"] },
+    { title: "Operations Management (MBA)", aliases: ["MBA Operations"] },
+    { title: "Competitive Strategy", aliases: ["MBA Strategy"] },
+    { title: "Leadership and Organizations", aliases: ["MBA Leadership"] },
+    { title: "Data Analysis for Managers", aliases: ["Decision Models", "Business Analytics"] },
+  ]),
+  ...template("grad", GRAD, "Education", [
+    { title: "Educational Psychology", aliases: ["Ed Psych"] },
+    { title: "Curriculum and Instruction", aliases: ["Curriculum Design"] },
+  ]),
+  ...template("grad", GRAD, "Capstone", [
+    { title: "Research Methods (Graduate)", aliases: ["Graduate Research Methods"], descriptor: "Graduate" },
+    { title: "Thesis Research", aliases: ["Thesis", "Dissertation Research", "Dissertation"] },
+    { title: "Graduate Seminar", aliases: ["Seminar"] },
+  ]),
+  ...template("grad", GRAD, "Psychology", [
+    { title: "Psychological Assessment", aliases: ["Assessment"] },
+    { title: "Counseling Theories", aliases: ["Theories of Counseling"] },
+  ]),
+];
+
+export const PROFESSIONAL_COURSES: CatalogRecord[] = [
+  ...template("pro", PRO, "Test Prep", [
+    { title: "CPA Exam Prep", aliases: ["CPA", "CPA Review"] },
+    { title: "CFA Exam Prep", aliases: ["CFA", "CFA Level 1"] },
+    { title: "PMP Exam Prep", aliases: ["PMP", "Project Management Professional"] },
+    { title: "Bar Exam Prep", aliases: ["Bar Prep", "Bar Exam"] },
+    { title: "NCLEX-RN Prep", aliases: ["NCLEX", "NCLEX Prep"] },
+    { title: "USMLE Step 1 Prep", aliases: ["USMLE", "Step 1"] },
+    { title: "MCAT Prep", aliases: ["MCAT"], levels: ["PROFESSIONAL", "UNIVERSITY"] },
+    { title: "LSAT Prep", aliases: ["LSAT"], levels: ["PROFESSIONAL", "UNIVERSITY"] },
+    { title: "GRE Prep", aliases: ["GRE"], levels: ["PROFESSIONAL", "UNIVERSITY"] },
+    { title: "GMAT Prep", aliases: ["GMAT"], levels: ["PROFESSIONAL", "UNIVERSITY"] },
+    { title: "Series 7 Exam Prep", aliases: ["Series 7"] },
+    { title: "Real Estate License Prep", aliases: ["Real Estate Exam"] },
+    { title: "SAT Prep", aliases: ["SAT"], levels: ["HIGH_SCHOOL", "PROFESSIONAL"] },
+    { title: "ACT Prep", aliases: ["ACT"], levels: ["HIGH_SCHOOL", "PROFESSIONAL"] },
+  ]),
+  ...template("pro", PRO, "Technology", [
+    { title: "Python for Data Analysis", aliases: ["Python", "Data Analysis with Python"] },
+    { title: "Excel for Business", aliases: ["Excel", "Spreadsheets"] },
+    { title: "SQL for Analysts", aliases: ["SQL Basics"] },
+    { title: "Data Analytics Certificate", aliases: ["Data Analytics", "Data Analyst"] },
+    { title: "Cloud Computing Fundamentals", aliases: ["Cloud", "Cloud Fundamentals"] },
+    { title: "UX Design Fundamentals", aliases: ["UX Design", "UI/UX"] },
+    { title: "Web Development Bootcamp", aliases: ["Coding Bootcamp", "Full-Stack Bootcamp"] },
+    { title: "Cybersecurity Certificate", aliases: ["Security+ Prep"] },
+  ]),
+  ...template("pro", PRO, "Business", [
+    { title: "Project Management Fundamentals", aliases: ["Project Management"] },
+    { title: "Digital Marketing", aliases: ["Online Marketing", "SEO and Social Media"] },
+    { title: "Leadership and Management", aliases: ["Leadership", "Management Essentials"] },
+    { title: "Business Writing (Continuing Ed)", aliases: ["Business Writing Workshop"] },
+    { title: "Grant Writing", aliases: ["Grant Writing Workshop"] },
+    { title: "Bookkeeping", aliases: ["QuickBooks", "Bookkeeping Basics"] },
+    { title: "Human Resources Management", aliases: ["HR", "HR Management"] },
+  ]),
+  ...template("pro", PRO, "English", [
+    { title: "English as a Second Language", aliases: ["ESL", "ESOL", "English Language Learning"] },
+    { title: "Public Speaking Workshop", aliases: ["Presentation Skills"] },
+  ]),
+  ...template("pro", PRO, "Education", [{ title: "Teaching Certification Coursework", aliases: ["Teacher Certification", "Teaching Credential"] }]),
+  ...template("pro", PRO, "Health and Medicine", [
+    { title: "Continuing Education for Nurses", aliases: ["Nursing CE", "Nursing CEUs"] },
+    { title: "CPR and First Aid", aliases: ["CPR", "First Aid", "BLS"] },
+  ]),
+];

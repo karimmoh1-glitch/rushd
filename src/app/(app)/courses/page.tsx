@@ -8,6 +8,7 @@ import { PathEmpty } from "@/components/brand/path-empty";
 import { toDateInput } from "@/lib/courses/service";
 import { localDateKey, resolveTimeZone } from "@/lib/time/zone";
 import { termProgress } from "@/lib/courses/term";
+import { popularCatalogCourses } from "@/lib/courses/usage";
 
 export const metadata: Metadata = {
   title: "Courses",
@@ -28,6 +29,8 @@ interface ClassRecord {
   termStart: Date | null;
   termEnd: Date | null;
   weeklyHours: number | null;
+  catalogId: string | null;
+  createdAt: Date;
   _count: { assignments: number; exams: number };
 }
 
@@ -50,6 +53,7 @@ function toCardData(course: ClassRecord, today: string): ClassCardData {
     termEnd,
     term: termProgress(termStart, termEnd, today),
     weeklyHours: course.weeklyHours ?? undefined,
+    catalogId: course.catalogId ?? undefined,
     assignmentCount: course._count.assignments,
     examCount: course._count.exams,
   };
@@ -78,9 +82,19 @@ export default async function ClassesPage() {
       termStart: true,
       termEnd: true,
       weeklyHours: true,
+      catalogId: true,
+      createdAt: true,
       _count: { select: { assignments: true, exams: true } },
     },
   });
+  const [popular, profile] = await Promise.all([
+    popularCatalogCourses(),
+    db.profile.findUnique({ where: { userId: user.id }, select: { studyLevel: true } }),
+  ]);
+  // The student's own courses, newest first: "recent" in the picker, and duplicates are marked.
+  const ownCourses = [...classes]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map((course) => ({ name: course.name, catalogId: course.catalogId, code: course.code, institution: course.institution, archived: course.archived }));
 
   const active = classes.filter((course) => !course.archived);
   const archived = classes.filter((course) => course.archived);
@@ -94,7 +108,10 @@ export default async function ClassesPage() {
             Your courses, with their assignments, materials, and rubrics.
           </p>
         </div>
-        <AddClassButton timeZone={timeZone} />
+        <AddClassButton
+          timeZone={timeZone}
+          context={{ studentLevel: profile?.studyLevel ?? null, popularIds: popular.map((course) => course.catalogId), ownCourses }}
+        />
       </div>
 
       {classes.length === 0 ? (

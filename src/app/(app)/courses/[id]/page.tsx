@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { searchMaterials } from "@/lib/course/retrieval";
 import { formatDateInZone, formatDateKey, localDateKey, resolveTimeZone } from "@/lib/time/zone";
-import { levelLabel } from "@/lib/courses/catalog";
+import { catalogRecord, levelLabel } from "@/lib/courses/catalog";
 import { toDateInput } from "@/lib/courses/service";
 import { termProgress } from "@/lib/courses/term";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +121,7 @@ export default async function ClassPage({
       termStart: true,
       termEnd: true,
       weeklyHours: true,
+      catalogId: true,
       canvasCourses: { where: { selected: true }, select: { name: true, contentSyncedAt: true, contentSyncNote: true }, take: 1 },
     },
   });
@@ -234,6 +235,8 @@ export default async function ClassPage({
     .filter(Boolean)
     .join(" · ");
   const people = [course.teacher, course.period].filter(Boolean).join(" · ");
+  const picked = catalogRecord(course.catalogId);
+  const template = picked?.kind === "template" ? picked : null;
 
   function shortDate(date: Date): string {
     return formatDateInZone(date, tz, { month: "short", day: "numeric" });
@@ -256,6 +259,11 @@ export default async function ClassPage({
             </h1>
             {identity && <p className="course-ink mt-2 text-sm font-medium">{identity}</p>}
             {people && <p className="mt-0.5 text-sm text-muted-foreground">{people}</p>}
+            {template && (
+              <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+                Added from Rushd&apos;s generic &ldquo;{template.title}&rdquo; template. Rushd doesn&apos;t know your school&apos;s syllabus for it; the assignments, exams, and materials here are your own.
+              </p>
+            )}
             {course.archived && (
               <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                 <Badge variant="outline">Archived</Badge>
@@ -280,6 +288,7 @@ export default async function ClassPage({
                 termStart,
                 termEnd,
                 weeklyHours: course.weeklyHours ?? undefined,
+                catalogId: course.catalogId ?? undefined,
               }}
             />
             {canvas && <SyncContentButton classId={course.id} />}
