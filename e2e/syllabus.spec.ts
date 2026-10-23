@@ -186,3 +186,49 @@ test("paste a syllabus, fix an uncertain row, confirm, and see the work everywhe
   await otherContext.close();
   await context.close();
 });
+
+/** A one-page PDF with standard-font text lines (built here so no binary fixture is checked in). */
+function makePdf(lines: string[]): Buffer {
+  const esc = (t: string) => t.replace(/[\\()]/g, (c) => `\\${c}`);
+  const stream = ["BT", "/F1 11 Tf", ...lines.map((line, i) => `1 0 0 1 72 ${740 - i * 14} Tm (${esc(line)}) Tj`), "ET"].join("\n");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+  ];
+  let body = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((object, i) => {
+    offsets.push(Buffer.byteLength(body, "latin1"));
+    body += `${i + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(body, "latin1");
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`;
+  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(body, "latin1");
+}
+
+test("upload a PDF syllabus; a disguised file is refused by its bytes", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const context = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": "127.0.0.6" } });
+  const page = await context.newPage();
+  await newStudent(page, "pdf");
+  const courseUrl = await addCourse(page, "Organic Chemistry Seminar");
+  await page.goto(`${courseUrl}/syllabus`);
+
+  // A PNG renamed to .pdf is read by its bytes and refused.
+  await page.locator("#syllabus-file").setInputFiles({ name: "syllabus.pdf", mimeType: "application/pdf", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]) });
+  await page.getByRole("button", { name: "Read syllabus" }).click();
+  await expect(page.locator("#main-content").getByRole("alert")).toContainText("That's an image");
+
+  const pdf = makePdf(["CHEM 340: Organic Chemistry Seminar", "Instructor: Dr. Lee", "Schedule", "Week 1: Alkenes", `Problem set 1 due ${longDate(daysFromNow(3))}`]);
+  await page.locator("#syllabus-file").setInputFiles({ name: "chem-340.pdf", mimeType: "application/pdf", buffer: pdf });
+  await page.getByRole("button", { name: "Read syllabus" }).click();
+  await expect(page.getByRole("heading", { name: "Check what Rushd found" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("chem-340", { exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Problem set 1" }).getByLabel("Date")).toHaveValue(inputDate(daysFromNow(3)));
+  await expect(page.getByRole("group", { name: "Course code" }).getByRole("textbox", { name: "Course code" })).toHaveValue("CHEM 340");
+  await context.close();
+});
