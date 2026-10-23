@@ -3,11 +3,8 @@
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { logEvent } from "@/lib/analytics/log-event";
 
-/**
- * Logs interaction with the what-if simulator — a client-only widget with
- * no server round-trip otherwise, so there's nowhere else to record "did a
- * student actually use this."
- */
+/** Logs use of the what-if simulator. It runs only in the browser, so this is
+ * the one place its use gets recorded. */
 export async function logWhatIfSimulatorUsed(): Promise<void> {
   const user = await requireUserOrThrow();
   await logEvent(user.id, "what_if_simulator_used");

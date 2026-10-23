@@ -5,9 +5,14 @@ export const runtime = "nodejs";
 
 /** Stripe → Rushd. Rejects anything without a valid signature. */
 export async function POST(request: Request) {
-  if (!billingConfigured()) return new Response("Billing not configured", { status: 503 });
+  if (!billingConfigured()) {
+    return new Response("Billing not configured", { status: 503 });
+  }
   const signature = request.headers.get("stripe-signature");
-  if (!signature) return new Response("Missing signature", { status: 400 });
+  if (!signature) {
+    return new Response("Missing signature", { status: 400 });
+  }
+
   const body = await request.text();
   let event;
   try {

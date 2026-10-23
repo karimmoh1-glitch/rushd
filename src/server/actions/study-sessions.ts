@@ -37,26 +37,30 @@ export interface CompletedSessionSummary {
   perceivedDifficulty: PerceivedDifficultyValue | null;
 }
 
-
 type StartResult = { error: string } | { success: true; session: ActiveSessionData };
 type CompleteResult = { error: string } | { success: true; summary: CompletedSessionSummary };
 type SimpleResult = { error: string } | { success: true };
 
 type SessionTarget = { assignmentId: string } | { examId: string };
 
+/** Splits a target into its two id columns; a missing one is null. */
+function targetIds(target: SessionTarget): { assignmentId: string | null; examId: string | null } {
+  let assignmentId: string | null = null;
+  let examId: string | null = null;
+  if ("assignmentId" in target) {
+    assignmentId = target.assignmentId;
+  }
+  if ("examId" in target) {
+    examId = target.examId;
+  }
+  return { assignmentId, examId };
+}
+
 /**
- * Re-derives what the deterministic engine would predict for a single
- * assignment/exam right now, by building the exact same WorkItem the live
- * plan would and running it through the same scoreItem() the plan uses —
- * never trusts a client-supplied score. Returns null if the item doesn't
- * exist or isn't owned by this user (ownership + ordinary "not found" are
- * indistinguishable on purpose, matching every other action in this app).
- *
- * Also personalizes the predicted duration via the student's own
- * estimation profile (src/lib/estimation), same as the live plan does —
- * without this, a new session's plannedMinutes would always be the raw
- * un-calibrated estimate, and accuracy tracking would never reflect that
- * Rushd had already learned anything.
+ * Scores one assignment or exam the same way the live plan does, using the
+ * student's own estimation profile. Never trusts a score from the client.
+ * Returns null if the item doesn't exist or isn't this user's (on purpose,
+ * the two cases look the same).
  */
 async function predictForTarget(
   userId: string,
@@ -143,12 +147,8 @@ export async function getActiveSession(): Promise<ActiveSessionData | null> {
   return session ? toActiveSessionData(session) : null;
 }
 
-/**
- * Starts a study session for exactly one assignment or exam. Rushd allows
- * at most one IN_PROGRESS session per student at a time — the active-session
- * bar is a single persistent surface, not a list, so a second concurrent
- * session would have nowhere honest to be shown.
- */
+/** Starts a study session for one assignment or exam. Only one session can be
+ * IN_PROGRESS at a time, because the active-session bar shows just one. */
 export async function startSession(
   target: SessionTarget,
   source: StudySessionSource,
@@ -165,18 +165,24 @@ export async function startSession(
     };
   }
 
+  const isAssignment = "assignmentId" in target;
+  const { assignmentId, examId } = targetIds(target);
+
   const now = new Date();
   const prediction = await predictForTarget(user.id, target, now);
   if (!prediction) {
-    return { error: "assignmentId" in target ? "Assignment not found." : "Exam not found." };
+    if (isAssignment) {
+      return { error: "Assignment not found." };
+    }
+    return { error: "Exam not found." };
   }
   const { workItem, score, reasonCode } = prediction;
 
   const created = await db.studySession.create({
     data: {
       userId: user.id,
-      assignmentId: "assignmentId" in target ? target.assignmentId : null,
-      examId: "examId" in target ? target.examId : null,
+      assignmentId,
+      examId,
       source,
       title: workItem.title,
       plannedMinutes: workItem.remainingMinutes,
@@ -195,10 +201,8 @@ export async function startSession(
     },
   });
 
-  // Starting real work on a NOT_STARTED assignment is a real, deterministic
-  // signal — bump it to IN_PROGRESS. This doesn't change engine scoring
-  // (both statuses count as "open"), so no plan regeneration is needed;
-  // it just keeps the assignment's own status honest with reality.
+  // Starting work moves a NOT_STARTED assignment to IN_PROGRESS. Both count as
+  // "open" to the planner, so the plan doesn't need regenerating.
   if ("assignmentId" in target) {
     await db.assignment.updateMany({
       where: { id: target.assignmentId, userId: user.id, status: "NOT_STARTED" },
@@ -206,9 +210,13 @@ export async function startSession(
     });
   }
 
+  let kind = "exam";
+  if (isAssignment) {
+    kind = "assignment";
+  }
   await logEvent(user.id, "study_session_started", {
     sessionId: created.id,
-    kind: "assignmentId" in target ? "assignment" : "exam",
+    kind,
     source,
     plannedMinutes: workItem.remainingMinutes,
     reasonCode,
@@ -219,12 +227,8 @@ export async function startSession(
   return { success: true, session: toActiveSessionData(created) };
 }
 
-/**
- * Completes a session with a *confirmed* actual-minutes figure — never the
- * raw browser-elapsed time. The client pre-fills elapsed time as a
- * suggestion, but the student can edit it, because time the tab was open
- * isn't necessarily time spent focused (see docs/PLANNING_ENGINE.md).
- */
+/** Completes a session with the minutes the student confirmed. The browser's
+ * elapsed time is only a suggestion: an open tab isn't focused time. */
 export async function completeSession(
   sessionId: string,
   actualMinutes: number,
@@ -278,9 +282,7 @@ export async function completeSession(
   };
 }
 
-/** Abandons a session. The reason is optional, structured, and never
- * required — see docs/PRODUCT.md's "don't force students to explain
- * themselves" note in the audit that scoped this feature. */
+/** Abandons a session. The reason is optional: students never have to explain. */
 export async function abandonSession(
   sessionId: string,
   reason?: AbandonReasonValue,

@@ -1,9 +1,9 @@
 "use server";
 
-import { headers } from "next/headers";
 import * as z from "zod";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
+import { getClientIp } from "@/server/actions/client-ip";
 
 const InquirySchema = z.object({
   name: z.string().trim().min(2, "Enter your name.").max(120),
@@ -19,13 +19,29 @@ const InquirySchema = z.object({
 export type InquiryState = { ok?: boolean; error?: string } | undefined;
 
 export async function submitSchoolInquiry(_prev: InquiryState, formData: FormData): Promise<InquiryState> {
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  const ip = await getClientIp();
   const rate = await checkRateLimit(`school-inquiry:${ip}`, { max: 5, windowMs: 60 * 60 * 1000 });
-  if (!rate.allowed) return { error: "Too many submissions. Try again later." };
+  if (!rate.allowed) {
+    return { error: "Too many submissions. Try again later." };
+  }
+
   const parsed = InquirySchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form and try again." };
-  const { website: _honeypot, ...data } = parsed.data;
-  void _honeypot;
-  await db.schoolInquiry.create({ data: { ...data, studentCount: data.studentCount || null } });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the form and try again." };
+  }
+  const form = parsed.data;
+
+  // Every field except the honeypot is saved.
+  await db.schoolInquiry.create({
+    data: {
+      name: form.name,
+      email: form.email,
+      role: form.role,
+      organization: form.organization,
+      studentCount: form.studentCount || null,
+      interest: form.interest,
+      message: form.message,
+    },
+  });
   return { ok: true };
 }

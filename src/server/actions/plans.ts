@@ -5,20 +5,9 @@ import { DEFAULT_HORIZON_DAYS } from "@/lib/planning/constants";
 import { logEvent } from "@/lib/analytics/log-event";
 
 /**
- * Persists a snapshot of the current plan (a Plan row + its PlanItems) and
- * logs a `plan_generated` event.
- *
- * This is NOT what the dashboard reads — the dashboard always computes the
- * plan live (see docs/ARCHITECTURE.md and docs/PLANNING_ENGINE.md). This
- * snapshot exists purely as a history/analytics record, so "is Rushd
- * actually adapting" and "how often does the plan change" can be answered
- * from real data later (admin area, docs/PRODUCT.md#analytics).
- *
- * Called from every mutation that can change scoring or scheduling:
- * assignment/exam create-update-delete-complete, class priority/archive
- * changes, and availability changes. Best-effort — a failure here must
- * never break the user-facing action that triggered it, so errors are
- * caught and logged, not thrown.
+ * Saves a history snapshot of the current plan, for analytics only (the
+ * dashboard always computes the plan live). Called after any change that can
+ * move the plan. Never throws: a failure here must not break the user's action.
  */
 export async function regeneratePlanSnapshot(userId: string): Promise<void> {
   try {
@@ -31,18 +20,27 @@ export async function regeneratePlanSnapshot(userId: string): Promise<void> {
     });
 
     if (result.sessions.length > 0) {
-      await db.planItem.createMany({
-        data: result.sessions.map((s) => ({
+      const rows = [];
+      for (const session of result.sessions) {
+        let assignmentId: string | null = null;
+        let examId: string | null = null;
+        if (session.item.kind === "assignment") {
+          assignmentId = session.item.id;
+        } else if (session.item.kind === "exam") {
+          examId = session.item.id;
+        }
+        rows.push({
           planId: plan.id,
           userId,
-          assignmentId: s.item.kind === "assignment" ? s.item.id : null,
-          examId: s.item.kind === "exam" ? s.item.id : null,
-          scheduledDate: new Date(`${s.scheduledDate}T00:00:00`),
-          scheduledMinutes: s.scheduledMinutes,
-          score: s.score,
-          reasonCode: s.reasonCode,
-        })),
-      });
+          assignmentId,
+          examId,
+          scheduledDate: new Date(`${session.scheduledDate}T00:00:00`),
+          scheduledMinutes: session.scheduledMinutes,
+          score: session.score,
+          reasonCode: session.reasonCode,
+        });
+      }
+      await db.planItem.createMany({ data: rows });
     }
 
     await logEvent(userId, "plan_generated", {

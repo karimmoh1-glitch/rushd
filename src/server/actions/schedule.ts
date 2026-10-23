@@ -7,11 +7,10 @@ import { requireUserOrThrow } from "@/lib/auth/dal";
 import { logEvent } from "@/lib/analytics/log-event";
 import { addDaysToKey, diffDateKeys, localDateKey, localMinuteOfDay, resolveTimeZone } from "@/lib/time/zone";
 import { PLANNING_HORIZON_DAYS } from "@/lib/planning/constants";
+import type { Prisma } from "@/generated/prisma/client";
 
-// Student control over the schedule. Auto-planned blocks are recomputed every
-// time the plan is read; a block the student pins, moves, or resizes becomes
-// a ScheduleBlock row that the planner treats as fixed (see schedule.ts).
-// Every write is scoped to the session user and to work they own.
+// A block the student pins, moves or resizes is saved as a ScheduleBlock row
+// that the planner treats as fixed. Every write is scoped to the session user.
 
 export type ScheduleActionResult = { error: string } | { success: true };
 
@@ -35,8 +34,22 @@ function revalidate() {
 }
 
 async function userTimeZone(userId: string): Promise<string> {
-  const p = await db.profile.findUnique({ where: { userId }, select: { timezone: true } });
-  return resolveTimeZone(p?.timezone);
+  const profile = await db.profile.findUnique({ where: { userId }, select: { timezone: true } });
+  return resolveTimeZone(profile?.timezone);
+}
+
+type BlockTime = { startMinute: number; durationMinutes: number };
+
+/** True if the new block shares any minute with one of the other blocks. */
+function overlapsAny(newBlock: BlockTime, others: BlockTime[]): boolean {
+  const newEnd = newBlock.startMinute + newBlock.durationMinutes;
+  for (const other of others) {
+    const otherEnd = other.startMinute + other.durationMinutes;
+    if (newBlock.startMinute < otherEnd && other.startMinute < newEnd) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Pins (or moves/resizes) a block. Rejects overlaps with the student's other
@@ -45,55 +58,72 @@ export async function pinBlock(input: z.infer<typeof BlockSchema>): Promise<Sche
   const user = await requireUserOrThrow();
   const parsed = BlockSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid block." };
-  const b = parsed.data;
+  const block = parsed.data;
 
-  const tz = await userTimeZone(user.id);
+  // The day must be inside the planning window, and not already over.
+  const timeZone = await userTimeZone(user.id);
   const now = new Date();
-  const today = localDateKey(now, tz);
-  const offset = diffDateKeys(today, b.date);
-  if (offset < 0 || offset >= PLANNING_HORIZON_DAYS) {
+  const today = localDateKey(now, timeZone);
+  const daysFromToday = diffDateKeys(today, block.date);
+  if (daysFromToday < 0 || daysFromToday >= PLANNING_HORIZON_DAYS) {
     return { error: `Pick a day between today and ${addDaysToKey(today, PLANNING_HORIZON_DAYS - 1)}.` };
   }
-  if (offset === 0 && b.startMinute + b.durationMinutes <= localMinuteOfDay(now, tz)) {
+  const blockEnd = block.startMinute + block.durationMinutes;
+  if (daysFromToday === 0 && blockEnd <= localMinuteOfDay(now, timeZone)) {
     return { error: "That time has already passed today." };
   }
 
   // The item must exist, belong to this student, and still be open.
-  if (b.kind === "assignment") {
+  if (block.kind === "assignment") {
     const owned = await db.assignment.findFirst({
-      where: { id: b.itemId, userId: user.id, status: { not: "COMPLETED" } },
+      where: { id: block.itemId, userId: user.id, status: { not: "COMPLETED" } },
       select: { id: true },
     });
     if (!owned) return { error: "That assignment isn't open any more." };
   } else {
-    const owned = await db.exam.findFirst({ where: { id: b.itemId, userId: user.id }, select: { id: true } });
+    const owned = await db.exam.findFirst({ where: { id: block.itemId, userId: user.id }, select: { id: true } });
     if (!owned) return { error: "That exam no longer exists." };
   }
 
+  // Compare against the student's other blocks that day (not the one being moved).
+  const sameDayWhere: Prisma.ScheduleBlockWhereInput = { userId: user.id, localDate: block.date };
+  if (block.blockId) {
+    sameDayWhere.id = { not: block.blockId };
+  }
   const sameDay = await db.scheduleBlock.findMany({
-    where: { userId: user.id, localDate: b.date, ...(b.blockId ? { id: { not: b.blockId } } : {}) },
+    where: sameDayWhere,
     select: { startMinute: true, durationMinutes: true },
   });
-  const end = b.startMinute + b.durationMinutes;
-  if (sameDay.some((o) => b.startMinute < o.startMinute + o.durationMinutes && o.startMinute < end)) {
+  if (overlapsAny(block, sameDay)) {
     return { error: "That overlaps another block you've placed. Pick a different time." };
   }
 
+  let assignmentId: string | null = null;
+  let examId: string | null = null;
+  if (block.kind === "assignment") {
+    assignmentId = block.itemId;
+  } else {
+    examId = block.itemId;
+  }
   const data = {
-    localDate: b.date,
-    startMinute: b.startMinute,
-    durationMinutes: b.durationMinutes,
-    assignmentId: b.kind === "assignment" ? b.itemId : null,
-    examId: b.kind === "exam" ? b.itemId : null,
+    localDate: block.date,
+    startMinute: block.startMinute,
+    durationMinutes: block.durationMinutes,
+    assignmentId,
+    examId,
   };
-  if (b.blockId) {
-    const r = await db.scheduleBlock.updateMany({ where: { id: b.blockId, userId: user.id }, data });
-    if (r.count === 0) return { error: "That block no longer exists." };
+
+  let eventName: string;
+  if (block.blockId) {
+    const result = await db.scheduleBlock.updateMany({ where: { id: block.blockId, userId: user.id }, data });
+    if (result.count === 0) return { error: "That block no longer exists." };
+    eventName = "schedule_block_moved";
   } else {
     await db.scheduleBlock.create({ data: { userId: user.id, ...data } });
+    eventName = "schedule_block_pinned";
   }
 
-  await logEvent(user.id, b.blockId ? "schedule_block_moved" : "schedule_block_pinned", { kind: b.kind });
+  await logEvent(user.id, eventName, { kind: block.kind });
   revalidate();
   return { success: true };
 }
@@ -101,8 +131,8 @@ export async function pinBlock(input: z.infer<typeof BlockSchema>): Promise<Sche
 export async function unpinBlock(blockId: string): Promise<ScheduleActionResult> {
   const user = await requireUserOrThrow();
   if (typeof blockId !== "string" || blockId.length > 64) return { error: "Invalid block." };
-  const r = await db.scheduleBlock.deleteMany({ where: { id: blockId, userId: user.id } });
-  if (r.count === 0) return { error: "That block no longer exists." };
+  const result = await db.scheduleBlock.deleteMany({ where: { id: blockId, userId: user.id } });
+  if (result.count === 0) return { error: "That block no longer exists." };
   revalidate();
   return { success: true };
 }
@@ -111,11 +141,12 @@ export async function unpinBlock(blockId: string): Promise<ScheduleActionResult>
  * automatic. The UI confirms (with a count) before calling this. */
 export async function clearPinnedBlocks(): Promise<ScheduleActionResult & { cleared?: number }> {
   const user = await requireUserOrThrow();
-  const tz = await userTimeZone(user.id);
-  const r = await db.scheduleBlock.deleteMany({
-    where: { userId: user.id, localDate: { gte: localDateKey(new Date(), tz) } },
+  const timeZone = await userTimeZone(user.id);
+  const today = localDateKey(new Date(), timeZone);
+  const result = await db.scheduleBlock.deleteMany({
+    where: { userId: user.id, localDate: { gte: today } },
   });
-  await logEvent(user.id, "schedule_blocks_cleared", { count: r.count });
+  await logEvent(user.id, "schedule_blocks_cleared", { count: result.count });
   revalidate();
-  return { success: true, cleared: r.count };
+  return { success: true, cleared: result.count };
 }

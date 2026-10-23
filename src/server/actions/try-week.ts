@@ -8,12 +8,13 @@ import { CLASS_COLORS } from "@/lib/class-colors";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 import { TRY_MAX_ITEMS } from "@/lib/try/parse-week";
+import type { Prisma } from "@/generated/prisma/client";
 
 // Adds the week a visitor ranked on the homepage (kept only in their browser
 // until now) to their new account. Everything arrives from the client, so it
 // is validated like any other input; classes are matched by name or created.
 
-const DAY = 86_400_000;
+const DAY_MS = 86_400_000;
 
 const ItemSchema = z.object({
   kind: z.enum(["assignment", "exam"]),
@@ -25,42 +26,84 @@ const ItemSchema = z.object({
 
 export type TryImportResult = { error: string } | { success: true; created: number };
 
+type TriedItem = z.infer<typeof ItemSchema>;
+
+/** Keeps items due between 30 days ago and a year from now. */
+function itemsInRange(items: TriedItem[]): TriedItem[] {
+  const now = Date.now();
+  const earliest = now - 30 * DAY_MS;
+  const latest = now + 365 * DAY_MS;
+  const kept: TriedItem[] = [];
+  for (const item of items) {
+    const dueTime = Date.parse(item.dueAt);
+    if (dueTime > earliest && dueTime < latest) {
+      kept.push(item);
+    }
+  }
+  return kept;
+}
+
+/** Maps each class name (lowercased) to a class id, creating missing classes. */
+async function classIdsByName(userId: string, items: TriedItem[]): Promise<Map<string, string>> {
+  const existing = await db.class.findMany({ where: { userId, archived: false }, select: { id: true, name: true } });
+  const idByName = new Map<string, string>();
+  for (const cls of existing) {
+    idByName.set(cls.name.toLowerCase(), cls.id);
+  }
+
+  // New classes continue the color rotation after the existing ones.
+  let colorIndex = existing.length;
+  const uniqueNames = new Set<string>();
+  for (const item of items) {
+    uniqueNames.add(item.className);
+  }
+  for (const name of uniqueNames) {
+    if (idByName.has(name.toLowerCase())) {
+      continue;
+    }
+    const color = CLASS_COLORS[colorIndex % CLASS_COLORS.length].value;
+    colorIndex++;
+    const created = await db.class.create({
+      data: { userId, name, color },
+      select: { id: true },
+    });
+    idByName.set(name.toLowerCase(), created.id);
+  }
+  return idByName;
+}
+
 export async function importTriedWeek(raw: unknown): Promise<TryImportResult> {
   const user = await requireUserOrThrow();
   const rate = await checkRateLimit(`try-import:${user.id}`, { max: 10, windowMs: 60 * 60 * 1000 });
-  if (!rate.allowed) return { error: "That's a lot of adding at once. Try again in a bit." };
+  if (!rate.allowed) {
+    return { error: "That's a lot of adding at once. Try again in a bit." };
+  }
   const parsed = z.array(ItemSchema).min(1).max(TRY_MAX_ITEMS).safeParse(raw);
-  if (!parsed.success) return { error: "That list couldn't be read. Add the items by hand instead." };
-
-  const now = Date.now();
-  const items = parsed.data.filter((i) => {
-    const t = Date.parse(i.dueAt);
-    return t > now - 30 * DAY && t < now + 365 * DAY;
-  });
-  if (items.length === 0) return { error: "Those dates have passed." };
-
-  const existing = await db.class.findMany({ where: { userId: user.id, archived: false }, select: { id: true, name: true } });
-  const byName = new Map(existing.map((c) => [c.name.toLowerCase(), c.id]));
-  let colorIndex = existing.length;
-  for (const name of new Set(items.map((i) => i.className))) {
-    if (byName.has(name.toLowerCase())) continue;
-    const created = await db.class.create({
-      data: { userId: user.id, name, color: CLASS_COLORS[colorIndex++ % CLASS_COLORS.length].value },
-      select: { id: true },
-    });
-    byName.set(name.toLowerCase(), created.id);
+  if (!parsed.success) {
+    return { error: "That list couldn't be read. Add the items by hand instead." };
   }
 
-  const classOf = (name: string) => byName.get(name.toLowerCase())!;
-  const assignments = items.filter((i) => i.kind === "assignment");
-  const exams = items.filter((i) => i.kind === "exam");
+  const items = itemsInRange(parsed.data);
+  if (items.length === 0) {
+    return { error: "Those dates have passed." };
+  }
+
+  const idByName = await classIdsByName(user.id, items);
+
+  const assignmentRows: Prisma.AssignmentCreateManyInput[] = [];
+  const examRows: Prisma.ExamCreateManyInput[] = [];
+  for (const item of items) {
+    // Every name is in the map: classIdsByName created any that were missing.
+    const classId = idByName.get(item.className.toLowerCase())!;
+    if (item.kind === "assignment") {
+      assignmentRows.push({ userId: user.id, classId, title: item.title, dueAt: new Date(item.dueAt), estimatedMinutes: item.minutes });
+    } else {
+      examRows.push({ userId: user.id, classId, title: item.title, examAt: new Date(item.dueAt), prepMinutes: item.minutes });
+    }
+  }
   await db.$transaction([
-    db.assignment.createMany({
-      data: assignments.map((i) => ({ userId: user.id, classId: classOf(i.className), title: i.title, dueAt: new Date(i.dueAt), estimatedMinutes: i.minutes })),
-    }),
-    db.exam.createMany({
-      data: exams.map((i) => ({ userId: user.id, classId: classOf(i.className), title: i.title, examAt: new Date(i.dueAt), prepMinutes: i.minutes })),
-    }),
+    db.assignment.createMany({ data: assignmentRows }),
+    db.exam.createMany({ data: examRows }),
   ]);
 
   await logEvent(user.id, "try_week_imported", { count: items.length });

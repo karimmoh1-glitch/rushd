@@ -15,11 +15,12 @@ import { MAX_DRAFT_CHARS, MIN_DRAFT_CHARS, reviewDraft } from "@/lib/review/draf
 import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
 import { compactPreferences, readPreferences } from "@/lib/tutor/preferences";
 
-type Result<T = undefined> = ({ success: true } & (T extends undefined ? object : { value: T })) | { error: string };
+type SimpleResult = { success: true } | { error: string };
+type ValueResult<T> = { success: true; value: T } | { error: string };
 
 const Id = z.string().min(1).max(64);
 
-export async function syncCourseContentAction(classId: string): Promise<Result<ContentSyncSummary>> {
+export async function syncCourseContentAction(classId: string): Promise<ValueResult<ContentSyncSummary>> {
   const user = await requireUserOrThrow();
   const id = Id.safeParse(classId);
   if (!id.success) return { error: "Invalid class." };
@@ -42,7 +43,7 @@ const ReviewInput = z.object({
   label: z.string().trim().max(60).optional(),
 });
 
-export async function createDraftReview(input: z.input<typeof ReviewInput>): Promise<Result<{ id: string }>> {
+export async function createDraftReview(input: z.input<typeof ReviewInput>): Promise<ValueResult<{ id: string }>> {
   const user = await requireUserOrThrow();
   if (!aiEnabled) return { error: "Draft review isn't available on this server yet." };
   const parsed = ReviewInput.safeParse(input);
@@ -75,12 +76,18 @@ export async function createDraftReview(input: z.input<typeof ReviewInput>): Pro
       return { error: outcome.error };
     }
     await settleAi(reservation.usageId, outcome.usage.model, outcome.usage);
-    const count = await db.draftReview.count({ where: { userId: user.id, assignmentId: assignment.id } });
+
+    // Without a label, number the drafts: "Draft 1", "Draft 2", ...
+    let label = parsed.data.label;
+    if (!label) {
+      const earlierReviews = await db.draftReview.count({ where: { userId: user.id, assignmentId: assignment.id } });
+      label = `Draft ${earlierReviews + 1}`;
+    }
     const saved = await db.draftReview.create({
       data: {
         userId: user.id,
         assignmentId: assignment.id,
-        label: parsed.data.label || `Draft ${count + 1}`,
+        label,
         draftText: parsed.data.draft,
         result: outcome.result as unknown as Prisma.InputJsonValue,
       },
@@ -96,7 +103,7 @@ export async function createDraftReview(input: z.input<typeof ReviewInput>): Pro
   }
 }
 
-export async function deleteDraftReview(id: string): Promise<Result> {
+export async function deleteDraftReview(id: string): Promise<SimpleResult> {
   const user = await requireUserOrThrow();
   const parsed = Id.safeParse(id);
   if (!parsed.success) return { error: "Invalid review." };
@@ -106,7 +113,7 @@ export async function deleteDraftReview(id: string): Promise<Result> {
   return { success: true };
 }
 
-export async function deleteTutorConversation(id: string): Promise<Result> {
+export async function deleteTutorConversation(id: string): Promise<SimpleResult> {
   const user = await requireUserOrThrow();
   const parsed = Id.safeParse(id);
   if (!parsed.success) return { error: "Invalid conversation." };
@@ -116,7 +123,7 @@ export async function deleteTutorConversation(id: string): Promise<Result> {
   return { success: true };
 }
 
-export async function deleteAllTutorConversations(): Promise<Result> {
+export async function deleteAllTutorConversations(): Promise<SimpleResult> {
   const user = await requireUserOrThrow();
   await db.tutorConversation.deleteMany({ where: { userId: user.id } });
   revalidatePath("/tutor", "layout");

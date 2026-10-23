@@ -15,14 +15,10 @@ import {
   type SyncReport,
 } from "@/lib/canvas/service";
 
-// Server actions for the Canvas integration. Identity always comes from the
-// session cookie (requireUserOrThrow), never from arguments. Next.js rejects
-// cross-origin Server Action POSTs (Origin vs Host check) and the session
-// cookie is SameSite=Lax, which together cover CSRF for these mutations.
-//
-// The token argument to connectCanvas is the only time the raw token crosses
-// into the server; it is validated, used to verify the connection, encrypted,
-// and dropped. Nothing returned from any action contains it.
+// Identity always comes from the session cookie, never from arguments. CSRF is
+// covered by Next's same-origin check on Server Actions plus SameSite=Lax cookies.
+// The raw Canvas token is only seen in connectCanvas: validated, encrypted,
+// and never returned.
 
 export type CanvasActionResult<T = undefined> =
   | { error: string; code?: string }
@@ -110,13 +106,13 @@ export async function applyCanvasSync(): Promise<CanvasActionResult<SyncReport>>
     revalidateAll();
     return { error: result.error, code: result.code };
   }
-  const s = result.value.summary;
+  const summary = result.value.summary;
   await logEvent(user.id, "canvas_synced", {
-    created: s.created,
-    updated: s.updated,
-    completed: s.completed,
-    removed: s.removed,
-    coursesFailed: s.coursesFailed,
+    created: summary.created,
+    updated: summary.updated,
+    completed: summary.completed,
+    removed: summary.removed,
+    coursesFailed: summary.coursesFailed,
   });
   await regeneratePlanSnapshot(user.id);
   revalidateAll();

@@ -11,7 +11,10 @@ import { regeneratePlanSnapshot } from "@/server/actions/plans";
 type Result<T> = { success: true; value: T } | { error: string };
 
 function revalidateAll() {
-  for (const p of ["/integrations/canvas-calendar", "/dashboard", "/assignments", "/plan", "/courses", "/settings"]) revalidatePath(p);
+  const pages = ["/integrations/canvas-calendar", "/dashboard", "/assignments", "/plan", "/courses", "/settings"];
+  for (const page of pages) {
+    revalidatePath(page);
+  }
 }
 
 export async function connectFeedAction(url: string): Promise<Result<FeedSyncSummary>> {
@@ -20,32 +23,32 @@ export async function connectFeedAction(url: string): Promise<Result<FeedSyncSum
   if (!parsed.success) return { error: "Paste your Canvas calendar feed link." };
   const rate = await checkRateLimit(`feed-connect:${user.id}`);
   if (!rate.allowed) return { error: "Too many tries. Wait a few minutes and try again." };
-  const r = await connectFeed(user.id, parsed.data);
-  if (!r.ok) return { error: r.error };
-  await logEvent(user.id, "canvas_feed_connected", { ...r.value });
-  await logEvent(user.id, "canvas_synced", { via: "feed", ...r.value });
+  const result = await connectFeed(user.id, parsed.data);
+  if (!result.ok) return { error: result.error };
+  await logEvent(user.id, "canvas_feed_connected", { ...result.value });
+  await logEvent(user.id, "canvas_synced", { via: "feed", ...result.value });
   await regeneratePlanSnapshot(user.id).catch(() => {});
   revalidateAll();
-  return { success: true, value: r.value };
+  return { success: true, value: result.value };
 }
 
 export async function syncFeedAction(): Promise<Result<FeedSyncSummary>> {
   const user = await requireUserOrThrow();
   const rate = await checkRateLimit(`feed-sync:${user.id}`);
   if (!rate.allowed) return { error: "Syncing too often. Try again in a few minutes." };
-  const r = await runFeedSync(user.id);
+  const result = await runFeedSync(user.id);
   revalidateAll();
-  if (!r.ok) return { error: r.error };
-  await logEvent(user.id, "canvas_synced", { via: "feed", ...r.value });
+  if (!result.ok) return { error: result.error };
+  await logEvent(user.id, "canvas_synced", { via: "feed", ...result.value });
   await regeneratePlanSnapshot(user.id).catch(() => {});
-  return { success: true, value: r.value };
+  return { success: true, value: result.value };
 }
 
 export async function disconnectFeedAction(removeAssignments: boolean): Promise<Result<{ removed: number }>> {
   const user = await requireUserOrThrow();
-  const r = await disconnectFeed(user.id, removeAssignments === true);
-  if (!r.ok) return { error: r.error };
+  const result = await disconnectFeed(user.id, removeAssignments === true);
+  if (!result.ok) return { error: result.error };
   await regeneratePlanSnapshot(user.id).catch(() => {});
   revalidateAll();
-  return { success: true, value: r.value };
+  return { success: true, value: result.value };
 }

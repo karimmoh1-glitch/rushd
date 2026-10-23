@@ -10,6 +10,11 @@ import { assertOwnsClass } from "@/server/actions/class-ownership";
 
 export type ActionResult = { error: string } | { success: true };
 
+function revalidateExamPages() {
+  revalidatePath("/exams");
+  revalidatePath("/dashboard");
+}
+
 export async function createExam(input: ExamInput): Promise<ActionResult> {
   const user = await requireUserOrThrow();
   const parsed = ExamSchema.safeParse(input);
@@ -37,8 +42,7 @@ export async function createExam(input: ExamInput): Promise<ActionResult> {
 
   await logEvent(user.id, "exam_created", { examId: created.id });
   await regeneratePlanSnapshot(user.id);
-  revalidatePath("/exams");
-  revalidatePath("/dashboard");
+  revalidateExamPages();
   return { success: true };
 }
 
@@ -71,8 +75,7 @@ export async function updateExam(
   if (result.count === 0) return { error: "Exam not found." };
 
   await regeneratePlanSnapshot(user.id);
-  revalidatePath("/exams");
-  revalidatePath("/dashboard");
+  revalidateExamPages();
   return { success: true };
 }
 
@@ -83,7 +86,6 @@ export async function deleteExam(id: string): Promise<ActionResult> {
   if (result.count === 0) return { error: "Exam not found." };
 
   await regeneratePlanSnapshot(user.id);
-  revalidatePath("/exams");
-  revalidatePath("/dashboard");
+  revalidateExamPages();
   return { success: true };
 }
