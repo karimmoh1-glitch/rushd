@@ -21,7 +21,7 @@ export function StartSessionButton({
   source: StudySessionSource;
   label?: string;
   size?: "sm" | "default" | "lg" | "icon";
-  variant?: "outline" | "default" | "ghost";
+  variant?: "outline" | "default" | "ghost" | "signal";
 }) {
   const { activeSession, setActiveSession } = useActiveSession();
   const [pending, startTransition] = useTransition();

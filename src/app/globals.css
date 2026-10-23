@@ -740,7 +740,7 @@
 /* --- Course identity: one color, used with restraint ---------------------- */
 /* Set --course on an element (style={{ "--course": color }}). */
 .course-tint {
-  background: color-mix(in oklch, var(--course, var(--muted)) 9%, var(--card));
+  background: color-mix(in oklch, var(--course, var(--muted)) 7%, var(--card));
 }
 .course-rule {
   background: var(--course, var(--border));

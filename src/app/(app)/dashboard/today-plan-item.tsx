@@ -10,6 +10,7 @@ import { setAssignmentStatus } from "@/server/actions/assignments";
 import { logPlanItemInteraction } from "@/server/actions/plan-item-events";
 import { StartSessionButton } from "@/components/start-session-button";
 import { formatDuration } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 /** One timed block in today's plan. */
 export function TodayPlanItem({
@@ -56,13 +57,13 @@ export function TodayPlanItem({
   }
 
   return (
-    <li className="flex items-center gap-3 py-3">
+    <li className={cn("flex items-center gap-3 py-3 transition-opacity duration-200", pending && "opacity-50")}>
       {timeLabel && (
         <span className="w-16 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{timeLabel}</span>
       )}
       <span aria-hidden="true" className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: classColor }} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{title}</p>
+        <p className={cn("truncate text-sm font-medium", pending && "line-through decoration-muted-foreground")}>{title}</p>
         <p className="truncate text-xs text-muted-foreground">
           {className} · {formatDuration(scheduledMinutes)}
           {reasons.length > 0 && (

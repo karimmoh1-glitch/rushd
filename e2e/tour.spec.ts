@@ -65,9 +65,22 @@ test("design tour", async ({ browser }) => {
   await page.getByRole("dialog").getByLabel("Course code (optional)").fill("MATH 210");
   await page.getByRole("dialog").getByRole("button", { name: "Add course" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  // Give one course a term and a weekly goal through the edit dialog.
+  await page.getByRole("button", { name: "Options for AP Calculus AB" }).click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
+  const edit = page.getByRole("dialog");
+  await edit.getByText("Term and study time (optional)").click();
+  await edit.getByLabel("Term starts").fill("2026-08-25");
+  await edit.getByLabel("Term ends").fill("2026-12-18");
+  await edit.getByLabel("Study time you want for this course").fill("4");
+  await edit.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await shoot(page, "d-courses");
   await page.getByRole("link", { name: "AP Chemistry" }).first().click();
   await shoot(page, "d-course-page");
+  await page.goto("/courses");
+  await page.getByRole("link", { name: "AP Calculus AB" }).click();
+  await shoot(page, "d-course-page-term");
 
   for (const [path, name] of [
     ["/assignments", "d-assignments"],

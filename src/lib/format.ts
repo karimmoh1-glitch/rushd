@@ -55,3 +55,14 @@ export function formatDaysUntil(date: Date, timeZone?: string | null, now: Date 
   if (days === 1) return "Tomorrow";
   return `In ${days}d`;
 }
+
+export type DueStatus = "overdue" | "today" | "soon" | "later";
+
+/** How urgent a deadline is: past, today, within the next two days, or later. */
+export function dueStatus(date: Date, timeZone?: string | null, now: Date = new Date()): DueStatus {
+  if (date.getTime() < now.getTime()) return "overdue";
+  const days = calendarDaysBetween(date, now, timeZone);
+  if (days === 0) return "today";
+  if (days <= 2) return "soon";
+  return "later";
+}

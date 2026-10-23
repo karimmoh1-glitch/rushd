@@ -9,7 +9,7 @@ import { generatePlanForUser, type UserPlan } from "@/lib/planning/generate-for-
 import { dateKey, explainScore } from "@/lib/planning";
 import type { DayPlan, ScheduledSession, ScoredItem } from "@/lib/planning/types";
 import { formatDateInZone, formatDateKey, formatMinuteOfDay, zonedParts } from "@/lib/time/zone";
-import { formatDueDate, formatDuration } from "@/lib/format";
+import { dueStatus, formatDueDate, formatDuration } from "@/lib/format";
 import type { SessionRecord } from "@/lib/insights/build-insights";
 import { buildEstimationProfile, adjustEstimate } from "@/lib/estimation/build-estimation-profile";
 import { buildPatterns } from "@/lib/patterns/build-patterns";
@@ -17,6 +17,8 @@ import { logEvent } from "@/lib/analytics/log-event";
 import { cn } from "@/lib/utils";
 import { pulseOf } from "@/lib/planning/pulse";
 import { PulseBadge } from "@/components/brand/pulse-badge";
+import { StatusChip } from "@/components/status-chip";
+import { studyTimeByCourse, type CourseStudyTime } from "@/lib/courses/study-time";
 import { getMastery } from "@/lib/practice/load";
 import { nextReview, type TopicMastery } from "@/lib/practice/mastery";
 import { TodayPlanItem } from "./today-plan-item";
@@ -106,12 +108,12 @@ async function loadDashboardData(userId: string, now: Date) {
   } as const;
   const weekFromNow = new Date(now.getTime() + WEEK_MS);
 
-  const [classes, plan, overdue, upcoming, exams, overdueCount, dueThisWeek, sessionHistory, canvasConnection, mastery, lastCheck] =
+  const [classes, plan, overdue, upcoming, exams, overdueCount, dueThisWeek, sessionHistory, canvasConnection, mastery, lastCheck, weekSessions] =
     await Promise.all([
       db.class.findMany({
         where: { userId, archived: false },
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, color: true },
+        select: { id: true, name: true, color: true, weeklyHours: true },
       }),
       generatePlanForUser(userId, now),
       db.assignment.findMany({
@@ -156,6 +158,15 @@ async function loadDashboardData(userId: string, now: Date) {
         orderBy: { createdAt: "desc" },
         select: { id: true, topic: true, estimateLow: true, estimateHigh: true, createdAt: true },
       }),
+      db.studySession.findMany({
+        where: { userId, status: "COMPLETED", startedAt: { gte: new Date(now.getTime() - WEEK_MS) } },
+        select: {
+          actualMinutes: true,
+          plannedMinutes: true,
+          assignment: { select: { classId: true } },
+          exam: { select: { classId: true } },
+        },
+      }),
       logEvent(userId, "dashboard_viewed"),
     ]);
 
@@ -171,6 +182,7 @@ async function loadDashboardData(userId: string, now: Date) {
     canvasConnection,
     mastery,
     lastCheck,
+    weekSessions,
   };
 }
 
@@ -314,6 +326,7 @@ export default async function DashboardPage() {
     canvasConnection,
     mastery,
     lastCheck,
+    weekSessions,
   } = await loadDashboardData(user.id, now);
   const review = nextReview(mastery);
 
@@ -367,13 +380,14 @@ export default async function DashboardPage() {
     weekMinutes += day.minutes;
   }
   const shortfallMinutes = totalShortfallMinutes(plan);
+  const courseTime = studyTimeByCourse(classes, weekSessions);
 
   const name = user.profile?.displayName?.trim();
   const hasWork = plan.scored.length > 0;
   const hasNothingDue = overdueCount === 0 && upcoming.length === 0 && exams.length === 0;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div>
           <p className="text-sm text-muted-foreground">
@@ -412,71 +426,77 @@ export default async function DashboardPage() {
         />
       )}
 
-      <section aria-labelledby="today-heading">
-        <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
-          <h2 id="today-heading" className="text-base font-semibold">
-            Today
-          </h2>
-          {plannedMinutesToday > 0 && (
-            <span className="text-sm text-muted-foreground">{formatDuration(plannedMinutesToday)} planned</span>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem] lg:items-start">
+        <div className="space-y-6">
+          <Panel
+            id="today-heading"
+            title="Today"
+            aside={
+              plannedMinutesToday > 0 && (
+                <span className="text-sm tabular-nums text-muted-foreground">{formatDuration(plannedMinutesToday)} planned</span>
+              )
+            }
+          >
+            {todaySessions.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {todaySessions.map((session, index) => (
+                  <TodayPlanItem
+                    key={`${session.item.id}-${index}`}
+                    itemId={session.item.id}
+                    itemKind={session.item.kind}
+                    assignmentId={session.item.kind === "assignment" ? session.item.id : null}
+                    title={session.item.title}
+                    className={session.item.className}
+                    classColor={session.item.classColor}
+                    scheduledMinutes={session.scheduledMinutes}
+                    reasons={reasonsFor(session.item.id)}
+                    timeLabel={session.startMinute !== undefined ? formatMinuteOfDay(session.startMinute) : undefined}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <div className="pb-1 pt-2 text-sm">
+                <TodayEmptyState
+                  hasWork={hasWork}
+                  noAvailability={noAvailability}
+                  canvasConnected={canvasConnection !== null}
+                  todayAvailable={todayAvailable}
+                  laterSession={laterSession}
+                  today={today}
+                />
+              </div>
+            )}
+          </Panel>
+
+          <Panel
+            id="coming-up-heading"
+            title="Coming up"
+            aside={
+              <Link href="/assignments" className="text-sm text-muted-foreground hover:text-foreground">
+                All assignments
+              </Link>
+            }
+          >
+            {comingUp.length === 0 ? (
+              <p className="pb-1 pt-2 text-sm text-muted-foreground">No deadlines or exams ahead.</p>
+            ) : (
+              <ul className="-mx-2">
+                {comingUp.map((row) => (
+                  <ComingUpItem key={row.key} row={row} pulse={pulseFor(row.id)} tz={tz} now={now} />
+                ))}
+              </ul>
+            )}
+          </Panel>
+        </div>
+
+        <div className="stagger-enter space-y-6">
+          {hasWork && !noAvailability && (
+            <ThisWeekSection week={week} weekMinutes={weekMinutes} shortfallMinutes={shortfallMinutes} />
           )}
+          {classes.length > 0 && <CourseTimeSection rows={courseTime} />}
+          {aiEnabled && <LearningSection review={review} lastCheck={lastCheck} tz={tz} />}
         </div>
-        {todaySessions.length > 0 ? (
-          <ul className="divide-y divide-border">
-            {todaySessions.map((session, index) => (
-              <TodayPlanItem
-                key={`${session.item.id}-${index}`}
-                itemId={session.item.id}
-                itemKind={session.item.kind}
-                assignmentId={session.item.kind === "assignment" ? session.item.id : null}
-                title={session.item.title}
-                className={session.item.className}
-                classColor={session.item.classColor}
-                scheduledMinutes={session.scheduledMinutes}
-                reasons={reasonsFor(session.item.id)}
-                timeLabel={session.startMinute !== undefined ? formatMinuteOfDay(session.startMinute) : undefined}
-              />
-            ))}
-          </ul>
-        ) : (
-          <div className="py-5 text-sm">
-            <TodayEmptyState
-              hasWork={hasWork}
-              noAvailability={noAvailability}
-              canvasConnected={canvasConnection !== null}
-              todayAvailable={todayAvailable}
-              laterSession={laterSession}
-              today={today}
-            />
-          </div>
-        )}
-      </section>
-
-      <section aria-labelledby="coming-up-heading">
-        <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
-          <h2 id="coming-up-heading" className="text-base font-semibold">
-            Coming up
-          </h2>
-          <Link href="/assignments" className="text-sm text-muted-foreground hover:text-foreground">
-            All assignments
-          </Link>
-        </div>
-        {comingUp.length === 0 ? (
-          <p className="py-5 text-sm text-muted-foreground">No deadlines or exams ahead.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {comingUp.map((row) => (
-              <ComingUpItem key={row.key} row={row} pulse={pulseFor(row.id)} tz={tz} now={now} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {aiEnabled && <LearningSection review={review} lastCheck={lastCheck} tz={tz} />}
-
-      {hasWork && !noAvailability && (
-        <ThisWeekSection week={week} weekMinutes={weekMinutes} shortfallMinutes={shortfallMinutes} />
-      )}
+      </div>
 
       <AddWorkSection classes={classes} canvasConnected={canvasConnection !== null} />
     </div>
@@ -484,6 +504,31 @@ export default async function DashboardPage() {
 }
 
 // ---------- Page sections ----------
+
+/** A titled card on the Today page. */
+function Panel({
+  id,
+  title,
+  aside,
+  children,
+}: {
+  id: string;
+  title: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section aria-labelledby={id} className="rounded-xl bg-card px-4 py-3.5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07] sm:px-5 sm:py-4">
+      <div className="flex min-h-7 items-center justify-between gap-3 pb-1.5">
+        <h2 id={id} className="text-[15px] font-semibold tracking-tight">
+          {title}
+        </h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function CanvasReconnectBanner() {
   return (
@@ -555,12 +600,13 @@ function TodayEmptyState({
 }
 
 function ComingUpItem({ row, pulse, tz, now }: { row: ComingUpRow; pulse: number | null; tz: string; now: Date }) {
+  const status = row.overdue ? "overdue" : dueStatus(row.at, tz, now);
   return (
     <li>
-      <Link href={row.href} className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-muted/60">
-        <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: row.classColor }} />
+      <Link href={row.href} className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors duration-150 hover:bg-muted/60">
+        <span aria-hidden="true" className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: row.classColor }} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm">{row.title}</span>
+          <span className="block truncate text-sm font-medium">{row.title}</span>
           <span className="block truncate text-xs text-muted-foreground">
             {row.className}
             {row.kind === "exam" ? " · Exam" : ""}
@@ -568,14 +614,11 @@ function ComingUpItem({ row, pulse, tz, now }: { row: ComingUpRow; pulse: number
           </span>
         </span>
         {pulse !== null && <PulseBadge pulse={pulse} className="hidden shrink-0 sm:inline-flex" />}
-        <span
-          className={cn(
-            "w-44 shrink-0 text-right text-xs tabular-nums",
-            row.overdue ? "font-medium text-destructive" : "text-muted-foreground",
-          )}
-        >
-          {row.overdue ? "Overdue · " : ""}
-          {formatDueDate(row.at, tz, now)}
+        <span className="flex shrink-0 flex-col items-end gap-1 whitespace-nowrap sm:w-36">
+          <StatusChip status={status} />
+          <span className={cn("text-xs tabular-nums", status === "overdue" ? "text-overdue" : "text-muted-foreground")}>
+            {formatDueDate(row.at, tz, now)}
+          </span>
         </span>
       </Link>
     </li>
@@ -592,17 +635,17 @@ function LearningSection({
   tz: string;
 }) {
   return (
-    <section aria-labelledby="learning-heading">
-      <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
-        <h2 id="learning-heading" className="text-base font-semibold">
-          Learning
-        </h2>
+    <Panel
+      id="learning-heading"
+      title="Learning"
+      aside={
         <Link href="/mastery" className="text-sm text-muted-foreground hover:text-foreground">
           Mastery
         </Link>
-      </div>
+      }
+    >
       <LearningSummary review={review} lastCheck={lastCheck} tz={tz} />
-    </section>
+    </Panel>
   );
 }
 
@@ -619,7 +662,7 @@ function LearningSummary({
   if (review) {
     const tutorPrompt = `Help me review ${review.topicLabel}. Start with a quick diagnostic question.`;
     return (
-      <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 pb-1 pt-2">
         <div className="min-w-0">
           <p className="text-sm">
             <span className="text-muted-foreground">Review next: </span>
@@ -630,7 +673,7 @@ function LearningSummary({
             {lastCheck ? ` · last check ${formatDateInZone(lastCheck.createdAt, tz, { month: "short", day: "numeric" })}` : ""}
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href={`/tutor?ask=${encodeURIComponent(tutorPrompt)}`} className={buttonVariants({ variant: "outline" })}>
             Review with tutor
           </Link>
@@ -644,7 +687,7 @@ function LearningSummary({
 
   if (lastCheck) {
     return (
-      <p className="py-4 text-sm text-muted-foreground">
+      <p className="pb-1 pt-2 text-sm text-muted-foreground">
         Your last check ({lastCheck.topic}, {Math.round(lastCheck.estimateLow)}–{Math.round(lastCheck.estimateHigh)}%) didn&apos;t flag anything to review.{" "}
         <Link href="/practice" className="font-medium text-foreground underline underline-offset-4">Check something new</Link>
       </p>
@@ -652,7 +695,7 @@ function LearningSummary({
   }
 
   return (
-    <p className="py-4 text-sm text-muted-foreground">
+    <p className="pb-1 pt-2 text-sm text-muted-foreground">
       Snap a photo of practice problems and Rushd shows what you&apos;ve got down and what to study next.{" "}
       <Link href="/practice" className="font-medium text-foreground underline underline-offset-4">Check my work</Link>
     </p>
@@ -668,18 +711,25 @@ function ThisWeekSection({
   weekMinutes: number;
   shortfallMinutes: number;
 }) {
+  let busiest: WeekDayBar | undefined;
+  for (const day of week) {
+    if (day.minutes > 0 && (!busiest || day.minutes > busiest.minutes)) busiest = day;
+  }
   return (
-    <section aria-labelledby="week-heading">
-      <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
-        <h2 id="week-heading" className="text-base font-semibold">
-          This week
-        </h2>
-        <span className="text-sm text-muted-foreground">{formatDuration(weekMinutes)} planned</span>
-      </div>
-      <div className="pt-4">
+    <Panel
+      id="week-heading"
+      title="This week"
+      aside={<span className="text-sm tabular-nums text-muted-foreground">{formatDuration(weekMinutes)} planned</span>}
+    >
+      <div className="pt-2">
         <WorkloadBars days={week} />
+        {busiest && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Busiest: <span className="text-foreground">{busiest.label.split(",")[0]}</span>, {formatDuration(busiest.minutes)}
+          </p>
+        )}
         {shortfallMinutes > 0 && (
-          <p className="mt-4 flex items-start gap-2 text-sm">
+          <p className="mt-3 flex items-start gap-2 text-sm">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
             <span>
               {formatDuration(shortfallMinutes)} of work won&apos;t fit before its deadline in your study time.{" "}
@@ -690,41 +740,83 @@ function ThisWeekSection({
           </p>
         )}
       </div>
-    </section>
+    </Panel>
+  );
+}
+
+/** Real study time per course over the last 7 days, against each course's own weekly goal. */
+function CourseTimeSection({ rows }: { rows: CourseStudyTime[] }) {
+  return (
+    <Panel id="course-time-heading" title="Your courses" aside={<span className="text-sm text-muted-foreground">Last 7 days</span>}>
+      {rows.length === 0 ? (
+        <p className="pb-1 pt-2 text-sm text-muted-foreground">
+          Finish a study session or set a weekly goal on a course, and its study time shows up here.{" "}
+          <Link href="/courses" className="font-medium text-foreground underline underline-offset-4">
+            Courses
+          </Link>
+        </p>
+      ) : (
+        <ul className="space-y-3 pb-1 pt-2">
+          {rows.map((row) => {
+            const percent = row.goalMinutes ? Math.min(100, Math.round((row.minutes / row.goalMinutes) * 100)) : null;
+            return (
+              <li key={row.id} style={{ ["--course" as string]: row.color }}>
+                <Link href={`/courses/${row.id}`} className="group block rounded-md">
+                  <span className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span aria-hidden="true" className="course-rule h-2 w-2 shrink-0 rounded-full" />
+                      <span className="truncate group-hover:underline group-hover:underline-offset-4">{row.name}</span>
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {formatDuration(row.minutes)}
+                      {row.goalMinutes ? ` of ${formatDuration(row.goalMinutes)}` : " studied"}
+                    </span>
+                  </span>
+                  {percent !== null && (
+                    <span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
+                      <span className="course-rule block h-full rounded-full" style={{ width: `${percent}%` }} />
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Panel>
   );
 }
 
 function AddWorkSection({ classes, canvasConnected }: { classes: ClassOption[]; canvasConnected: boolean }) {
   return (
-    <section aria-labelledby="add-heading" className="space-y-3">
-      <h2 id="add-heading" className="border-b border-border pb-2 text-base font-semibold">
-        Add work
-      </h2>
-      <QuickAdd classes={classes} />
-      <div className="flex flex-wrap gap-2">
-        <AddAssignmentButton classes={classes} variant="outline" />
-        <AddExamButton classes={classes} variant="outline" />
-        {aiEnabled && (
-          <Link href="/import" className={buttonVariants({ variant: "outline" })}>
-            <Upload className="h-4 w-4" aria-hidden="true" />
-            From a screenshot
-          </Link>
-        )}
-        {!canvasConnected && (
-          <Link href="/integrations/canvas" className={buttonVariants({ variant: "outline" })}>
-            Connect Canvas
-          </Link>
+    <Panel id="add-heading" title="Add work">
+      <div className="space-y-3 pb-1 pt-1">
+        <QuickAdd classes={classes} />
+        <div className="flex flex-wrap gap-2">
+          <AddAssignmentButton classes={classes} variant="outline" />
+          <AddExamButton classes={classes} variant="outline" />
+          {aiEnabled && (
+            <Link href="/import" className={buttonVariants({ variant: "outline" })}>
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              From a screenshot
+            </Link>
+          )}
+          {!canvasConnected && (
+            <Link href="/integrations/canvas" className={buttonVariants({ variant: "outline" })}>
+              Connect Canvas
+            </Link>
+          )}
+        </div>
+        {classes.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Add a class first on{" "}
+            <Link href="/courses" className="underline underline-offset-4">
+              Classes
+            </Link>
+            , or connect Canvas to import them.
+          </p>
         )}
       </div>
-      {classes.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Add a class first on{" "}
-          <Link href="/courses" className="underline underline-offset-4">
-            Classes
-          </Link>
-          , or connect Canvas to import them.
-        </p>
-      )}
-    </section>
+    </Panel>
   );
 }

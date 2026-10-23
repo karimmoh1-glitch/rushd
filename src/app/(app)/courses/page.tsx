@@ -6,7 +6,8 @@ import { AddClassButton } from "./add-class-button";
 import Link from "next/link";
 import { PathEmpty } from "@/components/brand/path-empty";
 import { toDateInput } from "@/lib/courses/service";
-import { resolveTimeZone } from "@/lib/time/zone";
+import { localDateKey, resolveTimeZone } from "@/lib/time/zone";
+import { termProgress } from "@/lib/courses/term";
 
 export const metadata: Metadata = {
   title: "Courses",
@@ -30,7 +31,9 @@ interface ClassRecord {
   _count: { assignments: number; exams: number };
 }
 
-function toCardData(course: ClassRecord): ClassCardData {
+function toCardData(course: ClassRecord, today: string): ClassCardData {
+  const termStart = toDateInput(course.termStart);
+  const termEnd = toDateInput(course.termEnd);
   return {
     id: course.id,
     name: course.name,
@@ -43,8 +46,9 @@ function toCardData(course: ClassRecord): ClassCardData {
     code: course.code ?? undefined,
     institution: course.institution ?? undefined,
     subject: course.subject ?? undefined,
-    termStart: toDateInput(course.termStart),
-    termEnd: toDateInput(course.termEnd),
+    termStart,
+    termEnd,
+    term: termProgress(termStart, termEnd, today),
     weeklyHours: course.weeklyHours ?? undefined,
     assignmentCount: course._count.assignments,
     examCount: course._count.exams,
@@ -54,6 +58,7 @@ function toCardData(course: ClassRecord): ClassCardData {
 export default async function ClassesPage() {
   const user = await requireUser();
   const timeZone = resolveTimeZone(user.profile?.timezone);
+  const today = localDateKey(new Date(), timeZone);
 
   const classes = await db.class.findMany({
     where: { userId: user.id },
@@ -98,9 +103,9 @@ export default async function ClassesPage() {
           <Link href="/integrations/canvas" className="underline underline-offset-4">connect Canvas</Link> to import yours.
         </PathEmpty>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {active.map((course) => (
-            <ClassCard key={course.id} data={toCardData(course)} timeZone={timeZone} />
+            <ClassCard key={course.id} data={toCardData(course, today)} timeZone={timeZone} />
           ))}
         </div>
       )}
@@ -110,9 +115,9 @@ export default async function ClassesPage() {
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">
             Archived
           </h2>
-          <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {archived.map((course) => (
-              <ClassCard key={course.id} data={toCardData(course)} timeZone={timeZone} />
+              <ClassCard key={course.id} data={toCardData(course, today)} timeZone={timeZone} />
             ))}
           </div>
         </div>
