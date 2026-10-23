@@ -67,6 +67,7 @@ model User {
   practiceQuestions PracticeQuestion[]
   practiceSessions  PracticeSession[]
   questionReports   QuestionReport[]
+  planOverrides     PlanOverride[]
 
   @@index([createdAt])
 }
@@ -169,6 +170,9 @@ model Class {
   termStart   DateTime?    @db.Date
   termEnd     DateTime?    @db.Date
   weeklyHours Int? // the student's own study-time goal for this course
+  // Set when the student answers "not now" to "Archive this course?" after
+  // its term ended. Rushd never archives on its own.
+  archiveSuggestionDismissedAt DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -183,6 +187,7 @@ model Class {
   topics            CourseTopic[]
   practiceQuestions PracticeQuestion[]
   practiceSessions  PracticeSession[]
+  planOverrides     PlanOverride[]
 
   @@index([userId, archived])
 }
@@ -239,12 +244,16 @@ model Assignment {
   // assignment rather than a number the student chose. Editing it flips this
   // off, and a sync never overwrites a student-chosen estimate.
   estimatedByRushd   Boolean          @default(false)
+  // Share of the course grade (percent), when the student knows it. Null =
+  // unknown; the planner never guesses one.
+  weightPercent      Int?
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   class          Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
   planItems      PlanItem[]
   studySessions  StudySession[]
   scheduleBlocks ScheduleBlock[]
+  planOverrides  PlanOverride[]
 
   // One row per Canvas assignment per student — the backbone of idempotent
   // sync. NULL canvas ids (manual rows) never collide in Postgres.
@@ -265,6 +274,8 @@ model Exam {
   prepMinutes Int      @default(120)
   priority    Priority @default(MEDIUM)
   notes       String?
+  // Share of the course grade (percent), when known. Null = unknown.
+  weightPercent Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -273,6 +284,7 @@ model Exam {
   planItems      PlanItem[]
   studySessions  StudySession[]
   scheduleBlocks ScheduleBlock[]
+  planOverrides  PlanOverride[]
 
   @@index([userId, examAt])
   @@index([classId])
@@ -290,6 +302,16 @@ model Plan {
   userId      String
   generatedAt DateTime @default(now())
   horizonDays Int      @default(7)
+  // Why this plan was regenerated (e.g. "block_skipped", "missed_session").
+  trigger            String?
+  // Compact copy of the shown week's blocks (src/lib/planning/diff.ts), so the
+  // next regeneration can say what moved. Includes review blocks, which have
+  // no PlanItem row.
+  snapshot           Json?
+  // "What changed" against the previous plan, as structured changes.
+  changes            Json?
+  changesShownAt     DateTime?
+  changesDismissedAt DateTime?
 
   user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items PlanItem[]
@@ -558,6 +580,33 @@ model ScheduleBlock {
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   exam       Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([userId, localDate])
+}
+
+enum PlanOverrideKind {
+  SKIP_DAY // not on localDate ("skip for today")
+  NOT_THIS_WEEK // not before localDate (the first day of next week)
+}
+
+// A student's "not now" on a planned item. The planner keeps the item off the
+// day (or out of the week) and says when that puts a deadline at risk.
+// Exactly one of assignmentId / examId / classId (a course's review block) is
+// set, enforced in src/server/actions/plan-overrides.ts.
+model PlanOverride {
+  id           String           @id @default(cuid())
+  userId       String
+  kind         PlanOverrideKind
+  assignmentId String?
+  examId       String?
+  classId      String? // review blocks are per course
+  localDate    String // "YYYY-MM-DD" in the student's timezone
+  createdAt    DateTime         @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  exam       Exam?       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  class      Class?      @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([userId, localDate])
 }
