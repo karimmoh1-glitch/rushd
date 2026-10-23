@@ -3,28 +3,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, Upload } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
-import { generatePlanForUser, type UserPlan } from "@/lib/planning/generate-for-user";
 import { dateKey, explainScore } from "@/lib/planning";
-import type { DayPlan, ScheduledSession, ScoredItem } from "@/lib/planning/types";
-import { formatDateInZone, formatDateKey, formatMinuteOfDay, zonedParts } from "@/lib/time/zone";
+import { formatDateInZone, formatMinuteOfDay, zonedParts } from "@/lib/time/zone";
 import { dueStatus, formatDueDate, formatDuration } from "@/lib/format";
 import type { SessionRecord } from "@/lib/insights/build-insights";
-import { buildEstimationProfile, adjustEstimate } from "@/lib/estimation/build-estimation-profile";
-import { buildPatterns } from "@/lib/patterns/build-patterns";
-import { logEvent } from "@/lib/analytics/log-event";
 import { cn } from "@/lib/utils";
 import { pulseOf } from "@/lib/planning/pulse";
 import { PulseBadge } from "@/components/brand/pulse-badge";
 import { StatusChip } from "@/components/status-chip";
 import { studyTimeByCourse, type CourseStudyTime } from "@/lib/courses/study-time";
-import { getMastery } from "@/lib/practice/load";
 import { nextReview, type TopicMastery } from "@/lib/practice/mastery";
 import { TodayPlanItem } from "./today-plan-item";
 import { NextUp } from "./next-up";
 import { WorkloadBars } from "./workload-bars";
-import { buildOneThingReasons } from "./one-thing-reasons";
 import { AddAssignmentButton } from "../assignments/add-assignment-button";
 import { AddExamButton } from "../exams/add-exam-button";
 import { QuickAdd } from "./quick-add";
@@ -35,13 +27,22 @@ import { StreakPath } from "./streak";
 import { getStreak } from "@/lib/streak/load";
 import { encodeStreakCard } from "@/lib/share/streak-card";
 import { getOrCreateReferralCode } from "@/lib/referral/referral";
+import type { ScheduledSession } from "@/lib/planning/types";
+import {
+  buildComingUpRows,
+  buildNextUpReasons,
+  buildWeekBars,
+  describeBlockTime,
+  loadDashboardData,
+  minutesStudiedThisWeek,
+  totalShortfallMinutes,
+  type ComingUpRow,
+  type WeekDayBar,
+} from "@/lib/today/dashboard-data";
 
 export const metadata: Metadata = {
   title: "Today",
 };
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const COMING_UP_LIMIT = 7;
 
 // ---------- Types ----------
 
@@ -51,139 +52,11 @@ interface ClassOption {
   color: string;
 }
 
-interface AssignmentListItem {
-  id: string;
-  title: string;
-  dueAt: Date;
-  source: string;
-  class: { name: string; color: string };
-}
-
-interface ExamListItem {
-  id: string;
-  title: string;
-  examAt: Date;
-  class: { name: string; color: string };
-}
-
 interface LastCheck {
   topic: string;
   estimateLow: number;
   estimateHigh: number;
   createdAt: Date;
-}
-
-interface ComingUpRow {
-  key: string;
-  id: string;
-  href: string;
-  title: string;
-  className: string;
-  classColor: string;
-  at: Date;
-  kind: "assignment" | "exam";
-  fromCanvas: boolean;
-  overdue: boolean;
-}
-
-interface WeekDayBar {
-  key: string;
-  label: string;
-  letter: string;
-  minutes: number;
-  availableMinutes: number;
-}
-
-// ---------- Loading data ----------
-
-/** Everything the Today page reads, fetched in parallel. All queries are scoped to this user. */
-async function loadDashboardData(userId: string, now: Date) {
-  const notDone = { userId, status: { not: "COMPLETED" as const }, class: { archived: false } };
-  const rowSelect = {
-    id: true,
-    title: true,
-    dueAt: true,
-    source: true,
-    class: { select: { name: true, color: true } },
-  } as const;
-  const weekFromNow = new Date(now.getTime() + WEEK_MS);
-
-  const [classes, plan, overdue, upcoming, exams, overdueCount, dueThisWeek, sessionHistory, canvasConnection, mastery, lastCheck, weekSessions] =
-    await Promise.all([
-      db.class.findMany({
-        where: { userId, archived: false },
-        orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, color: true, weeklyHours: true },
-      }),
-      generatePlanForUser(userId, now),
-      db.assignment.findMany({
-        where: { ...notDone, dueAt: { lt: now } },
-        orderBy: { dueAt: "asc" },
-        take: COMING_UP_LIMIT,
-        select: rowSelect,
-      }),
-      db.assignment.findMany({
-        where: { ...notDone, dueAt: { gte: now } },
-        orderBy: { dueAt: "asc" },
-        take: COMING_UP_LIMIT,
-        select: rowSelect,
-      }),
-      db.exam.findMany({
-        where: { userId, examAt: { gte: now }, class: { archived: false } },
-        orderBy: { examAt: "asc" },
-        take: COMING_UP_LIMIT,
-        select: { id: true, title: true, examAt: true, class: { select: { name: true, color: true } } },
-      }),
-      db.assignment.count({ where: { ...notDone, dueAt: { lt: now } } }),
-      db.assignment.count({ where: { ...notDone, dueAt: { gte: now, lt: weekFromNow } } }),
-      db.studySession.findMany({
-        where: { userId, status: { in: ["COMPLETED", "ABANDONED"] } },
-        select: {
-          className: true,
-          classColor: true,
-          status: true,
-          plannedMinutes: true,
-          actualMinutes: true,
-          perceivedDifficulty: true,
-          startedAt: true,
-        },
-      }),
-      db.canvasConnection.findUnique({
-        where: { userId },
-        select: { status: true },
-      }),
-      getMastery(userId, now),
-      db.assessment.findFirst({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, topic: true, estimateLow: true, estimateHigh: true, createdAt: true },
-      }),
-      db.studySession.findMany({
-        where: { userId, status: "COMPLETED", startedAt: { gte: new Date(now.getTime() - WEEK_MS) } },
-        select: {
-          actualMinutes: true,
-          plannedMinutes: true,
-          assignment: { select: { classId: true } },
-          exam: { select: { classId: true } },
-        },
-      }),
-      logEvent(userId, "dashboard_viewed"),
-    ]);
-
-  return {
-    classes,
-    plan,
-    overdue,
-    upcoming,
-    exams,
-    overdueCount,
-    dueThisWeek,
-    sessionHistory,
-    canvasConnection,
-    mastery,
-    lastCheck,
-    weekSessions,
-  };
 }
 
 // ---------- Preparing data ----------
@@ -192,18 +65,6 @@ function greeting(hour: number): string {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
-}
-
-/** Real study time in the last 7 days, from finished sessions. */
-function minutesStudiedThisWeek(sessions: SessionRecord[], now: Date): number {
-  const weekAgo = now.getTime() - WEEK_MS;
-  let total = 0;
-  for (const session of sessions) {
-    if (session.status === "COMPLETED" && session.startedAt.getTime() > weekAgo) {
-      total += session.actualMinutes ?? session.plannedMinutes;
-    }
-  }
-  return total;
 }
 
 /** A shareable streak card link, only once the streak is worth sharing (2+ days). */
@@ -215,98 +76,6 @@ async function buildStreakShareUrl(userId: string, currentStreak: number, studie
   const token = encodeStreakCard({ code, streak: currentStreak, minutes: studiedMinutes });
   const appUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   return `${appUrl}/s/${token}`;
-}
-
-/** For example "today at 4:00 PM" or "Thursday at 9:30 AM". */
-function describeBlockTime(session: ScheduledSession, today: string): string {
-  let day: string;
-  if (session.scheduledDate === today) {
-    day = "today";
-  } else {
-    day = formatDateKey(session.scheduledDate, { weekday: "long" });
-  }
-  return `${day} at ${formatMinuteOfDay(session.startMinute ?? 0)}`;
-}
-
-/** The top three "why this first" bullets for the One Thing card. */
-function buildNextUpReasons(
-  next: ScoredItem,
-  now: Date,
-  allScored: ScoredItem[],
-  history: SessionRecord[],
-  timeZone: string,
-): string[] {
-  const estimate = adjustEstimate(next.item.rawEstimatedMinutes, next.item.className, buildEstimationProfile(history));
-  const patterns = buildPatterns(history);
-  const reasons = buildOneThingReasons(next, now, allScored, estimate, patterns, timeZone);
-  return reasons.slice(0, 3);
-}
-
-function assignmentRow(assignment: AssignmentListItem, overdue: boolean): ComingUpRow {
-  return {
-    key: `a-${assignment.id}`,
-    id: assignment.id,
-    href: "/assignments",
-    title: assignment.title,
-    className: assignment.class.name,
-    classColor: assignment.class.color,
-    at: assignment.dueAt,
-    kind: "assignment",
-    fromCanvas: assignment.source === "CANVAS",
-    overdue,
-  };
-}
-
-function examRow(exam: ExamListItem): ComingUpRow {
-  return {
-    key: `e-${exam.id}`,
-    id: exam.id,
-    href: "/exams",
-    title: exam.title,
-    className: exam.class.name,
-    classColor: exam.class.color,
-    at: exam.examAt,
-    kind: "exam",
-    fromCanvas: false,
-    overdue: false,
-  };
-}
-
-/** Overdue work first, then upcoming assignments and exams sorted by date. */
-function buildComingUpRows(
-  overdue: AssignmentListItem[],
-  upcoming: AssignmentListItem[],
-  exams: ExamListItem[],
-): ComingUpRow[] {
-  const overdueRows = overdue.map((assignment) => assignmentRow(assignment, true));
-
-  const futureRows = [
-    ...upcoming.map((assignment) => assignmentRow(assignment, false)),
-    ...exams.map(examRow),
-  ];
-  futureRows.sort((a, b) => a.at.getTime() - b.at.getTime());
-
-  return [...overdueRows, ...futureRows].slice(0, COMING_UP_LIMIT);
-}
-
-function buildWeekBars(days: DayPlan[] | undefined): WeekDayBar[] {
-  const nextSevenDays = (days ?? []).slice(0, 7);
-  return nextSevenDays.map((day) => ({
-    key: day.date,
-    label: formatDateKey(day.date, { weekday: "long", month: "short", day: "numeric" }),
-    letter: formatDateKey(day.date, { weekday: "narrow" }),
-    minutes: day.plannedMinutes,
-    availableMinutes: day.availableMinutes,
-  }));
-}
-
-/** Minutes of work that can't fit before their deadlines. */
-function totalShortfallMinutes(plan: UserPlan): number {
-  let total = 0;
-  for (const minutes of Object.values(plan.unscheduledMinutesByItem)) {
-    total += minutes;
-  }
-  return total;
 }
 
 // ---------- Page ----------
