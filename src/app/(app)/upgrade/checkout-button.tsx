@@ -7,16 +7,16 @@ import { startCheckout } from "@/server/actions/billing";
 
 export function CheckoutButton({ plan }: { plan: string }) {
   const [pending, startTransition] = useTransition();
+
+  function handleClick() {
+    startTransition(async () => {
+      const result = await startCheckout(plan);
+      if (result && "error" in result) toast.error(result.error);
+    });
+  }
+
   return (
-    <Button
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await startCheckout(plan);
-          if (result && "error" in result) toast.error(result.error);
-        })
-      }
-    >
+    <Button disabled={pending} onClick={handleClick}>
       {pending ? "Opening checkout…" : "Continue to payment"}
     </Button>
   );

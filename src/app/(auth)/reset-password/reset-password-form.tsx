@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { resetPassword } from "@/server/actions/password-reset";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,11 @@ function readToken(): string {
 }
 
 export function ResetPasswordForm() {
-  const token = useSyncExternalStore(
-    () => () => {},
-    readToken,
-    () => "",
-  );
+  // Read after mounting: the server can't see the URL fragment.
+  const [token, setToken] = useState("");
+  useEffect(() => {
+    setToken(readToken());
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();

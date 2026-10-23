@@ -11,6 +11,12 @@ import { cn } from "@/lib/utils";
 
 const DAILY_OPTIONS = [60, 90, 120, 180, 240, 300, 360, 480];
 
+// Keep a saved value that isn't one of the presets in the list, in order.
+function dailyOptionsIncluding(current: number): number[] {
+  if (DAILY_OPTIONS.includes(current)) return DAILY_OPTIONS;
+  return [...DAILY_OPTIONS, current].sort((a, b) => a - b);
+}
+
 export function PlanningForm({
   initial,
 }: {
@@ -23,16 +29,16 @@ export function PlanningForm({
 
   function save() {
     startTransition(async () => {
-      const r = await updatePlanningPreferences({
+      const result = await updatePlanningPreferences({
         preferredSessionMinutes: session as 30 | 45 | 60 | 90,
         maxDailyMinutes: daily,
       });
-      if ("error" in r) toast.error(r.error);
+      if ("error" in result) toast.error(result.error);
       else toast.success("Planning preferences saved. Your plan has been rebuilt.");
     });
   }
 
-  const dailyOptions = DAILY_OPTIONS.includes(daily) ? DAILY_OPTIONS : [...DAILY_OPTIONS, daily].sort((a, b) => a - b);
+  const dailyOptions = dailyOptionsIncluding(daily);
 
   return (
     <div className="space-y-6">

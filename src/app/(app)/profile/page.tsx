@@ -26,6 +26,77 @@ const CHALLENGE_ADVICE: Record<string, string> = {
     "Classes, assignments, and exams all live in one place here — nothing to track across five different apps.",
 };
 
+type DifficultyRow = ReturnType<typeof buildInsights>["difficulty"][number];
+
+// The class that least and most often felt harder than expected.
+// Returns null when there is no data, or when both would be the same class.
+function findStrongestAndHardest(rows: DifficultyRow[]) {
+  if (rows.length === 0) return null;
+  let strongest = rows[0];
+  let hardest = rows[0];
+  for (const row of rows) {
+    if (row.harderShare < strongest.harderShare) strongest = row;
+    if (row.harderShare > hardest.harderShare) hardest = row;
+  }
+  if (strongest.className === hardest.className) return null;
+  return { strongest, hardest };
+}
+
+// e.g. "11th grade · Lincoln High"
+function describeStudent(grade: number | null | undefined, school: string | null | undefined): string {
+  const parts: string[] = [];
+  if (grade) parts.push(`${grade}th grade`);
+  if (school) parts.push(school);
+  if (parts.length === 0) return "How Rushd sees your academic life.";
+  return parts.join(" · ");
+}
+
+function StatCard({ value, label }: { value: React.ReactNode; label: string }) {
+  return (
+    <Card>
+      <CardContent className="py-4">
+        <p className="text-2xl font-semibold">{value}</p>
+        <p className="text-sm text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SubjectCard({
+  heading,
+  headingColor,
+  classColor,
+  subjectName,
+  note,
+}: {
+  heading: string;
+  headingColor: string;
+  classColor: string;
+  subjectName: string;
+  note: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardContent className="py-4">
+        <p className={`text-xs font-semibold tracking-wide ${headingColor} uppercase`}>
+          {heading}
+        </p>
+        <p className="mt-1 flex items-center gap-2 font-medium">
+          <span
+            aria-hidden="true"
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: classColor }}
+          />
+          {subjectName}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {note}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default async function ProfilePage() {
   const user = await requireUser();
 
@@ -59,30 +130,33 @@ export default async function ProfilePage() {
     logEvent(user.id, "profile_viewed"),
   ]);
 
-  const sessions: SessionRecord[] = sessionRows.map((r) => ({
-    className: r.className,
-    classColor: r.classColor,
-    status: r.status as "COMPLETED" | "ABANDONED",
-    plannedMinutes: r.plannedMinutes,
-    actualMinutes: r.actualMinutes,
-    perceivedDifficulty: r.perceivedDifficulty,
-    startedAt: r.startedAt,
+  const sessions: SessionRecord[] = sessionRows.map((row) => ({
+    className: row.className,
+    classColor: row.classColor,
+    status: row.status as "COMPLETED" | "ABANDONED",
+    plannedMinutes: row.plannedMinutes,
+    actualMinutes: row.actualMinutes,
+    perceivedDifficulty: row.perceivedDifficulty,
+    startedAt: row.startedAt,
   }));
   const insights = buildInsights(sessions);
 
-  const availableDays = new Set(availability.map((w) => w.dayOfWeek)).size;
-  const weeklyAvailableMinutes = availability.reduce(
-    (sum, w) => sum + Math.max(0, w.endMinute - w.startMinute),
-    0,
-  );
+  const availableDays = new Set(availability.map((window) => window.dayOfWeek)).size;
+  let weeklyAvailableMinutes = 0;
+  for (const window of availability) {
+    weeklyAvailableMinutes += Math.max(0, window.endMinute - window.startMinute);
+  }
 
-  const strongest = insights.difficulty.length > 0 ? [...insights.difficulty].sort((a, b) => a.harderShare - b.harderShare)[0] : null;
-  const hardest = insights.difficulty.length > 0 ? [...insights.difficulty].sort((a, b) => b.harderShare - a.harderShare)[0] : null;
-  const showStrongestAndHardest = strongest && hardest && strongest.className !== hardest.className;
+  const subjects = findStrongestAndHardest(insights.difficulty);
 
   const challenge = profile?.primaryChallenge
-    ? CHALLENGE_OPTIONS.find((c) => c.value === profile.primaryChallenge)
+    ? CHALLENGE_OPTIONS.find((option) => option.value === profile.primaryChallenge)
     : null;
+
+  let completionText = "—";
+  if (insights.overallCompletionRate !== null) {
+    completionText = `${Math.round(insights.overallCompletionRate * 100)}%`;
+  }
 
   return (
     <div className="space-y-10">
@@ -91,9 +165,7 @@ export default async function ProfilePage() {
           {profile?.displayName ?? "Your"}&apos;s Academic Profile
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {[profile?.grade ? `${profile.grade}th grade` : null, profile?.school]
-            .filter(Boolean)
-            .join(" · ") || "How Rushd sees your academic life."}
+          {describeStudent(profile?.grade, profile?.school)}
         </p>
       </div>
 
@@ -117,34 +189,10 @@ export default async function ProfilePage() {
 
       <div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Card>
-            <CardContent className="py-4">
-              <p className="text-2xl font-semibold">{classes.length}</p>
-              <p className="text-sm text-muted-foreground">Active classes</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4">
-              <p className="text-2xl font-semibold">{availableDays}</p>
-              <p className="text-sm text-muted-foreground">Days available to study</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4">
-              <p className="text-2xl font-semibold">{formatDuration(weeklyAvailableMinutes)}</p>
-              <p className="text-sm text-muted-foreground">Available per week</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4">
-              <p className="text-2xl font-semibold">
-                {insights.overallCompletionRate !== null
-                  ? `${Math.round(insights.overallCompletionRate * 100)}%`
-                  : "—"}
-              </p>
-              <p className="text-sm text-muted-foreground">Sessions completed</p>
-            </CardContent>
-          </Card>
+          <StatCard value={classes.length} label="Active classes" />
+          <StatCard value={availableDays} label="Days available to study" />
+          <StatCard value={formatDuration(weeklyAvailableMinutes)} label="Available per week" />
+          <StatCard value={completionText} label="Sessions completed" />
         </div>
       </div>
 
@@ -164,17 +212,17 @@ export default async function ProfilePage() {
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {classes.map((c) => (
+              {classes.map((course) => (
                 <span
-                  key={c.id}
+                  key={course.id}
                   className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm"
                 >
                   <span
                     aria-hidden="true"
                     className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: c.color }}
+                    style={{ backgroundColor: course.color }}
                   />
-                  {c.name}
+                  {course.name}
                 </span>
               ))}
             </div>
@@ -182,7 +230,7 @@ export default async function ProfilePage() {
         </section>
       </div>
 
-      {showStrongestAndHardest && (
+      {subjects && (
         <div>
           <section>
             <h2 className="mb-3 flex items-center gap-2 font-heading text-lg font-semibold">
@@ -190,42 +238,20 @@ export default async function ProfilePage() {
               Strongest and toughest subjects
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Card>
-                <CardContent className="py-4">
-                  <p className="text-xs font-semibold tracking-wide text-success uppercase">
-                    Strongest
-                  </p>
-                  <p className="mt-1 flex items-center gap-2 font-medium">
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: strongest.classColor }}
-                    />
-                    {strongest.className}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Rarely feels harder than expected.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="py-4">
-                  <p className="text-xs font-semibold tracking-wide text-warning uppercase">
-                    Most difficult
-                  </p>
-                  <p className="mt-1 flex items-center gap-2 font-medium">
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: hardest.classColor }}
-                    />
-                    {hardest.className}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Felt harder than expected {Math.round(hardest.harderShare * 100)}% of the time.
-                  </p>
-                </CardContent>
-              </Card>
+              <SubjectCard
+                heading="Strongest"
+                headingColor="text-success"
+                classColor={subjects.strongest.classColor}
+                subjectName={subjects.strongest.className}
+                note="Rarely feels harder than expected."
+              />
+              <SubjectCard
+                heading="Most difficult"
+                headingColor="text-warning"
+                classColor={subjects.hardest.classColor}
+                subjectName={subjects.hardest.className}
+                note={<>Felt harder than expected {Math.round(subjects.hardest.harderShare * 100)}% of the time.</>}
+              />
             </div>
           </section>
         </div>

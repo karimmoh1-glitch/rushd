@@ -16,7 +16,6 @@ const newsreader = Newsreader({
   axes: ["opsz"],
 });
 
-
 // Arabic for the رُشد logotype (bold only).
 const amiri = Amiri({ variable: "--font-amiri", subsets: ["arabic"], weight: ["700"] });
 

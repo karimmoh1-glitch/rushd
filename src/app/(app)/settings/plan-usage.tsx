@@ -4,6 +4,23 @@ import { buttonVariants } from "@/components/ui/button";
 import type { UsageSummary } from "@/lib/ai/usage";
 import { ManageBillingButton } from "./manage-billing-button";
 
+export type SubscriptionSummary = {
+  status: string;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  hasCustomer: boolean;
+};
+
+function describeBillingStatus(subscription: SubscriptionSummary | null): string {
+  if (subscription?.cancelAtPeriodEnd && subscription.currentPeriodEnd) {
+    return `Cancels at the end of the period (${subscription.currentPeriodEnd}).`;
+  }
+  if (subscription?.status === "past_due") {
+    return "Your last payment failed. Update your payment method to keep your plan.";
+  }
+  return "Allowances reset on the 1st of each month (UTC).";
+}
+
 export function PlanUsage({
   usage,
   billing,
@@ -11,9 +28,10 @@ export function PlanUsage({
 }: {
   usage: UsageSummary;
   billing: "off" | "test" | "live";
-  subscription: { status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean; hasCustomer: boolean } | null;
+  subscription: SubscriptionSummary | null;
 }) {
-  const pct = Math.round(usage.costUsedFraction * 100);
+  const allowancePercent = Math.round(usage.costUsedFraction * 100);
+  const isFree = usage.plan.id === "FREE";
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -23,37 +41,33 @@ export function PlanUsage({
             {billing === "test" && <span className="ml-2 rounded border border-warning/40 px-1.5 py-0.5 text-[11px] font-normal text-warning">Billing test mode</span>}
           </p>
           <p className="text-sm text-muted-foreground">
-            {subscription?.cancelAtPeriodEnd && subscription.currentPeriodEnd
-              ? `Cancels at the end of the period (${subscription.currentPeriodEnd}).`
-              : subscription?.status === "past_due"
-                ? "Your last payment failed. Update your payment method to keep your plan."
-                : "Allowances reset on the 1st of each month (UTC)."}
+            {describeBillingStatus(subscription)}
           </p>
         </div>
         <div className="flex gap-2">
           {subscription?.hasCustomer && billing !== "off" && <ManageBillingButton />}
           {usage.plan.id !== "PRO" && (
-            <Link href="/pricing" className={buttonVariants({ variant: usage.plan.id === "FREE" ? "default" : "outline" })}>
-              {usage.plan.id === "FREE" ? "See plans" : "Compare plans"}
+            <Link href="/pricing" className={buttonVariants({ variant: isFree ? "default" : "outline" })}>
+              {isFree ? "See plans" : "Compare plans"}
             </Link>
           )}
         </div>
       </div>
       <ul className="space-y-3">
-        {usage.features.map((f) => (
-          <li key={f.feature}>
+        {usage.features.map((item) => (
+          <li key={item.feature}>
             <div className="flex justify-between text-sm">
-              <span>{FEATURE_LABEL[f.feature]}</span>
-              <span className="tabular-nums text-muted-foreground">{f.used} / {f.limit}</span>
+              <span>{FEATURE_LABEL[item.feature]}</span>
+              <span className="tabular-nums text-muted-foreground">{item.used} / {item.limit}</span>
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-              <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.min(100, (f.used / Math.max(1, f.limit)) * 100)}%` }} />
+              <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.min(100, (item.used / Math.max(1, item.limit)) * 100)}%` }} />
             </div>
           </li>
         ))}
       </ul>
       <p className="text-xs text-muted-foreground">
-        AI allowance used this month: {pct}%. Very long conversations count more; if you reach your plan&apos;s AI allowance
+        AI allowance used this month: {allowancePercent}%. Very long conversations count more; if you reach your plan&apos;s AI allowance
         before a count limit, AI features pause until next month. Planning, Canvas sync, and everything else keep working.
       </p>
     </div>

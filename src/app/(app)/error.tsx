@@ -5,12 +5,8 @@ import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { BrokenPath } from "@/components/brand/path-empty";
 
-// Scoped to the authenticated app section — catches a render or data-fetch
-// failure on any dashboard/plan/assignments/etc. page instead of the whole
-// tab going white. Deliberately does not surface error.message to the
-// student (could leak internals); logs it to the console for now — wiring
-// this into a real error-monitoring service (Sentry or similar) is the
-// natural next step once there's an account for one. See docs/ROADMAP.md.
+// Catches errors on any signed-in app page so the whole tab doesn't go white.
+// error.message is never shown to the student (it could leak internals); it is only logged.
 export default function AppError({
   error,
   reset,

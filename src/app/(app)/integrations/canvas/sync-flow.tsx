@@ -28,19 +28,31 @@ type Phase =
   | { kind: "review"; steps: Record<StepId, StepState>; report: SyncReport }
   | { kind: "done"; steps: Record<StepId, StepState>; report: SyncReport };
 
-const initialSteps = (includeCourses: boolean): Record<StepId, StepState> => ({
-  courses: includeCourses ? "active" : "done",
-  gather: includeCourses ? "pending" : "active",
-  review: "pending",
-  build: "pending",
-});
+const STEP_ORDER: StepId[] = ["courses", "gather", "review", "build"];
 
-/**
- * Runs a sync as a sequence of REAL server calls. Each step's status changes
- * only when its call actually returns, so the progress shown is the true
- * progress. When the sync would change anything, the student reviews the
- * changes (and how the plan shifts) before anything is written.
- */
+// Extra text for screen readers after each step's label.
+const STEP_STATE_TEXT: Record<StepState, string> = {
+  done: " (done)",
+  active: " (in progress)",
+  error: " (failed)",
+  pending: "",
+};
+
+function initialSteps(includeCourses: boolean): Record<StepId, StepState> {
+  return {
+    courses: includeCourses ? "active" : "done",
+    gather: includeCourses ? "pending" : "active",
+    review: "pending",
+    build: "pending",
+  };
+}
+
+function countChanges(summary: SyncReport["summary"]): number {
+  return summary.created + summary.updated + summary.removed;
+}
+
+// Each step only changes when its real server call returns, so the progress is true.
+// If anything would change, the student reviews it before anything is written.
 export function useSyncFlow(timeZone: string) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -68,10 +80,8 @@ export function useSyncFlow(timeZone: string) {
     }
     steps.gather = "done";
     const report = preview.data;
-    const s = report.summary;
-    const hasChanges = s.created + s.updated + s.removed > 0;
 
-    if (hasChanges) {
+    if (countChanges(report.summary) > 0) {
       steps.review = "active";
       setPhase({ kind: "review", steps: { ...steps }, report });
       return;
@@ -82,7 +92,12 @@ export function useSyncFlow(timeZone: string) {
   }
 
   async function build(stepsIn?: Record<StepId, StepState>) {
-    const steps = { ...(stepsIn ?? (phase.kind !== "idle" ? phase.steps : initialSteps(false))) };
+    // Continue from the given steps, or from the steps currently on screen.
+    let startingSteps = stepsIn;
+    if (!startingSteps) {
+      startingSteps = phase.kind !== "idle" ? phase.steps : initialSteps(false);
+    }
+    const steps = { ...startingSteps };
     steps.review = "done";
     steps.build = "active";
     setPhase({ kind: "running", steps: { ...steps } });
@@ -95,16 +110,17 @@ export function useSyncFlow(timeZone: string) {
     steps.build = "done";
     setPhase({ kind: "done", steps: { ...steps }, report: applied.data });
     router.refresh();
-    const s = applied.data.summary;
-    toast.success(
-      s.created + s.updated + s.removed === 0
-        ? "Canvas is up to date."
-        : `Imported ${s.created} new, updated ${s.updated}.`,
-    );
+    const summary = applied.data.summary;
+    if (countChanges(summary) === 0) {
+      toast.success("Canvas is up to date.");
+    } else {
+      toast.success(`Imported ${summary.created} new, updated ${summary.updated}.`);
+    }
   }
 
-  const panel =
-    phase.kind === "idle" ? null : (
+  let panel: React.ReactNode = null;
+  if (phase.kind !== "idle") {
+    panel = (
       <SyncPanel
         phase={phase}
         timeZone={timeZone}
@@ -112,8 +128,16 @@ export function useSyncFlow(timeZone: string) {
         onClose={() => setPhase({ kind: "idle" })}
       />
     );
+  }
 
   return { start, panel, busy: phase.kind === "running" };
+}
+
+function StepIcon({ state }: { state: StepState }) {
+  if (state === "done") return <Check className="h-3.5 w-3.5" />;
+  if (state === "active") return <Loader2 className="h-3.5 w-3.5 animate-spin" />;
+  if (state === "error") return <X className="h-3.5 w-3.5" />;
+  return <CircleDashed className="h-3.5 w-3.5" />;
 }
 
 function StepRow({ id, state }: { id: StepId; state: StepState }) {
@@ -129,20 +153,12 @@ function StepRow({ id, state }: { id: StepId; state: StepState }) {
         )}
         aria-hidden="true"
       >
-        {state === "done" ? (
-          <Check className="h-3.5 w-3.5" />
-        ) : state === "active" ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : state === "error" ? (
-          <X className="h-3.5 w-3.5" />
-        ) : (
-          <CircleDashed className="h-3.5 w-3.5" />
-        )}
+        <StepIcon state={state} />
       </span>
       <span className={cn(state === "pending" ? "text-muted-foreground" : "text-foreground")}>
         {STEP_LABELS[id]}
         <span className="sr-only">
-          {state === "done" ? " (done)" : state === "active" ? " (in progress)" : state === "error" ? " (failed)" : ""}
+          {STEP_STATE_TEXT[state]}
         </span>
       </span>
     </li>
@@ -160,14 +176,13 @@ function SyncPanel({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  const reduce = useReducedMotion();
-  const order: StepId[] = ["courses", "gather", "review", "build"];
+  const reduceMotion = useReducedMotion();
   const report = phase.kind === "review" || phase.kind === "done" ? phase.report : null;
   const error = phase.kind === "running" ? phase.error : undefined;
 
   return (
     <motion.section
-      initial={reduce ? false : { opacity: 0, y: 12 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="surface rounded-xl p-5 sm:p-6"
@@ -175,7 +190,7 @@ function SyncPanel({
       aria-label="Canvas sync progress"
     >
       <ol className="space-y-3">
-        {order.map((id) => (
+        {STEP_ORDER.map((id) => (
           <StepRow key={id} id={id} state={phase.steps[id]} />
         ))}
       </ol>
@@ -195,7 +210,7 @@ function SyncPanel({
         {report && (
           <motion.div
             key={phase.kind}
-            initial={reduce ? false : { opacity: 0, height: 0 }}
+            initial={reduceMotion ? false : { opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
@@ -237,24 +252,26 @@ function Stat({ value, label }: { value: number; label: string }) {
 }
 
 function ReportView({ report, timeZone, final }: { report: SyncReport; timeZone: string; final: boolean }) {
-  const s = report.summary;
+  const summary = report.summary;
   const impact = report.impact;
   const failed = report.courses.filter((c) => !c.ok);
+  const moreCreated = summary.created - report.samples.created.length;
+  const showImpact = impact && !final && (impact.addedOpenMinutes > 0 || impact.shortfallAfter > 0);
 
   return (
     <div className="mt-6 space-y-6 border-t border-border pt-6">
       <div>
         <h3 className="font-semibold">{final ? "Imported" : "Here's what will change"}</h3>
         <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat value={s.created} label="new assignments" />
-          <Stat value={s.updated} label="updated" />
-          <Stat value={s.completed} label="marked done (submitted)" />
-          <Stat value={s.removed} label="no longer in Canvas" />
+          <Stat value={summary.created} label="new assignments" />
+          <Stat value={summary.updated} label="updated" />
+          <Stat value={summary.completed} label="marked done (submitted)" />
+          <Stat value={summary.removed} label="no longer in Canvas" />
         </div>
-        {(s.skippedNoDueDate > 0 || s.skippedUnpublished > 0) && (
+        {(summary.skippedNoDueDate > 0 || summary.skippedUnpublished > 0) && (
           <p className="mt-3 text-xs text-muted-foreground">
-            Skipped {s.skippedNoDueDate} without a due date
-            {s.skippedUnpublished > 0 && ` and ${s.skippedUnpublished} unpublished`}. Rushd only plans work with a real
+            Skipped {summary.skippedNoDueDate} without a due date
+            {summary.skippedUnpublished > 0 && ` and ${summary.skippedUnpublished} unpublished`}. Rushd only plans work with a real
             deadline; add your own date to any of them by creating it manually.
           </p>
         )}
@@ -264,20 +281,20 @@ function ReportView({ report, timeZone, final }: { report: SyncReport; timeZone:
         <div>
           <h4 className="text-sm font-medium">New from Canvas</h4>
           <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
-            {report.samples.created.map((a) => (
-              <li key={`${a.course}-${a.title}`} className="flex min-w-0 items-baseline justify-between gap-3 rounded-lg bg-muted/50 px-3 py-2 text-sm">
+            {report.samples.created.map((assignment) => (
+              <li key={`${assignment.course}-${assignment.title}`} className="flex min-w-0 items-baseline justify-between gap-3 rounded-lg bg-muted/50 px-3 py-2 text-sm">
                 <span className="min-w-0 truncate">
-                  {a.title}
-                  <span className="text-muted-foreground"> · {a.course}</span>
+                  {assignment.title}
+                  <span className="text-muted-foreground"> · {assignment.course}</span>
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {a.complete ? "Submitted" : formatDueDate(new Date(a.dueAt), timeZone)}
+                  {assignment.complete ? "Submitted" : formatDueDate(new Date(assignment.dueAt), timeZone)}
                 </span>
               </li>
             ))}
           </ul>
-          {s.created > report.samples.created.length && (
-            <p className="mt-2 text-xs text-muted-foreground">and {s.created - report.samples.created.length} more</p>
+          {moreCreated > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">and {moreCreated} more</p>
           )}
         </div>
       )}
@@ -288,7 +305,7 @@ function ReportView({ report, timeZone, final }: { report: SyncReport; timeZone:
         </p>
       )}
 
-      {impact && !final && (impact.addedOpenMinutes > 0 || impact.shortfallAfter > 0) && (
+      {showImpact && (
         <div
           className={cn(
             "rounded-lg border px-4 py-3 text-sm",

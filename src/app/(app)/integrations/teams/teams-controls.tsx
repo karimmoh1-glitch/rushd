@@ -5,12 +5,77 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { disconnectTeamsAction, refreshTeams, saveTeamsClasses, syncTeams } from "@/server/actions/teams";
 
+const DISCONNECT_OPTIONS = [
+  {
+    removeImported: false,
+    confirmText: "Disconnect and keep imported assignments as your own?",
+    label: "Disconnect, keep assignments",
+  },
+  {
+    removeImported: true,
+    confirmText: "Disconnect and delete assignments imported from Teams?",
+    label: "Disconnect and remove assignments",
+  },
+];
+
+// e.g. "Synced: 3 new, 1 updated, 2 turned in."
+function describeSync(result: { created: number; updated: number; completed: number; skippedNoDueDate: number }): string {
+  let text = `Synced: ${result.created} new, ${result.updated} updated`;
+  if (result.completed) text += `, ${result.completed} turned in`;
+  if (result.skippedNoDueDate) text += `, ${result.skippedNoDueDate} without a due date skipped`;
+  return `${text}.`;
+}
+
 export function TeamsControls({ classes }: { classes: { id: string; name: string; selected: boolean }[] }) {
   const [selected, setSelected] = useState(() => new Set(classes.filter((c) => c.selected).map((c) => c.id)));
   const [pending, startTransition] = useTransition();
+  // True when the checkboxes differ from what is saved.
   const dirty = classes.some((c) => c.selected !== selected.has(c.id));
 
-  const run = (fn: () => Promise<void>) => startTransition(fn);
+  function toggleClass(id: string, checked: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  function handleRefresh() {
+    startTransition(async () => {
+      const result = await refreshTeams();
+      if ("error" in result) toast.error(result.error);
+      else toast.success(`Found ${result.value.classCount} classes.`);
+    });
+  }
+
+  function handleSave() {
+    startTransition(async () => {
+      const result = await saveTeamsClasses([...selected]);
+      if ("error" in result) toast.error(result.error);
+      else toast.success("Saved. Each class syncs into a Rushd course with the same name.");
+    });
+  }
+
+  function handleSync() {
+    startTransition(async () => {
+      const result = await syncTeams();
+      if ("error" in result) toast.error(result.error);
+      else toast.success(describeSync(result.value));
+    });
+  }
+
+  function handleDisconnect(removeImported: boolean, confirmText: string) {
+    if (!window.confirm(confirmText)) return;
+    startTransition(async () => {
+      const result = await disconnectTeamsAction(removeImported);
+      if ("error" in result) toast.error(result.error);
+      else toast.success("Teams disconnected.");
+    });
+  }
 
   return (
     <div className="space-y-8">
@@ -21,11 +86,7 @@ export function TeamsControls({ classes }: { classes: { id: string; name: string
             type="button"
             className="text-sm text-muted-foreground hover:text-foreground"
             disabled={pending}
-            onClick={() => run(async () => {
-              const r = await refreshTeams();
-              if ("error" in r) toast.error(r.error);
-              else toast.success(`Found ${r.value.classCount} classes.`);
-            })}
+            onClick={handleRefresh}
           >
             Refresh list
           </button>
@@ -34,21 +95,16 @@ export function TeamsControls({ classes }: { classes: { id: string; name: string
           <p className="text-sm text-muted-foreground">No Teams classes found for this account.</p>
         ) : (
           <ul className="divide-y divide-border">
-            {classes.map((c) => (
-              <li key={c.id}>
+            {classes.map((teamsClass) => (
+              <li key={teamsClass.id}>
                 <label className="flex items-center gap-3 py-2.5 text-sm">
                   <input
                     type="checkbox"
-                    checked={selected.has(c.id)}
-                    onChange={(e) => setSelected((s) => {
-                      const next = new Set(s);
-                      if (e.target.checked) next.add(c.id);
-                      else next.delete(c.id);
-                      return next;
-                    })}
+                    checked={selected.has(teamsClass.id)}
+                    onChange={(e) => toggleClass(teamsClass.id, e.target.checked)}
                     className="h-4 w-4 accent-[var(--primary)]"
                   />
-                  {c.name}
+                  {teamsClass.name}
                 </label>
               </li>
             ))}
@@ -58,25 +114,14 @@ export function TeamsControls({ classes }: { classes: { id: string; name: string
           <Button
             variant={dirty ? "default" : "outline"}
             disabled={pending || !dirty}
-            onClick={() => run(async () => {
-              const r = await saveTeamsClasses([...selected]);
-              if ("error" in r) toast.error(r.error);
-              else toast.success("Saved. Each class syncs into a Rushd course with the same name.");
-            })}
+            onClick={handleSave}
           >
             Save selection
           </Button>
           <Button
             variant={dirty ? "outline" : "default"}
             disabled={pending || dirty || selected.size === 0}
-            onClick={() => run(async () => {
-              const r = await syncTeams();
-              if ("error" in r) toast.error(r.error);
-              else {
-                const v = r.value;
-                toast.success(`Synced: ${v.created} new, ${v.updated} updated${v.completed ? `, ${v.completed} turned in` : ""}${v.skippedNoDueDate ? `, ${v.skippedNoDueDate} without a due date skipped` : ""}.`);
-              }
-            })}
+            onClick={handleSync}
           >
             {pending ? "Working…" : "Sync now"}
           </Button>
@@ -90,21 +135,14 @@ export function TeamsControls({ classes }: { classes: { id: string; name: string
           myapps.microsoft.com.
         </p>
         <div className="flex flex-wrap gap-2">
-          {[false, true].map((remove) => (
+          {DISCONNECT_OPTIONS.map((option) => (
             <Button
-              key={String(remove)}
+              key={option.label}
               variant="outline"
               disabled={pending}
-              onClick={() => {
-                if (!window.confirm(remove ? "Disconnect and delete assignments imported from Teams?" : "Disconnect and keep imported assignments as your own?")) return;
-                run(async () => {
-                  const r = await disconnectTeamsAction(remove);
-                  if ("error" in r) toast.error(r.error);
-                  else toast.success("Teams disconnected.");
-                });
-              }}
+              onClick={() => handleDisconnect(option.removeImported, option.confirmText)}
             >
-              {remove ? "Disconnect and remove assignments" : "Disconnect, keep assignments"}
+              {option.label}
             </Button>
           ))}
         </div>

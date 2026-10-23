@@ -7,17 +7,16 @@ import { openBillingPortal } from "@/server/actions/billing";
 
 export function ManageBillingButton() {
   const [pending, startTransition] = useTransition();
+
+  function handleClick() {
+    startTransition(async () => {
+      const result = await openBillingPortal();
+      if (result && "error" in result) toast.error(result.error);
+    });
+  }
+
   return (
-    <Button
-      variant="outline"
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await openBillingPortal();
-          if (result && "error" in result) toast.error(result.error);
-        })
-      }
-    >
+    <Button variant="outline" disabled={pending} onClick={handleClick}>
       {pending ? "Opening…" : "Manage billing"}
     </Button>
   );

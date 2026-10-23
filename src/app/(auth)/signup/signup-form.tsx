@@ -13,6 +13,8 @@ export function SignupForm() {
     undefined,
   );
   const [showInviteCode, setShowInviteCode] = useState(false);
+  // Always show the invite field if the server complained about the code.
+  const showInviteField = showInviteCode || Boolean(state?.errors?.inviteCode);
 
   return (
     <form action={action} className="space-y-4" noValidate>
@@ -60,7 +62,7 @@ export function SignupForm() {
         )}
       </div>
 
-      {showInviteCode || state?.errors?.inviteCode ? (
+      {showInviteField ? (
         <div className="space-y-2">
           <Label htmlFor="inviteCode">Invite code</Label>
           <Input

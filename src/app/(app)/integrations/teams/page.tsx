@@ -21,9 +21,9 @@ const ERRORS: Record<string, string> = {
 
 export default async function TeamsPage({ searchParams }: { searchParams: Promise<{ error?: string; connected?: string }> }) {
   const user = await requireUser();
-  const sp = await searchParams;
-  const tz = user.profile?.timezone;
-  const conn = await db.teamsConnection.findUnique({
+  const params = await searchParams;
+  const timeZone = user.profile?.timezone;
+  const connection = await db.teamsConnection.findUnique({
     where: { userId: user.id },
     select: {
       accountName: true,
@@ -34,6 +34,13 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
     },
   });
   const available = teamsAvailable();
+  const errorMessage = params.error ? ERRORS[params.error] : undefined;
+
+  let lastSyncedText = "Not synced yet.";
+  if (connection?.lastSyncAt) {
+    const when = formatDateInZone(connection.lastSyncAt, timeZone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    lastSyncedText = `Last synced ${when}.`;
+  }
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -46,10 +53,10 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
         </p>
       </header>
 
-      {sp.error && ERRORS[sp.error] && <p role="alert" className="rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm">{ERRORS[sp.error]}</p>}
-      {sp.connected && <p role="status" className="rounded-lg border border-border bg-card px-4 py-3 text-sm">Connected. Choose the classes to sync below.</p>}
+      {errorMessage && <p role="alert" className="rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm">{errorMessage}</p>}
+      {params.connected && <p role="status" className="rounded-lg border border-border bg-card px-4 py-3 text-sm">Connected. Choose the classes to sync below.</p>}
 
-      {!conn ? (
+      {!connection ? (
         <section className="space-y-4">
           <ul className="space-y-1.5 text-sm text-muted-foreground">
             <li>Works with school or work Microsoft accounts that use Teams assignments.</li>
@@ -69,19 +76,17 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
         <>
           <section className="space-y-1 text-sm">
             <p>
-              Connected{conn.accountName ? ` as ${conn.accountName}` : ""}.{" "}
-              {conn.lastSyncAt
-                ? `Last synced ${formatDateInZone(conn.lastSyncAt, tz, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`
-                : "Not synced yet."}
+              Connected{connection.accountName ? ` as ${connection.accountName}` : ""}.{" "}
+              {lastSyncedText}
             </p>
-            {conn.status === "NEEDS_REAUTH" && (
+            {connection.status === "NEEDS_REAUTH" && (
               <p className="text-warning">
                 Microsoft stopped accepting the connection. <a href="/api/integrations/teams/start" className="underline underline-offset-4">Reconnect</a>.
               </p>
             )}
-            {conn.lastSyncError && <p className="text-muted-foreground">Last sync problem: {conn.lastSyncError}</p>}
+            {connection.lastSyncError && <p className="text-muted-foreground">Last sync problem: {connection.lastSyncError}</p>}
           </section>
-          <TeamsControls classes={conn.classes} />
+          <TeamsControls classes={connection.classes} />
         </>
       )}
     </div>

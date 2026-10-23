@@ -24,6 +24,19 @@ import { cn } from "@/lib/utils";
 import { ConnectForm } from "./connect-form";
 import { useSyncFlow } from "./sync-flow";
 
+type CanvasCourse = CanvasConnectionView["courses"][number];
+
+function plural(count: number, word: string): string {
+  return count === 1 ? `${count} ${word}` : `${count} ${word}s`;
+}
+
+// e.g. "BIO 101 · Fall 2026", or "Canvas course" when Canvas gives neither.
+function courseSubtitle(course: CanvasCourse): string {
+  const parts = [course.courseCode, course.termName].filter(Boolean);
+  if (parts.length === 0) return "Canvas course";
+  return parts.join(" · ");
+}
+
 export function CanvasIntegration({
   view,
   configured,
@@ -55,25 +68,40 @@ export function CanvasIntegration({
         )}
       </header>
 
-      {!configured ? (
-        <div className="surface max-w-2xl rounded-xl p-6 text-sm text-muted-foreground">
-          Canvas integration isn&apos;t switched on for this server yet. You can still add assignments manually or{" "}
-          <Link href="/import" className="font-medium text-foreground underline underline-offset-4">
-            import a screenshot
-          </Link>
-          .
-        </div>
-      ) : !view ? (
-        <ConnectForm />
-      ) : (
-        <Connected view={view} timeZone={timeZone} />
-      )}
+      <CanvasBody view={view} configured={configured} timeZone={timeZone} />
     </div>
   );
 }
 
+function CanvasBody({
+  view,
+  configured,
+  timeZone,
+}: {
+  view: CanvasConnectionView | null;
+  configured: boolean;
+  timeZone: string;
+}) {
+  if (!configured) {
+    return (
+      <div className="surface max-w-2xl rounded-xl p-6 text-sm text-muted-foreground">
+        Canvas integration isn&apos;t switched on for this server yet. You can still add assignments manually or{" "}
+        <Link href="/import" className="font-medium text-foreground underline underline-offset-4">
+          import a screenshot
+        </Link>
+        .
+      </div>
+    );
+  }
+  if (!view) {
+    return <ConnectForm />;
+  }
+  return <Connected view={view} timeZone={timeZone} />;
+}
+
 function Connected({ view, timeZone }: { view: CanvasConnectionView; timeZone: string }) {
   const router = useRouter();
+  // Ids of the courses that are saved as "syncing" right now.
   const savedSelection = useMemo(() => view.courses.filter((c) => c.selected).map((c) => c.id), [view.courses]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(savedSelection));
   const [refreshing, startRefresh] = useTransition();
@@ -86,21 +114,33 @@ function Connected({ view, timeZone }: { view: CanvasConnectionView; timeZone: s
   function toggle(id: string, on: boolean) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (on) next.add(id);
-      else next.delete(id);
+      if (on) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
       return next;
     });
   }
 
   function handleRefresh() {
     startRefresh(async () => {
-      const r = await refreshCourses();
-      if ("error" in r) toast.error(r.error);
-      else {
-        toast.success(`Found ${r.data.courseCount} course${r.data.courseCount === 1 ? "" : "s"}.`);
+      const result = await refreshCourses();
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Found ${plural(result.data.courseCount, "course")}.`);
         router.refresh();
       }
     });
+  }
+
+  let syncButtonLabel = `Import from ${plural(selected.size, "course")}`;
+  if (hasSynced) syncButtonLabel = "Save and sync";
+
+  let lastSyncedText = " · not synced yet";
+  if (view.lastSyncAt) {
+    lastSyncedText = ` · last synced ${formatDueDate(new Date(view.lastSyncAt), timeZone)}`;
   }
 
   if (view.status === "NEEDS_REAUTH") {
@@ -131,9 +171,7 @@ function Connected({ view, timeZone }: { view: CanvasConnectionView; timeZone: s
             </p>
             <p className="text-sm text-muted-foreground">
               {new URL(view.baseUrl).hostname}
-              {view.lastSyncAt
-                ? ` · last synced ${formatDueDate(new Date(view.lastSyncAt), timeZone)}`
-                : " · not synced yet"}
+              {lastSyncedText}
             </p>
           </div>
         </div>
@@ -175,10 +213,10 @@ function Connected({ view, timeZone }: { view: CanvasConnectionView; timeZone: s
           </p>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">
-            {view.courses.map((c) => {
-              const checked = selected.has(c.id);
+            {view.courses.map((course) => {
+              const checked = selected.has(course.id);
               return (
-                <li key={c.id}>
+                <li key={course.id}>
                   <label
                     className={cn(
                       "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors",
@@ -187,15 +225,15 @@ function Connected({ view, timeZone }: { view: CanvasConnectionView; timeZone: s
                   >
                     <Checkbox
                       checked={checked}
-                      onCheckedChange={(v) => toggle(c.id, v === true)}
+                      onCheckedChange={(value) => toggle(course.id, value === true)}
                       className="mt-0.5"
                       disabled={busy}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{c.name}</span>
+                      <span className="block truncate font-medium">{course.name}</span>
                       <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                        {[c.courseCode, c.termName].filter(Boolean).join(" · ") || "Canvas course"}
-                        {c.className && c.selected && <> · syncs into {c.className}</>}
+                        {courseSubtitle(course)}
+                        {course.className && course.selected && <> · syncs into {course.className}</>}
                       </span>
                     </span>
                   </label>
@@ -208,7 +246,7 @@ function Connected({ view, timeZone }: { view: CanvasConnectionView; timeZone: s
         {view.courses.length > 0 && (!hasSynced || selectionChanged) && (
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={() => start([...selected])} disabled={busy || selected.size === 0}>
-              {hasSynced ? "Save and sync" : `Import from ${selected.size} course${selected.size === 1 ? "" : "s"}`}
+              {syncButtonLabel}
             </Button>
             {selected.size === 0 && <span className="text-sm text-muted-foreground">Choose at least one course.</span>}
           </div>
@@ -250,17 +288,18 @@ function DisconnectSection({ view }: { view: CanvasConnectionView }) {
 
   function handleDisconnect() {
     startTransition(async () => {
-      const r = await disconnectCanvas({ removeImported: choice === "remove" });
-      if ("error" in r) {
-        toast.error(r.error);
+      const result = await disconnectCanvas({ removeImported: choice === "remove" });
+      if ("error" in result) {
+        toast.error(result.error);
         return;
       }
       setOpen(false);
-      toast.success(
-        r.data.removedAssignments > 0
-          ? `Disconnected. Removed ${r.data.removedAssignments} imported assignments.`
-          : "Disconnected. Your imported assignments were kept.",
-      );
+      const removed = result.data.removedAssignments;
+      if (removed > 0) {
+        toast.success(`Disconnected. Removed ${removed} imported assignments.`);
+      } else {
+        toast.success("Disconnected. Your imported assignments were kept.");
+      }
       router.refresh();
     });
   }
@@ -287,7 +326,7 @@ function DisconnectSection({ view }: { view: CanvasConnectionView }) {
               {view.importedCount === 1 ? "" : "s"} imported from Canvas?
             </DialogDescription>
           </DialogHeader>
-          <RadioGroup value={choice} onValueChange={(v) => setChoice(v as "keep" | "remove")} className="gap-3 py-2">
+          <RadioGroup value={choice} onValueChange={(value) => setChoice(value as "keep" | "remove")} className="gap-3 py-2">
             <Label htmlFor="dc-keep" className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 font-normal">
               <RadioGroupItem id="dc-keep" value="keep" className="mt-0.5" />
               <span>

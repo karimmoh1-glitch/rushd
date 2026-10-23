@@ -67,8 +67,11 @@ export function ProfileForm({
         goals: goals || undefined,
         primaryChallenge: challenge || null,
       });
-      if ("error" in result) toast.error(result.error);
-      else toast.success("Profile updated.");
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Profile updated.");
+      }
     });
   }
 
@@ -145,13 +148,14 @@ export function ProfileForm({
       <div className="space-y-2">
         <Label>Biggest academic challenge (optional)</Label>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {CHALLENGE_OPTIONS.map((c) => {
-            const selected = challenge === c.value;
+          {CHALLENGE_OPTIONS.map((option) => {
+            const selected = challenge === option.value;
             return (
               <button
-                key={c.value}
+                key={option.value}
                 type="button"
-                onClick={() => setChallenge((cur) => (cur === c.value ? "" : c.value))}
+                // Clicking the selected challenge again clears it.
+                onClick={() => setChallenge((current) => (current === option.value ? "" : option.value))}
                 aria-pressed={selected}
                 className={cn(
                   "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
@@ -160,7 +164,7 @@ export function ProfileForm({
                     : "border-border hover:bg-muted",
                 )}
               >
-                {c.label}
+                {option.label}
               </button>
             );
           })}
