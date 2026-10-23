@@ -59,7 +59,8 @@ async function structure(page: Page): Promise<string> {
     const out: string[] = [];
     const walk = (el: Element, depth: number) => {
       const attrs = ["role", "aria-label", "aria-current", "aria-pressed", "aria-checked", "type", "href", "name", "placeholder"]
-        .map((a) => (el.hasAttribute(a) ? `${a}=${(el.getAttribute(a) ?? "").replace(/\/c[a-z0-9]{15,}/g, "/:id").replace(/\d+/g, "#")}` : ""))
+        // Server-action ids ($ACTION_ID_<hash>) are build artifacts that change per checkout.
+        .map((a) => (el.hasAttribute(a) ? `${a}=${(el.getAttribute(a) ?? "").replace(/^\$ACTION_ID_.*/, "$ACTION_ID_:hash").replace(/\/c[a-z0-9]{15,}/g, "/:id").replace(/\d+/g, "#")}` : ""))
         .filter(Boolean)
         .join(" ");
       out.push(`${"  ".repeat(depth)}${el.tagName.toLowerCase()} .${(el.getAttribute("class") ?? "").trim()} ${attrs}`);

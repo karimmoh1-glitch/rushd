@@ -16,15 +16,19 @@ async function newStudent(page: Page) {
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Planner");
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
   await page.getByRole("button", { name: "Continue" }).click();
+  // A custom course (not in the catalog), added from the picker.
+  await page.getByRole("combobox", { name: "Search courses" }).pressSequentially(COURSE);
+  await page.getByRole("option", { name: /as a custom course/ }).click();
+  await page.getByRole("button", { name: "Continue" }).click(); // to the optional details
+  await page.getByRole("button", { name: "Continue" }).click(); // to work
+  await page.getByRole("button", { name: "Continue" }).click(); // to study time
   // Evenings on weekdays and afternoons on weekends: some time is left at 10 AM any day.
   await page.getByText("Weekday evenings").click();
   await page.getByText("Weekend afternoons").click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByPlaceholder("e.g. AP Chemistry").fill(COURSE);
-  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByRole("heading", { name: "Your Rushd profile is ready." })).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard/);
 }
 
 async function addQuestion(page: Page, topic: string, prompt: string, answer: string) {
