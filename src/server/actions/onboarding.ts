@@ -1,80 +1,33 @@
 "use server";
 
-import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
-import { OnboardingSchema, type OnboardingInput } from "@/lib/validation/onboarding";
+import type { OnboardingInput } from "@/lib/validation/onboarding-setup";
 import { logEvent } from "@/lib/analytics/log-event";
+import { isCourseLevel } from "@/lib/courses/catalog/levels";
+import { completeOnboardingFor } from "@/lib/onboarding/service";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 
 export type OnboardingResult =
   | { error: string }
-  | { success: true; classCount: number; availabilityWindowCount: number };
+  | { success: true; courseCount: number; workCount: number; availabilityWindowCount: number };
 
-export async function completeOnboarding(
-  input: OnboardingInput,
-): Promise<OnboardingResult> {
+export async function completeOnboarding(input: OnboardingInput): Promise<OnboardingResult> {
   const user = await requireUserOrThrow();
-
-  const parsed = OnboardingSchema.safeParse(input);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
-  }
-  const data = parsed.data;
-
-  // The same fields whether the profile is new or already exists.
-  const profileFields = {
-    displayName: data.displayName,
-    grade: data.grade,
-    school: data.school || null,
-    timezone: data.timezone,
-    goals: data.goals || null,
-    primaryChallenge: data.primaryChallenge,
-    // Left undefined when not chosen, so Prisma keeps the default/current value.
-    preferredSessionMinutes: data.preferredSessionMinutes || undefined,
-  };
-
-  await db.$transaction(async (tx) => {
-    await tx.profile.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id, ...profileFields },
-      update: profileFields,
-    });
-
-    if (data.availability.length > 0) {
-      await tx.studyAvailability.createMany({
-        data: data.availability.map((window) => ({
-          userId: user.id,
-          ...window,
-        })),
-      });
-    }
-
-    if (data.classes.length > 0) {
-      await tx.class.createMany({
-        data: data.classes.map((c) => ({
-          userId: user.id,
-          name: c.name,
-          color: c.color,
-          teacher: c.teacher || null,
-        })),
-      });
-    }
-
-    await tx.user.update({
-      where: { id: user.id },
-      data: { onboardingCompletedAt: new Date() },
-    });
-  });
-
-  await logEvent(user.id, "onboarding_completed", {
-    classCount: data.classes.length,
-    availabilityWindowCount: data.availability.length,
-  });
-  await regeneratePlanSnapshot(user.id);
-
+  const outcome = await completeOnboardingFor(user.id, input);
+  if (!outcome.ok) return { error: outcome.error };
+  // The first plan, so Today opens on a real next step.
+  if (!outcome.alreadyDone) await regeneratePlanSnapshot(user.id);
   return {
     success: true,
-    classCount: data.classes.length,
-    availabilityWindowCount: data.availability.length,
+    courseCount: outcome.courseCount,
+    workCount: outcome.workCount,
+    availabilityWindowCount: outcome.availabilityWindowCount,
   };
+}
+
+/** Records which level a student picked, so drop-off after this step is measurable. */
+export async function recordOnboardingLevel(level: string): Promise<void> {
+  const user = await requireUserOrThrow();
+  if (user.onboardingCompletedAt || !isCourseLevel(level)) return;
+  await logEvent(user.id, "onboarding_level_selected", { level });
 }

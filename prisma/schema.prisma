@@ -83,6 +83,7 @@ model Profile {
   timezone                String // IANA tz, e.g. "America/New_York"
   goals                   String? // free-text academic goals, optional
   primaryChallenge        AcademicChallenge? // self-reported at onboarding, optional
+  studyLevel              CourseLevel? // "what level do you study at", from onboarding
   // Scheduler preferences. Editable in Settings; the planner never assumes a
   // student's capacity beyond what they set here.
   preferredSessionMinutes Int                @default(60) // target length of one study block
@@ -135,6 +136,8 @@ model StudyAvailability {
 // Academic structure
 // ---------------------------------------------------------------------------
 
+// Levels a course (or a student) can be at. UNIVERSITY means undergraduate;
+// OTHER means a fully custom course. New values are appended, never renamed.
 enum CourseLevel {
   MIDDLE_SCHOOL
   HIGH_SCHOOL
@@ -144,6 +147,10 @@ enum CourseLevel {
   COMMUNITY_COLLEGE
   UNIVERSITY
   OTHER
+  HONORS
+  ASSOCIATE
+  GRADUATE
+  PROFESSIONAL
 }
 
 enum Priority {
@@ -170,6 +177,9 @@ model Class {
   termStart   DateTime?    @db.Date
   termEnd     DateTime?    @db.Date
   weeklyHours Int? // the student's own study-time goal for this course
+  // The catalog record (src/lib/courses/catalog) the student picked, or null
+  // for a custom course. Lets "popular courses" count real choices.
+  catalogId   String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -186,6 +196,7 @@ model Class {
   practiceSessions  PracticeSession[]
 
   @@index([userId, archived])
+  @@index([catalogId])
 }
 
 enum AssignmentStatus {

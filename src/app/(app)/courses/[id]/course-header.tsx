@@ -3,7 +3,7 @@ import { MessageSquareText } from "lucide-react";
 import { db } from "@/lib/db";
 import { aiEnabled } from "@/lib/env";
 import { formatDateKey, localDateKey } from "@/lib/time/zone";
-import { levelLabel } from "@/lib/courses/catalog";
+import { catalogRecord, levelLabel } from "@/lib/courses/catalog";
 import { toDateInput } from "@/lib/courses/service";
 import { termProgress } from "@/lib/courses/term";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ export async function getCourseHeader(userId: string, id: string) {
       termStart: true,
       termEnd: true,
       weeklyHours: true,
+      catalogId: true,
       canvasCourses: { where: { selected: true }, select: { name: true, contentSyncedAt: true, contentSyncNote: true }, take: 1 },
     },
   });
@@ -46,6 +47,8 @@ export function CourseHeader({ course, timeZone, now }: { course: CourseHeaderDa
   const term = termProgress(termStart, termEnd, localDateKey(now, timeZone));
   const identity = [levelLabel(course.level ?? undefined), course.code, course.institution, course.subject].filter(Boolean).join(" · ");
   const people = [course.teacher, course.period].filter(Boolean).join(" · ");
+  const picked = catalogRecord(course.catalogId);
+  const template = picked?.kind === "template" ? picked : null;
 
   return (
     <header
@@ -61,6 +64,11 @@ export function CourseHeader({ course, timeZone, now }: { course: CourseHeaderDa
           <h1 className="font-display text-[2rem] font-medium leading-[1.1] tracking-tight text-balance sm:text-[2.5rem]">{course.name}</h1>
           {identity && <p className="course-ink mt-2 text-sm font-medium">{identity}</p>}
           {people && <p className="mt-0.5 text-sm text-muted-foreground">{people}</p>}
+          {template && (
+            <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+              Added from Rushd&apos;s generic &ldquo;{template.title}&rdquo; template. Rushd doesn&apos;t know your school&apos;s syllabus for it; the assignments, exams, and materials here are your own.
+            </p>
+          )}
           {course.archived && (
             <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Badge variant="outline">Archived</Badge>
@@ -78,6 +86,7 @@ export function CourseHeader({ course, timeZone, now }: { course: CourseHeaderDa
               period: course.period ?? undefined,
               color: course.color,
               priority: course.priority,
+              catalogId: course.catalogId ?? undefined,
               level: course.level ?? undefined,
               code: course.code ?? undefined,
               institution: course.institution ?? undefined,

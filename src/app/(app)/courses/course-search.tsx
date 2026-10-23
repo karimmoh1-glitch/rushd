@@ -3,18 +3,21 @@
 import { useId, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { searchCatalog, type CatalogCourse, type CourseLevelValue } from "@/lib/courses/catalog";
+import { levelLabel, type CatalogRecord, type CourseLevelValue } from "@/lib/courses/catalog";
+import { groupByLevel, isExactMatch, searchCourses } from "@/lib/courses/catalog/search";
 
-// The course name field: type anything, and matching courses are suggested.
-// Picking one fills in the name, subject, and level; any name not on the list
-// works as a custom course. Follows the ARIA combobox pattern: arrow keys move
-// through the options, Enter picks, Escape closes.
+// The course name field: type anything, and matching catalog courses are
+// suggested, grouped by level and labeled so similar courses (AP Calculus AB,
+// college Calculus I) are easy to tell apart. Picking one fills in the name,
+// subject, and level; any name not on the list works as a custom course.
+// Follows the ARIA combobox pattern: arrows move, Enter picks, Escape closes.
 
 interface Props {
   value: string;
+  /** The level set in the form, else the student's own level: ranks related courses first. */
   level: CourseLevelValue | null;
   onChange: (name: string) => void;
-  onPick: (course: CatalogCourse) => void;
+  onPick: (course: CatalogRecord, level: CourseLevelValue) => void;
 }
 
 export function CourseSearch({ value, level, onChange, onPick }: Props) {
@@ -22,11 +25,13 @@ export function CourseSearch({ value, level, onChange, onPick }: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
 
-  const suggestions = open ? searchCatalog(value, level) : [];
+  const hits = open ? searchCourses(value, { prefer: level, limit: 8 }) : [];
+  const groups = groupByLevel(hits);
+  const flat = groups.flatMap((group) => group.hits);
   const typed = value.trim();
-  const exactMatch = suggestions.some((course) => course.title.toLowerCase() === typed.toLowerCase());
+  const exactMatch = flat.some((hit) => isExactMatch(hit.record, typed));
   const showCustom = open && typed.length > 0 && !exactMatch;
-  const optionCount = suggestions.length + (showCustom ? 1 : 0);
+  const optionCount = flat.length + (showCustom ? 1 : 0);
   const expanded = open && optionCount > 0;
 
   function optionId(index: number) {
@@ -34,7 +39,7 @@ export function CourseSearch({ value, level, onChange, onPick }: Props) {
   }
 
   function choose(index: number) {
-    if (index < suggestions.length) onPick(suggestions[index]);
+    if (index < flat.length) onPick(flat[index].record, flat[index].level);
     // The custom option keeps exactly what was typed.
     setOpen(false);
     setActive(-1);
@@ -53,10 +58,14 @@ export function CourseSearch({ value, level, onChange, onPick }: Props) {
       choose(active);
     } else if (event.key === "Escape" && expanded) {
       event.preventDefault();
+      event.stopPropagation();
       setOpen(false);
       setActive(-1);
     }
   }
+
+  // Each group's first option index.
+  const starts = groups.map((_, i) => groups.slice(0, i).reduce((sum, group) => sum + group.hits.length, 0));
 
   return (
     <div className="relative">
@@ -83,44 +92,62 @@ export function CourseSearch({ value, level, onChange, onPick }: Props) {
         autoFocus
       />
       {expanded && (
-        <ul
+        <div
           id={listId}
           role="listbox"
           aria-label="Course suggestions"
-          className="absolute inset-x-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-sm shadow-md"
+          className="absolute inset-x-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-sm shadow-(--shadow-pop)"
         >
-          {suggestions.map((course, index) => (
-            <li
-              key={course.title}
-              id={optionId(index)}
-              role="option"
-              aria-selected={active === index}
-              // mousedown, not click: picking must happen before the input's blur closes the list.
-              onMouseDown={(event) => {
-                event.preventDefault();
-                choose(index);
-              }}
-              className={cn("flex cursor-pointer items-baseline justify-between gap-3 rounded-md px-2.5 py-2", active === index && "bg-muted")}
-            >
-              <span>{course.title}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{course.subject}</span>
-            </li>
-          ))}
+          {groups.map((group, groupIndex) => {
+            const start = starts[groupIndex];
+            const headerId = `${listId}-group-${group.level}`;
+            const official = group.hits.every((hit) => hit.record.kind === "official");
+            return (
+              <div key={group.level} role="group" aria-labelledby={headerId}>
+                <div id={headerId} className="flex justify-between gap-2 px-2.5 pb-0.5 pt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  <span>{levelLabel(group.level)}</span>
+                  <span className="normal-case tracking-normal">{official ? group.hits[0].record.provider : "Generic templates"}</span>
+                </div>
+                {group.hits.map((hit, i) => {
+                  const index = start + i;
+                  return (
+                    <div
+                      key={hit.record.id}
+                      id={optionId(index)}
+                      role="option"
+                      aria-selected={active === index}
+                      // mousedown, not click: picking must happen before the input's blur closes the list.
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        choose(index);
+                      }}
+                      className={cn("cursor-pointer rounded-md px-2.5 py-2", active === index && "bg-muted")}
+                    >
+                      <span className="block">{hit.record.title}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {[hit.record.subject, hit.record.descriptor].filter(Boolean).join(" · ")}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
           {showCustom && (
-            <li
-              id={optionId(suggestions.length)}
+            <div
+              id={optionId(flat.length)}
               role="option"
-              aria-selected={active === suggestions.length}
+              aria-selected={active === flat.length}
               onMouseDown={(event) => {
                 event.preventDefault();
-                choose(suggestions.length);
+                choose(flat.length);
               }}
-              className={cn("cursor-pointer rounded-md px-2.5 py-2", active === suggestions.length && "bg-muted")}
+              className={cn("cursor-pointer rounded-md px-2.5 py-2", active === flat.length && "bg-muted")}
             >
               Use &ldquo;{typed}&rdquo; as a custom course
-            </li>
+            </div>
           )}
-        </ul>
+        </div>
       )}
     </div>
   );

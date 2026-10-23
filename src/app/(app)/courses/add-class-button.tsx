@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ClassDialog } from "./class-dialog";
+import { ClassDialog, type CourseContext } from "./class-dialog";
 
-export function AddClassButton({ timeZone }: { timeZone?: string }) {
+export function AddClassButton({ timeZone, context }: { timeZone?: string; context?: CourseContext }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -13,7 +13,7 @@ export function AddClassButton({ timeZone }: { timeZone?: string }) {
         <Plus className="h-4 w-4" />
         Add course
       </Button>
-      <ClassDialog open={open} onOpenChange={setOpen} timeZone={timeZone} />
+      <ClassDialog open={open} onOpenChange={setOpen} timeZone={timeZone} context={context} />
     </>
   );
 }

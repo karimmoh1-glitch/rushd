@@ -13,34 +13,74 @@ body .min-h-full flex flex-col
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground/25 bg-background 
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground/25 bg-background 
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground/25 bg-background 
-      div .space-y-4 
-        h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-        p .text-sm text-muted-foreground 
+          span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground/25 bg-background 
+      div .space-y-6 
+        div .space-y-1.5 
+          h1 .font-display text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem] 
+          p .text-sm text-muted-foreground 
         div .space-y-2 
           label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-          input .h-9 w-full min-w-0 rounded-lg border border-input sm:h-8 bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 placeholder=First name or nickname
-        div .grid grid-cols-2 gap-4 
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            button .flex w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 role=combobox type=button
-              span .flex flex-1 text-left 
-              svg .lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground 
-                path . 
-            input . 
-          div .space-y-2 
-            label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-            button .flex w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 role=combobox type=button
-              span .flex flex-1 text-left 
-              svg .lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground 
-                path . 
-            input . 
-        div .space-y-2 
-          label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-          input .h-9 w-full min-w-0 rounded-lg border border-input sm:h-8 bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 
-        div .space-y-2 
-          label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
-          textarea .flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 placeholder=e.g. Bring my chemistry grade up, stay ahead on AP Lang reading
-      div .flex items-center justify-between border-t pt-6 
+          input .w-full min-w-0 rounded-lg border border-input sm:h-8 bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-10 placeholder=First name or nickname
+        fieldset .space-y-2 
+          legend .mb-2 text-sm font-medium 
+          div .grid grid-cols-2 gap-2 sm:grid-cols-3 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-signal bg-signal-soft 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+            label .relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50 border-border hover:border-border-strong hover:bg-muted/60 
+              input .absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0 type=radio name=study-level
+              span .font-medium 
+              span .mt-0.5 text-xs leading-snug text-muted-foreground 
+        div .flex flex-wrap items-center gap-x-3 gap-y-2 text-sm 
+          label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 text-muted-foreground 
+          button .flex w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 min-w-52 role=combobox type=button
+            span .flex flex-1 text-left 
+            svg .lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground 
+              path . 
+          input . 
+      div .flex flex-wrap items-center justify-between gap-2 border-t pt-6 
         button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
-        button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+        div .flex items-center gap-2 
+          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-10 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3 type=button
   section . aria-label=Notifications alt+T

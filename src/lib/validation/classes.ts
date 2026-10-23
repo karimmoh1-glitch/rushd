@@ -1,7 +1,6 @@
 import * as z from "zod";
-import { COURSE_LEVELS, type CourseLevelValue } from "@/lib/courses/catalog";
-
-const LEVEL_VALUES = COURSE_LEVELS.map((option) => option.value) as [CourseLevelValue, ...CourseLevelValue[]];
+import { LEVEL_VALUES } from "@/lib/courses/catalog/levels";
+import { isCatalogId } from "@/lib/courses/catalog";
 
 /** Optional free text: trimmed, with "" treated as "not given". */
 function optionalText(max: number, label: string) {
@@ -52,6 +51,12 @@ export const ClassSchema = z
       .min(1, "Weekly study time must be at least 1 hour.")
       .max(40, "Weekly study time can be at most 40 hours.")
       .optional(),
+    // The catalog course this was picked from; absent for a custom course.
+    catalogId: z
+      .string()
+      .optional()
+      .transform((value) => (value ? value : undefined))
+      .refine((value) => value === undefined || isCatalogId(value), "Unknown catalog course."),
   })
   .refine((course) => !course.termStart || !course.termEnd || course.termEnd >= course.termStart, {
     message: "The term can't end before it starts.",

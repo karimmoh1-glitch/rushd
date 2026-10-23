@@ -13,34 +13,95 @@ body .min-h-full flex flex-col
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-3.5 w-3.5 border-signal bg-signal 
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground/25 bg-background 
           span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground/25 bg-background 
-      div .space-y-4 
-        h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-        p .text-sm text-muted-foreground 
-        div .grid grid-cols-1 gap-2 sm:grid-cols-2 
-          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-primary bg-accent text-accent-foreground aria-pressed=true type=button
-            div .font-medium 
-            div .text-muted-foreground 
-          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-          button .rounded-lg border px-4 py-3 text-left text-sm transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            div .font-medium 
-            div .text-muted-foreground 
-        fieldset .space-y-2 pt-4 
-          legend .text-sm font-medium 
+          span .relative z-10 rounded-full border-2 transition-all duration-300 h-2.5 w-2.5 border-foreground/25 bg-background 
+      div .space-y-5 
+        div .space-y-1.5 
+          h1 .font-display text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem] 
           p .text-sm text-muted-foreground 
-          div .flex flex-wrap gap-2 pt-1 
-            button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
-            button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-primary bg-primary text-primary-foreground aria-pressed=true type=button
-            button .rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors border-border hover:bg-muted aria-pressed=false type=button
-      div .flex items-center justify-between border-t pt-6 
+        div .min-w-0 space-y-3 
+          ul .flex flex-wrap gap-1.5 aria-label=Selected courses
+            li .inline-flex max-w-full items-center gap-1 rounded-full border border-border-strong bg-surface-2 py-1 pl-3 pr-1 text-sm 
+              span .truncate 
+              button .inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-label=Remove Biology type=button
+                svg .lucide lucide-x size-3.5 
+                  path . 
+                  path . 
+          div .overflow-hidden rounded-xl border border-border-strong bg-card shadow-(--shadow-card) focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/40 
+            div .flex items-center gap-2 px-3 
+              svg .lucide lucide-search size-4 shrink-0 text-muted-foreground 
+                path . 
+                circle . 
+              input .h-12 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground sm:h-11 sm:text-sm role=combobox aria-label=Search courses type=text placeholder=Search courses, e.g. AP Chemistry
+            div .flex gap-1.5 overflow-x-auto border-t border-border px-3 py-2 [contain:inline-size] [scrollbar-width:none] role=group aria-label=Filter by level
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-foreground/80 bg-foreground text-background aria-pressed=true type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+              button .h-8 shrink-0 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors duration-(--dur-press) border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed=false type=button
+            div .max-h-[min(22rem,52vh)] overflow-y-auto overscroll-contain border-t border-border p-1.5 [contain:inline-size] role=listbox aria-label=Course suggestions
+              div .pb-1 role=group
+                div .flex items-baseline justify-between gap-2 px-2.5 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground 
+                  span . 
+                  span .truncate normal-case tracking-normal 
+                div .flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm cursor-pointer role=option
+                  span .inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-(--dur-press) border-border-strong text-muted-foreground 
+                    svg .lucide lucide-plus size-3.5 
+                      path . 
+                      path . 
+                  span .min-w-0 flex-1 
+                    span .block truncate font-medium 
+                    span .block truncate text-xs text-muted-foreground 
+                div .flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm cursor-pointer role=option
+                  span .inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-(--dur-press) border-transparent bg-signal text-[oklch(0.2_0.02_70)] 
+                    svg .lucide lucide-check size-3.5 
+                      path . 
+                  span .min-w-0 flex-1 
+                    span .block truncate font-medium 
+                    span .block truncate text-xs text-muted-foreground 
+                div .flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm cursor-pointer role=option
+                  span .inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-(--dur-press) border-border-strong text-muted-foreground 
+                    svg .lucide lucide-plus size-3.5 
+                      path . 
+                      path . 
+                  span .min-w-0 flex-1 
+                    span .block truncate font-medium 
+                    span .block truncate text-xs text-muted-foreground 
+                div .flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm cursor-pointer role=option
+                  span .inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-(--dur-press) border-border-strong text-muted-foreground 
+                    svg .lucide lucide-plus size-3.5 
+                      path . 
+                      path . 
+                  span .min-w-0 flex-1 
+                    span .block truncate font-medium 
+                    span .block truncate text-xs text-muted-foreground 
+                div .flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm cursor-pointer role=option
+                  span .inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-(--dur-press) border-border-strong text-muted-foreground 
+                    svg .lucide lucide-plus size-3.5 
+                      path . 
+                      path . 
+                  span .min-w-0 flex-1 
+                    span .block truncate font-medium 
+                    span .block truncate text-xs text-muted-foreground 
+                div .flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm cursor-pointer role=option
+                  span .inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-(--dur-press) border-border-strong text-muted-foreground 
+                    svg .lucide lucide-plus size-3.5 
+                      path . 
+                      path . 
+                  span .min-w-0 flex-1 
+                    span .block truncate font-medium 
+                    span .block truncate text-xs text-muted-foreground 
+          p .sr-only 
+          p .sr-only 
+        p .text-sm text-muted-foreground 
+      div .flex flex-wrap items-center justify-between gap-2 border-t pt-6 
         button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
-        button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+        div .flex items-center gap-2 
+          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-10 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3 type=button
   section . aria-label=Notifications alt+T

@@ -67,13 +67,16 @@ test("course content: browse modules, search, read a page, see the real rubric",
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByLabel("What should we call you?").fill("Course Tester");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByText("Weekday afternoons").click();
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByPlaceholder("e.g. AP Chemistry").fill("Playwright Chemistry");
+  await page.getByPlaceholder("e.g. AP Chemistry").press("Enter");
   await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByText("Weekday afternoons").click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByText("Your Rushd profile is ready.")).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard/);
 
   const { classId, assignmentId } = await seed(email);
 

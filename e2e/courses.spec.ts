@@ -11,9 +11,13 @@ async function newStudent(page: Page) {
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Course Tester");
-  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
+  // Onboarding: level, skip courses and work, finish on Today.
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByRole("heading", { name: "Your Rushd profile is ready." })).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard/);
 }
 
 test("add a catalog course with the keyboard, a custom course, edit, archive and restore", async ({ browser }) => {

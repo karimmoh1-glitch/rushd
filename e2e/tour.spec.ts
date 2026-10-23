@@ -32,18 +32,31 @@ test("design tour", async ({ browser }) => {
   await page.getByRole("checkbox", { name: /13 or older/ }).check();
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByLabel("What should we call you?").fill("Maya");
+  await page.getByRole("radio", { name: "High school", exact: true }).check();
   await shoot(page, "d-onboarding-1");
+  await page.getByRole("button", { name: "Continue" }).click();
+  const picker = page.getByRole("combobox", { name: "Search courses" });
+  await picker.pressSequentially("AP Chem");
+  await picker.press("Enter");
+  await picker.pressSequentially("calc");
+  await shoot(page, "d-onboarding-picker");
+  await picker.press("Escape");
+  await shoot(page, "d-onboarding-picker-empty");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Add details for AP Chemistry" }).click();
+  await shoot(page, "d-onboarding-details");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Assignments and exams, one per line").fill("Chem: titration lab report in 2 days 2h\nAPUSH: DBQ outline in 3 days 1h");
+  await page.getByRole("button", { name: "Add to my list" }).click();
+  await shoot(page, "d-onboarding-work");
+  // Today's "What's due" box is part of the tour too, so start the week empty.
+  await page.getByRole("button", { name: /^Remove / }).first().click();
+  await page.getByRole("button", { name: /^Remove / }).first().click();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByText("Weekday evenings").click();
   await page.getByText("Weekend afternoons").click();
   await shoot(page, "d-onboarding-2");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByPlaceholder("e.g. AP Chemistry").fill("AP Chemistry");
-  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  await expect(page.getByRole("heading", { name: "Your Rushd profile is ready." })).toBeVisible();
-  await shoot(page, "d-onboarding-done");
-  await page.getByRole("button", { name: "Go to my plan" }).click();
   await page.waitForURL(/dashboard/);
   await shoot(page, "d-today-empty");
 
@@ -182,6 +195,13 @@ test("design tour", async ({ browser }) => {
   await page.locator("#main-content").getByRole("button", { name: "Add course" }).click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/m-course-sheet.png` });
+  await page.getByRole("dialog").getByRole("button", { name: "Add several at once" }).click();
+  const multi = page.getByRole("dialog").getByRole("combobox", { name: "Search courses" });
+  await multi.pressSequentially("bio");
+  await multi.press("Enter");
+  await multi.pressSequentially("span");
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/m-course-multi.png` });
   await page.keyboard.press("Escape");
   for (const [path, name] of [
     [calcUrl, "m-course-page"],
@@ -199,6 +219,41 @@ test("design tour", async ({ browser }) => {
   await page.getByRole("button", { name: "Show the answer" }).click();
   await shoot(page, "m-practice-answer");
   await context.close();
+
+  // Onboarding on a phone.
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "dark", extraHTTPHeaders: { "x-forwarded-for": "127.0.0.4" } });
+  if (process.env.TOUR_THEME) await phone.addInitScript((theme) => window.localStorage.setItem("theme", theme), process.env.TOUR_THEME);
+  const m = await phone.newPage();
+  await m.goto("/signup");
+  await m.getByLabel("Email").fill(`e2e-tour-m-${Date.now()}@example.com`);
+  await m.getByLabel("Password").fill("password123");
+  await m.getByRole("checkbox", { name: /13 or older/ }).check();
+  await m.getByRole("button", { name: "Create account" }).click();
+  await m.getByRole("radio", { name: "Undergraduate", exact: true }).check();
+  await shoot(m, "m-onboarding-level");
+  await m.getByRole("button", { name: "Continue" }).click();
+  const mp = m.getByRole("combobox", { name: "Search courses" });
+  for (const course of ["orgo", "data struct", "linear alg"]) {
+    await mp.pressSequentially(course);
+    await mp.press("Enter");
+  }
+  await mp.pressSequentially("calc");
+  await m.waitForTimeout(300);
+  await m.screenshot({ path: `${OUT}/m-onboarding-picker.png` });
+  await m.getByRole("button", { name: "Continue" }).click();
+  await m.getByRole("button", { name: "Add details for Data Structures" }).click();
+  await shoot(m, "m-onboarding-details");
+  await m.getByRole("button", { name: "Continue" }).click();
+  await m.getByLabel("Assignments and exams, one per line").fill("Orgo: problem set 4 tomorrow 2h\nData structures midterm in 6 days 3h");
+  await m.getByRole("button", { name: "Add to my list" }).click();
+  await shoot(m, "m-onboarding-work");
+  await m.getByRole("button", { name: "Continue" }).click();
+  await m.getByText("Weekday evenings").click();
+  await shoot(m, "m-onboarding-time");
+  await m.getByRole("button", { name: "Finish setup" }).click();
+  await m.waitForURL(/dashboard/);
+  await shoot(m, "m-today-after-onboarding");
+  await phone.close();
 
   const guest = await (await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "dark" })).newPage();
   await guest.goto("/");

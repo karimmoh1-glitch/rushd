@@ -15,7 +15,7 @@ import {
 import { setClassArchived, deleteClass } from "@/server/actions/classes";
 import { ClassDialog } from "./class-dialog";
 import type { ClassInput } from "@/lib/validation/classes";
-import { levelLabel } from "@/lib/courses/catalog";
+import { catalogRecord, levelLabel } from "@/lib/courses/catalog";
 import type { TermProgress } from "@/lib/courses/term";
 import { cn } from "@/lib/utils";
 
@@ -115,6 +115,9 @@ export function ClassCard({ data, timeZone }: { data: ClassCardData; timeZone?: 
               {data.name}
             </Link>
             {identity && <p className="course-ink mt-1 truncate text-xs font-medium">{identity}</p>}
+            {catalogRecord(data.catalogId)?.kind === "template" && (
+              <p className="mt-0.5 text-xs text-muted-foreground">From a generic template</p>
+            )}
             {details && <p className="mt-0.5 truncate text-xs text-muted-foreground">{details}</p>}
           </div>
           <div className="relative z-10 -mr-2 -mt-2 flex shrink-0 items-center gap-1">
@@ -186,6 +189,7 @@ export function ClassCard({ data, timeZone }: { data: ClassCardData; timeZone?: 
           termStart: data.termStart,
           termEnd: data.termEnd,
           weeklyHours: data.weeklyHours,
+          catalogId: data.catalogId,
         }}
       />
     </>

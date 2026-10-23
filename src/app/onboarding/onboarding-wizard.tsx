@@ -1,35 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { completeOnboarding } from "@/server/actions/onboarding";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CoursePicker } from "@/components/course/course-picker";
+import { completeOnboarding, recordOnboardingLevel } from "@/server/actions/onboarding";
 import { clearTry, readFreshTry } from "@/lib/try/storage";
 import type { TryItem } from "@/lib/try/parse-week";
-import { importTriedWeek } from "@/server/actions/try-week";
-import { setEmailReminders } from "@/server/actions/settings";
-import {
-  AVAILABILITY_PRESETS,
-  formatMinutes,
-  presetToWindows,
-} from "@/lib/planning/availability-presets";
+import { AVAILABILITY_PRESETS, formatMinutes, presetToWindows } from "@/lib/planning/availability-presets";
 import { SESSION_LENGTH_OPTIONS } from "@/lib/planning/constants";
 import { formatDuration } from "@/lib/format";
-import { CLASS_COLORS, DEFAULT_CLASS_COLOR } from "@/lib/class-colors";
-import { CHALLENGE_OPTIONS, type AcademicChallengeValue } from "@/lib/validation/onboarding";
+import { COURSE_LEVELS, catalogRecord, levelLabel, type CourseLevelValue } from "@/lib/courses/catalog";
+import { colorFor, pickCustom, provenanceLabel, toClassInput, type CourseDetails, type PickedCourse } from "@/lib/courses/picked";
+import { parseWork, toDrafts, type WorkDraft } from "@/lib/onboarding/work";
+import { ONBOARDING_MAX_WORK } from "@/lib/validation/onboarding-setup";
+import type { ClassInput } from "@/lib/validation/classes";
 import { cn } from "@/lib/utils";
+
+// Onboarding, short and useful: level → courses → optional details → work →
+// study time, then the first plan and Today. Only the level and one course
+// (or an explicit skip) are needed; every other step can be skipped.
 
 const COMMON_TIMEZONES = [
   "America/New_York",
@@ -44,33 +39,36 @@ const COMMON_TIMEZONES = [
   "Asia/Dubai",
 ];
 
-const STEPS = ["Basics", "Study time", "Classes", "Challenge"] as const;
+const STEPS = ["Level", "Courses", "Details", "Your work", "Study time"] as const;
+const LEVEL = 0;
+const COURSES = 1;
+const DETAILS = 2;
+const WORK = 3;
+const TIME = 4;
 const LAST_STEP = STEPS.length - 1;
-const MAX_CLASSES = 12;
 
-interface ClassDraft {
-  name: string;
-  color: string;
-  teacher: string;
+interface DetailDraft {
+  institution: string;
+  code: string;
+  termStart: string;
+  termEnd: string;
+  weeklyHours: string;
 }
 
-interface SetupResult {
-  classCount: number;
-  availabilityWindowCount: number;
-}
+const EMPTY_DETAILS: DetailDraft = { institution: "", code: "", termStart: "", termEnd: "", weeklyHours: "" };
 
-function emptyClass(): ClassDraft {
-  return { name: "", color: DEFAULT_CLASS_COLOR, teacher: "" };
-}
-
-// The items from the week saved on the homepage, or [] if there is none.
 function readTriedWeekItems(): TryItem[] {
-  const raw = readFreshTry();
-  if (!raw) return [];
-  return (JSON.parse(raw) as { items?: TryItem[] }).items ?? [];
+  try {
+    const raw = readFreshTry();
+    if (!raw) return [];
+    const items = (JSON.parse(raw) as { items?: TryItem[] }).items;
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
 }
 
-// ---------- Progress bar ----------
+// ---------- Progress ----------
 
 function progressLineWidth(step: number): string {
   const percent = (step / LAST_STEP) * 100;
@@ -101,155 +99,376 @@ function StepProgress({ step }: { step: number }) {
           style={{ width: progressLineWidth(step) }}
         />
         {STEPS.map((name, index) => (
-          <span
-            key={name}
-            className={cn(
-              "relative z-10 rounded-full border-2 transition-all duration-300",
-              stepDotClass(index, step),
-            )}
-          />
+          <span key={name} className={cn("relative z-10 rounded-full border-2 transition-all duration-300", stepDotClass(index, step))} />
         ))}
       </div>
     </div>
   );
 }
 
-// ---------- Step 1: Basics ----------
+function StepHeading({ title, children }: { title: string; children?: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <h1 className="font-display text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem]">{title}</h1>
+      {children && <p className="text-sm text-muted-foreground">{children}</p>}
+    </div>
+  );
+}
 
-function BasicsStep({
+// ---------- Step 1: Level ----------
+
+function LevelStep({
   displayName,
   setDisplayName,
-  grade,
-  setGrade,
+  level,
+  setLevel,
   timezone,
   setTimezone,
-  school,
-  setSchool,
-  goals,
-  setGoals,
 }: {
   displayName: string;
   setDisplayName: (value: string) => void;
-  grade: string;
-  setGrade: (value: string) => void;
+  level: CourseLevelValue | null;
+  setLevel: (value: CourseLevelValue) => void;
   timezone: string;
   setTimezone: (value: string) => void;
-  school: string;
-  setSchool: (value: string) => void;
-  goals: string;
-  setGoals: (value: string) => void;
 }) {
-  // Show the detected timezone too, even if it isn't one of the common ones.
-  const timezoneOptions = useMemo(() => {
-    if (!timezone || COMMON_TIMEZONES.includes(timezone)) {
-      return COMMON_TIMEZONES;
-    }
-    return [timezone, ...COMMON_TIMEZONES];
-  }, [timezone]);
+  const timezoneOptions = useMemo(() => (!timezone || COMMON_TIMEZONES.includes(timezone) ? COMMON_TIMEZONES : [timezone, ...COMMON_TIMEZONES]), [timezone]);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
-        Let&apos;s set up your plan
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Takes about a minute. Nothing here is shared with anyone.
-      </p>
+    <div className="space-y-6">
+      <StepHeading title="Let's set up your plan">About a minute. You&apos;ll pick your level and courses, and Rushd plans from there.</StepHeading>
 
       <div className="space-y-2">
-        <Label htmlFor="displayName">What should we call you?</Label>
-        <Input
-          id="displayName"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="First name or nickname"
-          maxLength={60}
-          autoFocus
-        />
+        <Label htmlFor="displayName">What should we call you? (optional)</Label>
+        <Input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="First name or nickname" maxLength={60} autoFocus className="h-10" />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="grade">Grade</Label>
-          <Select value={grade} onValueChange={(v) => setGrade(v ?? "")}>
-            <SelectTrigger id="grade">
-              <SelectValue placeholder="Prefer not to say" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="9">9th</SelectItem>
-              <SelectItem value="10">10th</SelectItem>
-              <SelectItem value="11">11th</SelectItem>
-              <SelectItem value="12">12th</SelectItem>
-            </SelectContent>
-          </Select>
+      <fieldset className="space-y-2">
+        <legend className="mb-2 text-sm font-medium">What level do you study at?</legend>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {COURSE_LEVELS.map((option) => {
+            const checked = level === option.value;
+            return (
+              <label
+                key={option.value}
+                className={cn(
+                  "relative flex min-h-[4.25rem] cursor-pointer flex-col justify-center rounded-xl border px-3 py-2.5 text-sm transition-[border-color,background-color] duration-(--dur-press) has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                  checked ? "border-signal bg-signal-soft" : "border-border hover:border-border-strong hover:bg-muted/60",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="study-level"
+                  value={option.value}
+                  checked={checked}
+                  onChange={() => setLevel(option.value)}
+                  aria-labelledby={`level-name-${option.value}`}
+                  aria-describedby={`level-hint-${option.value}`}
+                  // Invisible but covering the card, so a tap anywhere picks it.
+                  className="absolute inset-0 z-10 m-0 cursor-pointer appearance-none rounded-xl opacity-0"
+                />
+                <span id={`level-name-${option.value}`} className="font-medium">
+                  {option.label}
+                </span>
+                <span id={`level-hint-${option.value}`} className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                  {option.hint}
+                </span>
+              </label>
+            );
+          })}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="timezone">Timezone</Label>
-          <Select value={timezone} onValueChange={(v) => setTimezone(v ?? "")}>
-            <SelectTrigger id="timezone">
-              <SelectValue placeholder="Select timezone">
-                {(value: string | null) =>
-                  value ? value.replace(/_/g, " ") : "Select timezone"
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {timezoneOptions.map((tz) => (
-                <SelectItem key={tz} value={tz}>
-                  {tz.replace(/_/g, " ")}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      </fieldset>
 
-      <div className="space-y-2">
-        <Label htmlFor="school">School (optional)</Label>
-        <Input
-          id="school"
-          value={school}
-          onChange={(e) => setSchool(e.target.value)}
-          maxLength={120}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="goals">Academic goals (optional)</Label>
-        <Textarea
-          id="goals"
-          value={goals}
-          onChange={(e) => setGoals(e.target.value)}
-          placeholder="e.g. Bring my chemistry grade up, stay ahead on AP Lang reading"
-          maxLength={500}
-          rows={3}
-        />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+        <Label htmlFor="timezone" className="text-muted-foreground">
+          Time zone
+        </Label>
+        <Select value={timezone} onValueChange={(v) => setTimezone(v ?? "")}>
+          <SelectTrigger id="timezone" className="min-w-52">
+            <SelectValue placeholder="Select timezone">{(value: string | null) => (value ? value.replace(/_/g, " ") : "Select timezone")}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {timezoneOptions.map((tz) => (
+              <SelectItem key={tz} value={tz}>
+                {tz.replace(/_/g, " ")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );
 }
 
-// ---------- Step 2: Study time ----------
+// ---------- Step 3: Details ----------
+
+function provenanceFor(course: PickedCourse): string {
+  const record = catalogRecord(course.catalogId);
+  return provenanceLabel(course, record?.provider);
+}
+
+function provenanceNote(course: PickedCourse): string {
+  if (course.kind === "template") return "A generic template: Rushd doesn't know your school's version. Your code, term, and work make it yours.";
+  if (course.kind === "official") return "The official course name. Your teacher's pacing and assignments are yours to add.";
+  return "Your own course, exactly as you named it.";
+}
+
+function DetailsStep({
+  courses,
+  details,
+  setDetail,
+  sharedSchool,
+  setSharedSchool,
+  sharedStart,
+  setSharedStart,
+  sharedEnd,
+  setSharedEnd,
+}: {
+  courses: PickedCourse[];
+  details: Record<string, DetailDraft>;
+  setDetail: (key: string, patch: Partial<DetailDraft>) => void;
+  sharedSchool: string;
+  setSharedSchool: (value: string) => void;
+  sharedStart: string;
+  setSharedStart: (value: string) => void;
+  sharedEnd: string;
+  setSharedEnd: (value: string) => void;
+}) {
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  function toggle(key: string) {
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <StepHeading title="Any details? All optional">Your school and term help Rushd pace the plan. Skip anything you don&apos;t know yet.</StepHeading>
+
+      <div className="grid gap-4 rounded-xl border border-border bg-card p-4 sm:grid-cols-3">
+        <div className="space-y-1.5 sm:col-span-3">
+          <Label htmlFor="shared-school">Your school (used for every course)</Label>
+          <Input id="shared-school" value={sharedSchool} onChange={(e) => setSharedSchool(e.target.value)} placeholder="e.g. Lincoln High School" maxLength={120} className="h-10" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="shared-term-start">This term starts</Label>
+          <Input id="shared-term-start" type="date" value={sharedStart} onChange={(e) => setSharedStart(e.target.value)} className="h-10" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="shared-term-end">This term ends</Label>
+          <Input id="shared-term-end" type="date" value={sharedEnd} onChange={(e) => setSharedEnd(e.target.value)} className="h-10" />
+        </div>
+        <p className="self-end text-xs text-muted-foreground">Applies to every course unless you set one below.</p>
+      </div>
+
+      <ul className="space-y-2">
+        {courses.map((course, index) => {
+          const isOpen = open.has(course.key);
+          const draft = details[course.key] ?? EMPTY_DETAILS;
+          const panelId = `details-${index}`;
+          return (
+            <li key={course.key} style={{ ["--course" as string]: colorFor(index) }} className="rounded-xl border border-border bg-card">
+              <div className="flex items-center gap-3 p-3 pl-4">
+                <span aria-hidden="true" className="course-rule h-8 w-1 shrink-0 rounded-full" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{course.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">{[levelLabel(course.level), provenanceFor(course)].filter(Boolean).join(" · ")}</p>
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={() => toggle(course.key)} aria-expanded={isOpen} aria-controls={panelId} className="h-9 shrink-0">
+                  {isOpen ? "Done" : "Add details"}
+                  <span className="sr-only"> for {course.title}</span>
+                  <ChevronDown className={cn("transition-transform duration-(--dur-ui)", isOpen && "rotate-180")} aria-hidden="true" />
+                </Button>
+              </div>
+              {isOpen && (
+                <div id={panelId} role="group" aria-label={`Details for ${course.title}`} className="space-y-4 border-t border-border px-4 pb-4 pt-3">
+                  <p className="text-xs text-muted-foreground">{provenanceNote(course)}</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${panelId}-school`}>School</Label>
+                      <Input id={`${panelId}-school`} value={draft.institution} onChange={(e) => setDetail(course.key, { institution: e.target.value })} placeholder={sharedSchool || "e.g. Lincoln High School"} maxLength={120} className="h-10" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${panelId}-code`}>Course code</Label>
+                      <Input id={`${panelId}-code`} value={draft.code} onChange={(e) => setDetail(course.key, { code: e.target.value })} placeholder="As your school writes it" maxLength={30} className="h-10" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${panelId}-start`}>Term starts</Label>
+                      <Input id={`${panelId}-start`} type="date" value={draft.termStart} onChange={(e) => setDetail(course.key, { termStart: e.target.value })} className="h-10" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${panelId}-end`}>Term ends</Label>
+                      <Input id={`${panelId}-end`} type="date" value={draft.termEnd} onChange={(e) => setDetail(course.key, { termEnd: e.target.value })} className="h-10" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${panelId}-hours`}>Weekly study goal</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id={`${panelId}-hours`}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={40}
+                        step={1}
+                        value={draft.weeklyHours}
+                        onChange={(e) => setDetail(course.key, { weeklyHours: e.target.value })}
+                        className="h-10 w-24"
+                        aria-describedby={`${panelId}-hours-unit`}
+                      />
+                      <span id={`${panelId}-hours-unit`} className="text-sm text-muted-foreground">
+                        hours a week
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+// ---------- Step 4: Work ----------
+
+function dueLabel(iso: string, timeZone: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: timeZone || undefined });
+  } catch {
+    return new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  }
+}
+
+function WorkStep({
+  courses,
+  items,
+  setItems,
+  text,
+  setText,
+  onAddText,
+  timezone,
+  connectCanvas,
+  setConnectCanvas,
+  fromTry,
+}: {
+  courses: PickedCourse[];
+  items: WorkDraft[];
+  setItems: (update: (items: WorkDraft[]) => WorkDraft[]) => void;
+  text: string;
+  setText: (value: string) => void;
+  onAddText: () => void;
+  timezone: string;
+  connectCanvas: boolean;
+  setConnectCanvas: (value: boolean) => void;
+  fromTry: boolean;
+}) {
+  const full = items.length >= ONBOARDING_MAX_WORK;
+  return (
+    <div className="space-y-6">
+      <StepHeading title="What's due soon?">
+        Assignments, quizzes, and exams, one per line. Start a line with the course if you like: &ldquo;Chem: lab report Thursday 2h&rdquo;.
+        {fromTry && " We brought in the week you ranked."}
+      </StepHeading>
+
+      <div className="space-y-2">
+        <Label htmlFor="onboarding-work">Assignments and exams, one per line</Label>
+        <textarea
+          id="onboarding-work"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={4}
+          maxLength={2400}
+          spellCheck={false}
+          disabled={full}
+          placeholder={"Chem: lab report Thursday 2h\nCalc quiz Friday\nEnglish essay draft Monday 3h"}
+          className="block w-full resize-none rounded-xl border border-border bg-background px-3.5 py-3 font-mono text-[13px] leading-[1.7] outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">Lines without a day get a week; you can change it later.</p>
+          <Button type="button" variant="outline" onClick={onAddText} disabled={!text.trim() || full}>
+            Add to my list
+          </Button>
+        </div>
+      </div>
+
+      {items.length > 0 && (
+        <ul aria-label="Work to add" className="divide-y divide-border rounded-xl border border-border bg-card">
+          {items.map((item) => {
+            const courseValue = "index" in item.course ? String(item.course.index) : `new:${item.course.newName}`;
+            return (
+              <li key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 text-sm">
+                <div className="min-w-0 flex-1 basis-48">
+                  <p className="truncate font-medium">{item.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.kind === "exam" ? "Test" : "Assignment"} · {item.assumedDate ? "No day found, due in a week" : `Due ${dueLabel(item.dueAt, timezone)}`} · {formatDuration(item.minutes)}
+                  </p>
+                </div>
+                <select
+                  aria-label={`Course for ${item.title}`}
+                  value={courseValue}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setItems((current) =>
+                      current.map((draft) => (draft.id === item.id ? { ...draft, course: value.startsWith("new:") ? { newName: value.slice(4) } : { index: Number(value) } } : draft)),
+                    );
+                  }}
+                  className="h-9 max-w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm"
+                >
+                  {courses.map((course, index) => (
+                    <option key={course.key} value={String(index)}>
+                      {course.title}
+                    </option>
+                  ))}
+                  {"newName" in item.course && <option value={`new:${item.course.newName}`}>New course: {item.course.newName}</option>}
+                </select>
+                <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${item.title}`} onClick={() => setItems((current) => current.filter((draft) => draft.id !== item.id))}>
+                  <X aria-hidden="true" />
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <label className="flex items-start gap-2.5 rounded-xl border border-border p-3.5 text-sm">
+        <input type="checkbox" checked={connectCanvas} onChange={(e) => setConnectCanvas(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--signal)]" />
+        <span>
+          <span className="font-medium">My school uses Canvas: connect it after setup</span>
+          <span className="block text-muted-foreground">Brings in assignments, due dates, and course materials (read-only).</span>
+        </span>
+      </label>
+    </div>
+  );
+}
+
+// ---------- Step 5: Study time ----------
 
 function StudyTimeStep({
   selectedPresets,
   onTogglePreset,
   sessionMinutes,
   setSessionMinutes,
+  email,
+  emailsOn,
+  setEmailsOn,
 }: {
   selectedPresets: Set<string>;
   onTogglePreset: (id: string) => void;
   sessionMinutes: number;
   setSessionMinutes: (minutes: number) => void;
+  email: boolean;
+  emailsOn: boolean;
+  setEmailsOn: (on: boolean) => void;
 }) {
   return (
     <div className="space-y-4">
-      <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
-        When can you usually study?
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Pick as many as apply. You can fine-tune this later in Settings.
-      </p>
+      <StepHeading title="When can you usually study?">Pick as many as apply. You can fine-tune this later in Settings.</StepHeading>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {AVAILABILITY_PRESETS.map((preset) => {
           const selected = selectedPresets.has(preset.id);
@@ -259,33 +478,22 @@ function StudyTimeStep({
               type="button"
               onClick={() => onTogglePreset(preset.id)}
               aria-pressed={selected}
-              className={cn(
-                "rounded-lg border px-4 py-3 text-left text-sm transition-colors",
-                selected
-                  ? "border-primary bg-accent text-accent-foreground"
-                  : "border-border hover:bg-muted",
-              )}
+              className={cn("rounded-lg border px-4 py-3 text-left text-sm transition-colors", selected ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-muted")}
             >
               <div className="font-medium">{preset.label}</div>
               <div className="text-muted-foreground">
-                {preset.days.length === 5 ? "Mon-Fri" : "Sat-Sun"}, {formatMinutes(preset.startMinute)} to{" "}
-                {formatMinutes(preset.endMinute)}
+                {preset.days.length === 5 ? "Mon-Fri" : "Sat-Sun"}, {formatMinutes(preset.startMinute)} to {formatMinutes(preset.endMinute)}
               </div>
             </button>
           );
         })}
       </div>
       {selectedPresets.size === 0 && (
-        <p className="text-sm text-muted-foreground">
-          No windows selected yet. Rushd will still track deadlines, but
-          can&apos;t place study time without them.
-        </p>
+        <p className="text-sm text-muted-foreground">No windows selected yet. Rushd will still rank what&apos;s due, but can&apos;t place study time without them.</p>
       )}
       <fieldset className="space-y-2 pt-4">
         <legend className="text-sm font-medium">How long do you like to focus at a time?</legend>
-        <p className="text-sm text-muted-foreground">
-          Rushd sizes study blocks to this, with a short break in between.
-        </p>
+        <p className="text-sm text-muted-foreground">Rushd sizes study blocks to this, with a short break in between.</p>
         <div className="flex flex-wrap gap-2 pt-1">
           {SESSION_LENGTH_OPTIONS.map((minutes) => (
             <button
@@ -295,9 +503,7 @@ function StudyTimeStep({
               onClick={() => setSessionMinutes(minutes)}
               className={cn(
                 "rounded-lg border px-3.5 py-2 font-mono text-sm tabular-nums transition-colors",
-                sessionMinutes === minutes
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border hover:bg-muted",
+                sessionMinutes === minutes ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-muted",
               )}
             >
               {formatDuration(minutes)}
@@ -305,437 +511,313 @@ function StudyTimeStep({
           ))}
         </div>
       </fieldset>
-    </div>
-  );
-}
-
-// ---------- Step 3: Classes ----------
-
-function ClassesStep({
-  classes,
-  onUpdateClass,
-  onRemoveClass,
-  onAddClass,
-}: {
-  classes: ClassDraft[];
-  onUpdateClass: (index: number, patch: Partial<ClassDraft>) => void;
-  onRemoveClass: (index: number) => void;
-  onAddClass: () => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Add your courses</h1>
-      <p className="text-sm text-muted-foreground">
-        Optional — you can always add these later from your dashboard.
-      </p>
-      <div className="space-y-3">
-        {classes.map((course, index) => (
-          <div key={index} className="flex items-start gap-2">
-            <div className="flex gap-1 pt-2.5">
-              {CLASS_COLORS.slice(0, 4).map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  aria-label={`Color ${color.name}`}
-                  aria-pressed={course.color === color.value}
-                  onClick={() => onUpdateClass(index, { color: color.value })}
-                  className={cn(
-                    "h-5 w-5 rounded-full ring-offset-2 ring-offset-background",
-                    course.color === color.value && "ring-2 ring-ring",
-                  )}
-                  style={{ backgroundColor: color.value }}
-                />
-              ))}
-            </div>
-            <Input
-              value={course.name}
-              onChange={(e) => onUpdateClass(index, { name: e.target.value })}
-              placeholder="e.g. AP Chemistry"
-              maxLength={80}
-              aria-label="Class name"
-              className="flex-1"
-            />
-            <Input
-              value={course.teacher}
-              onChange={(e) => onUpdateClass(index, { teacher: e.target.value })}
-              placeholder="Teacher (optional)"
-              maxLength={80}
-              aria-label="Teacher"
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onRemoveClass(index)}
-              aria-label="Remove course"
-              disabled={classes.length === 1}
-            >
-              ×
-            </Button>
-          </div>
-        ))}
-      </div>
-      <Button type="button" variant="outline" size="sm" onClick={onAddClass}>
-        + Add another course
-      </Button>
-    </div>
-  );
-}
-
-// ---------- Step 4: Challenge ----------
-
-function ChallengeStep({
-  challenge,
-  onPickChallenge,
-}: {
-  challenge: AcademicChallengeValue | "";
-  onPickChallenge: (value: AcademicChallengeValue) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
-        What&apos;s your biggest academic challenge?
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Optional — this just helps Rushd&apos;s Academic Profile page make sense of your patterns.
-      </p>
-      <div className="space-y-2">
-        {CHALLENGE_OPTIONS.map((option) => {
-          const selected = challenge === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onPickChallenge(option.value)}
-              aria-pressed={selected}
-              className={cn(
-                "w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors",
-                selected
-                  ? "border-primary bg-accent text-accent-foreground"
-                  : "border-border hover:bg-muted",
-              )}
-            >
-              <div className="font-medium">{option.label}</div>
-              <div className="text-muted-foreground">{option.body}</div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ---------- Finished screen ----------
-
-function DoneScreen({
-  result,
-  teams,
-  ai,
-  email,
-  fromTry,
-  importing,
-  onAddTriedWeek,
-}: {
-  result: SetupResult;
-  teams: boolean;
-  ai: boolean;
-  email: boolean;
-  fromTry: boolean;
-  importing: boolean;
-  onAddTriedWeek: () => void;
-}) {
-  const router = useRouter();
-  const [emailsOn, setEmailsOn] = useState(false);
-
-  function handleEmailsChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const on = e.target.checked;
-    setEmailsOn(on);
-    void setEmailReminders(on);
-  }
-
-  let coursesText = "No courses yet, add them anytime";
-  if (result.classCount > 0) {
-    coursesText = result.classCount === 1 ? "1 course added" : `${result.classCount} courses added`;
-  }
-
-  let studyTimeText = ". Set your study availability in Settings to get a real plan.";
-  if (result.availabilityWindowCount > 0) {
-    studyTimeText = " and your study time is set.";
-  }
-
-  return (
-    <div className="space-y-6 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent">
-        <Check className="h-5 w-5 text-accent-foreground" aria-hidden="true" />
-      </div>
-      <div>
-        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">
-          Your Rushd profile is ready.
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {coursesText}
-          {studyTimeText}
-        </p>
-        {email && (
-          <label className="mx-auto mt-4 flex max-w-md items-start gap-2.5 text-left text-sm">
-            <input
-              type="checkbox"
-              checked={emailsOn}
-              onChange={handleEmailsChange}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--signal)]"
-            />
-            <span>
-              Email me my week every Sunday, and a nudge if a study streak is about to end.{" "}
-              <span className="text-muted-foreground">Change it anytime in Settings.</span>
-            </span>
-          </label>
-        )}
-        <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
-          Pick a first step. Connecting Canvas brings in your assignments, due dates, and course materials (read-only).
-          {ai ? " Or check a page of practice work to see what you've got down and what to review." : " Or go straight to your plan and type in what's due."}
-        </p>
-      </div>
-      <div className="flex flex-col justify-center gap-2 sm:flex-row">
-        {fromTry && (
-          <Button onClick={onAddTriedWeek} disabled={importing} size="lg" className="w-full sm:w-auto">
-            {importing ? "Adding your week…" : "Add the week I ranked"}
-          </Button>
-        )}
-        <Button
-          onClick={() => router.push("/integrations/canvas?from=onboarding")}
-          size="lg"
-          variant={fromTry ? "outline" : "default"}
-          className="w-full sm:w-auto"
-        >
-          Connect Canvas
-        </Button>
-        {ai && (
-          <Button onClick={() => router.push("/practice")} size="lg" variant="outline" className="w-full sm:w-auto">
-            Check my work
-          </Button>
-        )}
-        <Button onClick={() => router.push("/dashboard")} size="lg" variant="ghost" className="w-full sm:w-auto">
-          Go to my plan
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {teams && (
-          <>
-            Use Microsoft Teams?{" "}
-            <a href="/integrations/teams" className="underline underline-offset-4">Connect Teams</a>.{" "}
-          </>
-        )}
-        School turned Canvas tokens off?{" "}
-        <a href="/integrations/canvas-calendar" className="underline underline-offset-4">Use your calendar feed</a>.
-      </p>
+      {email && (
+        <label className="flex items-start gap-2.5 pt-2 text-sm">
+          <input type="checkbox" checked={emailsOn} onChange={(e) => setEmailsOn(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--signal)]" />
+          <span>
+            Email me my week every Sunday, and a nudge if a study streak is about to end. <span className="text-muted-foreground">Change it anytime in Settings.</span>
+          </span>
+        </label>
+      )}
     </div>
   );
 }
 
 // ---------- The wizard ----------
 
-export function OnboardingWizard({ teams = false, ai = false, email = false }: { teams?: boolean; ai?: boolean; email?: boolean }) {
-  const router = useRouter();
-  const [step, setStep] = useState(0);
-  const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<SetupResult | null>(null);
+export interface OnboardingWizardProps {
+  teams?: boolean;
+  email?: boolean;
+  /** Catalog ids enough real students chose (thresholded on the server). */
+  popularIds?: string[];
+}
 
-  // Came from "Rank my week" on the homepage: lead with adding that week.
-  const [fromTry, setFromTry] = useState(false);
-  const [importing, setImporting] = useState(false);
+export function OnboardingWizard({ email = false, popularIds = [] }: OnboardingWizardProps) {
+  const router = useRouter();
+  const [step, setStep] = useState(LEVEL);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const loggedLevel = useRef<string | null>(null);
 
   const [displayName, setDisplayName] = useState("");
-  const [grade, setGrade] = useState<string>("");
-  const [school, setSchool] = useState("");
   const [timezone, setTimezone] = useState("");
-  const [goals, setGoals] = useState("");
-  const [challenge, setChallenge] = useState<AcademicChallengeValue | "">("");
+  const [level, setLevel] = useState<CourseLevelValue | null>(null);
+
+  const [courses, setCourses] = useState<PickedCourse[]>([]);
+  const [details, setDetails] = useState<Record<string, DetailDraft>>({});
+  const [sharedSchool, setSharedSchool] = useState("");
+  const [sharedStart, setSharedStart] = useState("");
+  const [sharedEnd, setSharedEnd] = useState("");
+
+  const [workText, setWorkText] = useState("");
+  const [work, setWork] = useState<WorkDraft[]>([]);
+  const [fromTry, setFromTry] = useState(false);
+  const [connectCanvas, setConnectCanvas] = useState(false);
 
   const [selectedPresets, setSelectedPresets] = useState<Set<string>>(new Set());
   const [sessionMinutes, setSessionMinutes] = useState<number>(60);
-
-  const [classes, setClasses] = useState<ClassDraft[]>([emptyClass()]);
+  const [emailsOn, setEmailsOn] = useState(false);
 
   // Browser-only values are read after mounting so the first render matches the server's.
   useEffect(() => {
-    setFromTry(readFreshTry() !== null);
     const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (detected) setTimezone(detected);
+    const tried = readTriedWeekItems();
+    if (tried.length > 0) {
+      setFromTry(true);
+      setWork(toDrafts(tried.slice(0, ONBOARDING_MAX_WORK), []));
+    }
   }, []);
 
-  // One step: bring in the saved week and land on Today with it ranked.
-  async function addTriedWeek() {
-    setImporting(true);
-    try {
-      const items = readTriedWeekItems();
-      if (items.length > 0) {
-        const importResult = await importTriedWeek(
-          items.map(({ kind, title, className, dueAt, minutes }) => ({ kind, title, className, dueAt, minutes })),
-        );
-        if ("error" in importResult) {
-          toast.error(importResult.error);
-          setImporting(false);
-          return;
-        }
-      }
-      clearTry();
-      router.push("/dashboard");
-    } catch {
-      setImporting(false);
-      router.push("/dashboard");
-    }
+  const workCourses = courses.map((course) => ({ title: course.title, catalogId: course.catalogId }));
+
+  function addCourse(course: PickedCourse) {
+    setCourses((current) => (current.some((c) => c.key === course.key) ? current : [...current, course]));
+  }
+
+  function removeCourse(key: string) {
+    const index = courses.findIndex((course) => course.key === key);
+    if (index < 0) return;
+    setCourses((current) => current.filter((course) => course.key !== key));
+    // Work pointing at the removed course moves to the first remaining one (or a new course).
+    setWork((current) =>
+      current.map((item) => {
+        if (!("index" in item.course)) return item;
+        if (item.course.index === index) return { ...item, course: courses.length > 1 ? { index: 0 } : { newName: courses[index].title } };
+        if (item.course.index > index) return { ...item, course: { index: item.course.index - 1 } };
+        return item;
+      }),
+    );
+  }
+
+  /** Re-matches work that was waiting for a course (e.g. the homepage week) once courses exist. */
+  function rematchWork() {
+    setWork((current) =>
+      current.map((item) => {
+        if (!("newName" in item.course)) return item;
+        const [matched] = toDrafts([{ kind: item.kind, title: item.title, className: item.course.newName, dueAt: item.dueAt, minutes: item.minutes, assumedDate: item.assumedDate }], workCourses);
+        return { ...item, course: matched.course };
+      }),
+    );
+  }
+
+  function addWorkText() {
+    const parsed = parseWork(workText, workCourses, new Date());
+    if (parsed.length === 0) return;
+    setWork((current) => [...current, ...parsed].slice(0, ONBOARDING_MAX_WORK));
+    setWorkText("");
+  }
+
+  function setDetail(key: string, patch: Partial<DetailDraft>) {
+    setDetails((current) => ({ ...current, [key]: { ...(current[key] ?? EMPTY_DETAILS), ...patch } }));
   }
 
   function togglePreset(id: string) {
     setSelectedPresets((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
 
-  function updateClass(index: number, patch: Partial<ClassDraft>) {
-    setClasses((prev) => prev.map((course, i) => (i === index ? { ...course, ...patch } : course)));
+  function detailsFor(course: PickedCourse): CourseDetails {
+    const draft = details[course.key] ?? EMPTY_DETAILS;
+    const hours = Number(draft.weeklyHours);
+    return {
+      institution: draft.institution.trim() || sharedSchool.trim() || undefined,
+      code: draft.code.trim() || undefined,
+      termStart: draft.termStart || sharedStart || undefined,
+      termEnd: draft.termEnd || sharedEnd || undefined,
+      weeklyHours: draft.weeklyHours && Number.isFinite(hours) ? hours : undefined,
+    };
   }
 
-  function addClassRow() {
-    if (classes.length >= MAX_CLASSES) return;
-    setClasses((prev) => [...prev, emptyClass()]);
+  /** A problem with the details that would stop setup, or null. */
+  function detailsProblem(): string | null {
+    for (const course of courses) {
+      const d = detailsFor(course);
+      if (d.termStart && d.termEnd && d.termEnd < d.termStart) return `${course.title}: the term can't end before it starts.`;
+      if (d.weeklyHours !== undefined && (!Number.isInteger(d.weeklyHours) || d.weeklyHours < 1 || d.weeklyHours > 40)) return `${course.title}: weekly study goal should be 1 to 40 whole hours.`;
+    }
+    return null;
   }
 
-  function removeClassRow(index: number) {
-    setClasses((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  // Clicking the selected challenge again clears it.
-  function pickChallenge(value: AcademicChallengeValue) {
-    setChallenge((current) => (current === value ? "" : value));
-  }
-
-  function canAdvance(): boolean {
-    if (step === 0) return displayName.trim().length > 0 && timezone.length > 0;
-    return true;
-  }
-
-  function goBack() {
-    setStep((current) => Math.max(0, current - 1));
+  function goTo(next: number) {
+    setError(null);
+    setStep(next);
+    window.scrollTo({ top: 0 });
   }
 
   function goNext() {
-    setStep((current) => Math.min(LAST_STEP, current + 1));
+    if (step === LEVEL && level && loggedLevel.current !== level) {
+      loggedLevel.current = level;
+      void recordOnboardingLevel(level);
+    }
+    if (step === COURSES) {
+      rematchWork();
+      goTo(courses.length > 0 ? DETAILS : WORK);
+      return;
+    }
+    if (step === DETAILS) {
+      const problem = detailsProblem();
+      if (problem) {
+        setError(problem);
+        return;
+      }
+    }
+    if (step === WORK && workText.trim()) addWorkText();
+    goTo(Math.min(LAST_STEP, step + 1));
+  }
+
+  function goBack() {
+    if (step === WORK && courses.length === 0) goTo(COURSES);
+    else goTo(Math.max(LEVEL, step - 1));
+  }
+
+  function canAdvance(): boolean {
+    if (step === LEVEL) return level !== null && timezone.length > 0;
+    if (step === COURSES) return courses.length > 0;
+    return true;
   }
 
   function handleFinish() {
-    const availability = Array.from(selectedPresets).flatMap(presetToWindows);
-    const validClasses = classes
-      .filter((course) => course.name.trim().length > 0)
-      .map((course) => ({
-        name: course.name.trim(),
-        color: course.color,
-        teacher: course.teacher.trim() || undefined,
-      }));
+    setError(null);
+    // Work assigned to a new course adds that course (once per name) after the picked ones.
+    const allCourses: ClassInput[] = courses.map((course, index) => toClassInput(course, colorFor(index), detailsFor(course)));
+    const newIndex = new Map<string, number>();
+    const workInput = work.map((item) => {
+      let courseIndex: number;
+      if ("index" in item.course) {
+        courseIndex = item.course.index;
+      } else {
+        const name = item.course.newName;
+        const existing = newIndex.get(name.toLowerCase());
+        if (existing !== undefined) {
+          courseIndex = existing;
+        } else {
+          courseIndex = allCourses.length;
+          newIndex.set(name.toLowerCase(), courseIndex);
+          allCourses.push(toClassInput(pickCustom(name, level), colorFor(courseIndex), { institution: sharedSchool.trim() || undefined, termStart: sharedStart || undefined, termEnd: sharedEnd || undefined }));
+        }
+      }
+      return { kind: item.kind, title: item.title, courseIndex, dueAt: item.dueAt, minutes: item.minutes };
+    });
 
     startTransition(async () => {
       const response = await completeOnboarding({
         displayName: displayName.trim(),
-        grade: grade ? Number(grade) : null,
-        school: school.trim() || undefined,
+        studyLevel: level,
+        school: sharedSchool.trim() || undefined,
         timezone,
-        goals: goals.trim() || undefined,
-        primaryChallenge: challenge || null,
-        availability,
-        classes: validClasses,
+        availability: Array.from(selectedPresets).flatMap(presetToWindows),
+        courses: allCourses,
+        work: workInput,
         preferredSessionMinutes: sessionMinutes as 30 | 45 | 60 | 90,
+        emailReminders: emailsOn,
       });
-      if (response && "error" in response) {
+      if ("error" in response) {
+        setError(response.error);
         toast.error(response.error);
         return;
       }
-      if (response) {
-        setResult({
-          classCount: response.classCount,
-          availabilityWindowCount: response.availabilityWindowCount,
-        });
-      }
+      if (fromTry) clearTry();
+      router.push(connectCanvas ? "/integrations/canvas?from=onboarding" : "/dashboard");
     });
-  }
-
-  if (result) {
-    return (
-      <DoneScreen
-        result={result}
-        teams={teams}
-        ai={ai}
-        email={email}
-        fromTry={fromTry}
-        importing={importing}
-        onAddTriedWeek={addTriedWeek}
-      />
-    );
   }
 
   return (
     <div className="space-y-8">
       <StepProgress step={step} />
 
-      {step === 0 && (
-        <BasicsStep
-          displayName={displayName}
-          setDisplayName={setDisplayName}
-          grade={grade}
-          setGrade={setGrade}
-          timezone={timezone}
-          setTimezone={setTimezone}
-          school={school}
-          setSchool={setSchool}
-          goals={goals}
-          setGoals={setGoals}
+      {step === LEVEL && (
+        <LevelStep displayName={displayName} setDisplayName={setDisplayName} level={level} setLevel={setLevel} timezone={timezone} setTimezone={setTimezone} />
+      )}
+
+      {step === COURSES && (
+        <div className="space-y-5">
+          <StepHeading title="Add your courses">
+            Search and add as many as you take. Can&apos;t find one? Create it. AP and IB courses are the official ones; everything else is a generic template until you add your school&apos;s details.
+          </StepHeading>
+          <CoursePicker studentLevel={level} selected={courses} onAdd={addCourse} onRemove={removeCourse} popularIds={popularIds} autoFocus />
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {courses.length === 0 ? "No courses yet." : courses.length === 1 ? "1 course added." : `${courses.length} courses added.`}
+          </p>
+        </div>
+      )}
+
+      {step === DETAILS && (
+        <DetailsStep
+          courses={courses}
+          details={details}
+          setDetail={setDetail}
+          sharedSchool={sharedSchool}
+          setSharedSchool={setSharedSchool}
+          sharedStart={sharedStart}
+          setSharedStart={setSharedStart}
+          sharedEnd={sharedEnd}
+          setSharedEnd={setSharedEnd}
         />
       )}
 
-      {step === 1 && (
+      {step === WORK && (
+        <WorkStep
+          courses={courses}
+          items={work}
+          setItems={setWork}
+          text={workText}
+          setText={setWorkText}
+          onAddText={addWorkText}
+          timezone={timezone}
+          connectCanvas={connectCanvas}
+          setConnectCanvas={setConnectCanvas}
+          fromTry={fromTry}
+        />
+      )}
+
+      {step === TIME && (
         <StudyTimeStep
           selectedPresets={selectedPresets}
           onTogglePreset={togglePreset}
           sessionMinutes={sessionMinutes}
           setSessionMinutes={setSessionMinutes}
+          email={email}
+          emailsOn={emailsOn}
+          setEmailsOn={setEmailsOn}
         />
       )}
 
-      {step === 2 && (
-        <ClassesStep
-          classes={classes}
-          onUpdateClass={updateClass}
-          onRemoveClass={removeClassRow}
-          onAddClass={addClassRow}
-        />
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
       )}
 
-      {step === 3 && <ChallengeStep challenge={challenge} onPickChallenge={pickChallenge} />}
-
-      <div className="flex items-center justify-between border-t pt-6">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={goBack}
-          disabled={step === 0 || pending}
-        >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-6">
+        <Button type="button" variant="ghost" onClick={goBack} disabled={step === LEVEL || pending}>
           Back
         </Button>
-        {step < LAST_STEP ? (
-          <Button type="button" onClick={goNext} disabled={!canAdvance()}>
-            Continue
-          </Button>
-        ) : (
-          <Button type="button" onClick={handleFinish} disabled={pending}>
-            {pending ? "Setting up…" : "Finish setup"}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {step === COURSES && courses.length === 0 && (
+            <Button type="button" variant="ghost" onClick={goNext}>
+              Skip for now
+            </Button>
+          )}
+          {(step === DETAILS || step === WORK) && (
+            <Button type="button" variant="ghost" onClick={() => goTo(step + 1)} className="hidden sm:inline-flex">
+              Skip
+            </Button>
+          )}
+          {step < LAST_STEP ? (
+            <Button type="button" onClick={goNext} disabled={!canAdvance()} size="lg">
+              Continue
+            </Button>
+          ) : (
+            <Button type="button" variant="signal" onClick={handleFinish} disabled={pending} size="lg">
+              {pending ? "Building your plan…" : "Finish setup"}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { IdSchema } from "@/lib/validation/import";
 import type { ClassInput } from "@/lib/validation/classes";
-import { createCourse, setCourseArchived, updateCourse } from "@/lib/courses/service";
+import { createCourse, createCourses, setCourseArchived, updateCourse } from "@/lib/courses/service";
 import { logEvent } from "@/lib/analytics/log-event";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
 
@@ -17,6 +17,25 @@ export async function createClass(input: ClassInput): Promise<ActionResult> {
   if (!result.ok) return { error: result.error };
 
   await logEvent(user.id, "class_created", { classId: result.id });
+  // Catalog id or "custom" only, never the name the student typed.
+  await logEvent(user.id, "course_added", { catalogId: input.catalogId || null, custom: !input.catalogId, level: input.level ?? null, via: "courses" });
+  revalidatePath("/courses");
+  return { success: true };
+}
+
+/** Adds several courses picked at once in the Courses page picker. */
+export async function createClasses(inputs: ClassInput[]): Promise<ActionResult> {
+  const user = await requireUserOrThrow();
+  if (!Array.isArray(inputs)) return { error: "Invalid input." };
+  const result = await createCourses(user.id, inputs);
+  if (!result.ok) return { error: result.error };
+
+  for (const [index, id] of result.ids.entries()) {
+    const input = inputs[index];
+    await logEvent(user.id, "class_created", { classId: id });
+    await logEvent(user.id, "course_added", { catalogId: input.catalogId || null, custom: !input.catalogId, level: input.level ?? null, via: "courses_multi" });
+  }
+  await regeneratePlanSnapshot(user.id);
   revalidatePath("/courses");
   return { success: true };
 }
