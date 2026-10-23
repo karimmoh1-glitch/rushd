@@ -8,6 +8,37 @@ test.skip(!process.env.TOUR, "design tour runs only with TOUR=1");
 
 const OUT = process.env.TOUR_OUT ?? "test-results/tour";
 
+// A fictional AP Calculus syllabus, for the syllabus import screens. The course's
+// term in the tour is Aug 25 – Dec 18, 2026, so "Week N" lines get real dates.
+const CALC_SYLLABUS = [
+  "AP Calculus AB — Syllabus",
+  "Fall 2026",
+  "Teacher: Mr. Okonkwo",
+  "",
+  "Course Goals",
+  "• Reason about limits, derivatives and integrals graphically, numerically and algebraically",
+  "• Communicate solutions with correct notation and justification",
+  "",
+  "Unit Schedule",
+  "Week 1: Limits and continuity",
+  "Week 3: Definition of the derivative; Problem set 1 due Friday",
+  "Week 5: Differentiation rules",
+  "  • Chain rule",
+  "  • Implicit differentiation",
+  "Unit 2 Test: Thursday, October 1",
+  "Week 10: Applications of derivatives; Quiz 3 on Tuesday",
+  "Week 12: Integration and accumulation",
+  "FRQ practice set due Nov 20",
+  "Week 15: Differential equations",
+  "Semester final: TBA",
+  "",
+  "Grading",
+  "Tests 50%",
+  "Quizzes 20%",
+  "Homework 15%",
+  "Semester final 15%",
+].join("\n");
+
 async function shoot(page: Page, name: string) {
   await expect(page.locator('[aria-label^="Loading"]')).toHaveCount(0, { timeout: 15_000 });
   await page.waitForTimeout(700);
@@ -15,7 +46,7 @@ async function shoot(page: Page, name: string) {
 }
 
 test("design tour", async ({ browser }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
   const context = await browser.newContext({ viewport: { width: 1360, height: 900 }, colorScheme: "dark", extraHTTPHeaders: { "x-forwarded-for": "127.0.0.4" } });
   if (process.env.TOUR_THEME) await context.addInitScript((theme) => window.localStorage.setItem("theme", theme), process.env.TOUR_THEME);
   const page = await context.newPage();
@@ -194,6 +225,21 @@ test("design tour", async ({ browser }) => {
   }
   await shoot(page, "d-today-changed");
 
+  // Syllabus import: input, review (a source open), summary, and the course page after.
+  await page.goto(`${calcUrl}/syllabus`);
+  await shoot(page, "d-syllabus-input");
+  await page.getByRole("radio", { name: "Paste text" }).click();
+  await page.getByLabel("Syllabus text").fill(CALC_SYLLABUS);
+  await page.getByRole("button", { name: "Read syllabus" }).click();
+  await expect(page.getByRole("heading", { name: "Check what Rushd found" })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("group", { name: "Quiz 3" }).getByRole("button", { name: "Show source" }).click();
+  await shoot(page, "d-syllabus-review");
+  await page.getByRole("button", { name: "Confirm and add" }).click();
+  await expect(page.getByRole("heading", { name: "Syllabus imported" })).toBeVisible({ timeout: 20_000 });
+  await shoot(page, "d-syllabus-done");
+  await page.goto(calcUrl);
+  await shoot(page, "d-course-page-syllabus");
+
   for (const [path, name] of [
     ["/assignments", "d-assignments"],
     ["/exams", "d-exams"],
@@ -249,6 +295,16 @@ test("design tour", async ({ browser }) => {
     await page.goto(path);
     await shoot(page, name);
   }
+  await page.goto(`${calcUrl}/syllabus`);
+  await shoot(page, "m-syllabus-input");
+  await page.getByRole("radio", { name: "Paste text" }).click();
+  await page.getByLabel("Syllabus text").fill(CALC_SYLLABUS);
+  await page.getByRole("button", { name: "Read syllabus" }).click();
+  await expect(page.getByRole("heading", { name: "Check what Rushd found" })).toBeVisible({ timeout: 20_000 });
+  await shoot(page, "m-syllabus-review");
+  // The sticky confirm bar must sit above the phone tab bar.
+  await page.getByRole("group", { name: "Quiz 3" }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${OUT}/m-syllabus-review-viewport.png` });
   await page.goto(`${calcUrl}/practice`);
   await page.getByRole("button", { name: "Start a practice session" }).click();
   await page.waitForURL((url) => url.href !== sessionUrl && /\/practice\/[^/]+$/.test(url.pathname));

@@ -1,0 +1,42 @@
+AP Chemistry — Course Syllabus
+Fall 2026
+Teacher: Ms. Alvarez
+Room 214 · alvarez@example.org
+
+Course Description
+AP Chemistry is a second-year course equivalent to a first-year college general chemistry course.
+Students should expect about 5 hours of homework each week.
+
+Learning Objectives
+By the end of this course, students will be able to:
+• Explain the structure of atoms and how it determines periodic trends
+• Use stoichiometry to predict the amounts of reactants and products
+• Design and carry out laboratory investigations safely
+• Apply equilibrium and thermodynamics to predict whether a reaction occurs
+
+Units
+1. Atomic Structure and Properties
+2. Molecular and Ionic Compound Structure
+3. Intermolecular Forces and Properties
+4. Chemical Reactions
+5. Kinetics
+6. Thermodynamics
+7. Equilibrium
+
+Important Dates
+- Unit 1 Test: Sept 18
+- Lab 1: Separation of a Mixture — report due 9/25
+- Unit 2 Test: October 9
+- Lab 2 report due 10/23
+- Unit 3 Quiz: Oct 30
+- Midterm Exam: Thursday, December 10
+- Unit 4 Test: TBA
+
+Grading
+Tests 45%
+Labs 25%
+Homework 10%
+Midterm Exam 10%
+Final Exam 10%
+
+Late work: assignments turned in late lose 10% per day, up to three days.

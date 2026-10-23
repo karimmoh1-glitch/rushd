@@ -24,6 +24,8 @@ export interface ExamRowData extends ExamInput {
   className: string;
   classColor: string;
   pulse?: number | null;
+  /** Added by the student from their syllabus import. */
+  fromSyllabus?: boolean;
 }
 
 export function ExamRow({
@@ -68,6 +70,11 @@ export function ExamRow({
               {days < 0 && (
                 <Badge variant="secondary" className="shrink-0">
                   Past
+                </Badge>
+              )}
+              {data.fromSyllabus && (
+                <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
+                  From syllabus
                 </Badge>
               )}
             </div>

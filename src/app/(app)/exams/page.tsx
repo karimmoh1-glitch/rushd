@@ -23,6 +23,7 @@ interface ExamRecord {
   priority: ExamRowData["priority"];
   notes: string | null;
   weightPercent: number | null;
+  importOrigin: "SYLLABUS" | null;
   class: { name: string; color: string };
 }
 
@@ -40,6 +41,7 @@ function toRowData(exam: ExamRecord, pulse: number | null): ExamRowData {
     weightPercent: exam.weightPercent,
     className: exam.class.name,
     classColor: exam.class.color,
+    fromSyllabus: exam.importOrigin === "SYLLABUS",
   };
 }
 
@@ -80,6 +82,7 @@ export default async function ExamsPage() {
         priority: true,
         notes: true,
         weightPercent: true,
+        importOrigin: true,
         class: { select: { name: true, color: true } },
       },
     }),

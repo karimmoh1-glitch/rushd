@@ -103,6 +103,37 @@ test("main screens have no axe violations in light or dark", async ({ browser })
     await check("session summary");
     await page.goto(`${courseUrl}/mistakes`);
     await check("mistakes");
+    // Syllabus import: the input, the review (with a source open and a flagged row), the summary, the saved syllabus.
+    await page.goto(`${courseUrl}/syllabus`);
+    await page.getByRole("heading", { name: "Import your syllabus" }).waitFor();
+    await check("syllabus import");
+    await page.getByRole("radio", { name: "Paste text" }).click();
+    await page.getByLabel("Syllabus text").fill(
+      [
+        "AP Chemistry Syllabus",
+        "Teacher: Ms. Rivera",
+        "Learning Objectives",
+        "• Use stoichiometry to predict amounts of products",
+        "Schedule",
+        "Week 1: Atomic structure",
+        "Week 2: Stoichiometry",
+        "Lab 1 report due December 3, 2027",
+        "Unit 1 Test: TBA",
+        "Grading",
+        "Tests 50%",
+        "Labs 50%",
+      ].join("\n"),
+    );
+    await page.getByRole("button", { name: "Read syllabus" }).click();
+    await page.getByRole("heading", { name: "Check what Rushd found" }).waitFor({ timeout: 20_000 });
+    await page.getByRole("group", { name: "Lab 1 report" }).getByRole("button", { name: "Show source" }).click();
+    await check("syllabus review");
+    await page.getByRole("button", { name: "Confirm and add" }).click();
+    await page.getByRole("heading", { name: "Syllabus imported" }).waitFor({ timeout: 20_000 });
+    await check("syllabus summary");
+    await page.getByRole("link", { name: "Read the saved syllabus" }).click();
+    await page.getByText("From your syllabus, imported by you", { exact: false }).waitFor();
+    await check("syllabus material");
     await page.goto("/mastery");
     await check("mastery");
     // Today and the schedule with learning data on them: the readiness

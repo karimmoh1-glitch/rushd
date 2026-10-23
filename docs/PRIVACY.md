@@ -20,6 +20,13 @@ implemented, for engineering decisions, not the student-facing copy.
   in-memory for a single extraction call, discarded immediately after. See
   `docs/AI_ARCHITECTURE.md`. No screenshot ever touches disk or a database
   row.
+- **Uploaded syllabus files are never persisted.** A PDF, .docx, or text
+  file is read in memory on the server (`src/lib/syllabus/extract-text.ts`)
+  and dropped. Only the extracted text is kept, and only if the student
+  confirms the import: it is saved as a `SYLLABUS` course material on their
+  own course (visible to them and their tutor, deletable with the course or
+  account). Preview writes nothing the student owns; the analytics events
+  (`syllabus_import_started/_previewed/_confirmed`) carry counts only.
 - No phone number, address, or payment info (the product is free).
 - No ad-tracking, no third-party analytics pixels, no data broker
   integrations.
@@ -27,7 +34,8 @@ implemented, for engineering decisions, not the student-facing copy.
 ## Third parties data reaches
 
 - **Anthropic** (when `ANTHROPIC_API_KEY` is configured): quick-add text
-  and, once shipped, screenshot images, for the single API call that
+  syllabus text (up to 40,000 characters, only when AI is configured), and,
+  once shipped, screenshot images, for the single API call that
   extracts/parses them. Subject to Anthropic's own data handling terms.
   Nothing else is ever sent — no bulk export, no other student's data.
 - No other third party receives student data. No analytics SaaS, no email

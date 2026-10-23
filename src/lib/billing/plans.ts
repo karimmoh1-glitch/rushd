@@ -3,7 +3,7 @@
 // terms), so heavy use never costs more than the plan earns.
 
 export type PlanId = "FREE" | "PLUS" | "PRO";
-export type AiFeature = "tutor_message" | "photo_assessment" | "draft_review" | "quick_add" | "screenshot_import" | "practice_questions";
+export type AiFeature = "tutor_message" | "photo_assessment" | "draft_review" | "quick_add" | "screenshot_import" | "practice_questions" | "syllabus_import";
 
 export interface Plan {
   id: PlanId;
@@ -77,6 +77,7 @@ export const FEATURE_LABEL: Record<AiFeature, string> = {
   quick_add: "Quick add",
   screenshot_import: "Screenshot import",
   practice_questions: "Generated practice questions",
+  syllabus_import: "Syllabus import",
 };
 
 /** Features with a per-plan monthly count. The two small extraction

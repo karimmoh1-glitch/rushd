@@ -31,6 +31,7 @@ than throwing. Callers always have a deterministic path forward:
 |---|---|---|
 | Quick-add | Haiku, tool-calling for structured output | Regex-based parser (`src/lib/ai/fallback-parse.ts`) — always succeeds |
 | Screenshot import | Vision model, tool-calling, structured extraction | No deterministic OCR fallback exists; the app falls back to *manual entry* (the existing Assignment dialog), not a broken feature |
+| Syllabus import | Haiku, tool-calling (`extractSyllabus`, metered as `syllabus_import`); every item quotes its source line, and `src/lib/syllabus/normalize-ai.ts` checks each quote and date against the text (unfound course details are dropped, other unfound items are flagged and excluded by default) | Rules-based parser (`src/lib/syllabus/parse.ts`) — the default path while AI is off; the student reviews every row before anything is saved |
 
 ## Validation
 

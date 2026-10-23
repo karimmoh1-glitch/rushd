@@ -12,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CourseHeader, getCourseHeader } from "./course-header";
 import { LearningSummary } from "./learning-summary";
+import { SyllabusOutlineSchema } from "@/lib/syllabus/types";
 
 export const metadata: Metadata = { title: "Course" };
 export const maxDuration = 60;
@@ -104,7 +105,7 @@ export default async function ClassPage({
   if (!course) notFound();
   const canvas = course.canvasCourses[0] ?? null;
 
-  const [openAssignments, upcomingExams, openCount, weekSessions, modules, pages, assignments, announcements, hits, learning] = await Promise.all([
+  const [openAssignments, upcomingExams, openCount, weekSessions, modules, pages, assignments, announcements, hits, learning, syllabi] = await Promise.all([
     db.assignment.findMany({
       where: { userId: user.id, classId: course.id, status: { not: "COMPLETED" }, canvasRemovedAt: null },
       orderBy: { dueAt: "asc" },
@@ -161,7 +162,14 @@ export default async function ClassPage({
     }),
     q?.trim() ? searchMaterials(user.id, { query: q, classId: course.id, limit: 10 }) : Promise.resolve(null),
     getCourseLearning(user.id, course.id, now),
+    db.courseMaterial.findMany({
+      where: { userId: user.id, classId: course.id, kind: "SYLLABUS" },
+      orderBy: { postedAt: "desc" },
+      take: 3,
+      select: { id: true, title: true, postedAt: true, outline: true },
+    }),
   ]);
+  const latestOutline = syllabi[0] ? (SyllabusOutlineSchema.safeParse(syllabi[0].outline).data ?? null) : null;
 
   // Module items point at pages and assignments by Canvas id. Find the
   // in-app reader page for each one, where Rushd has the text.
@@ -226,6 +234,44 @@ export default async function ClassPage({
         <CourseWork rows={work} tz={timeZone} now={now} />
         {learning && <LearningSummary courseId={course.id} learning={learning} />}
       </div>
+
+      <section aria-labelledby="syllabus-heading" className="space-y-3">
+        <h2 id="syllabus-heading" className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Syllabus
+        </h2>
+        {syllabi.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No syllabus yet.{" "}
+            <Link href={`/courses/${course.id}/syllabus`} className="font-medium text-foreground underline underline-offset-4">
+              Import your syllabus
+            </Link>{" "}
+            to add its dates, assessments and topics. You check every row before anything is saved.
+          </p>
+        ) : (
+          <>
+            <ul className="divide-y divide-border border-y border-border">
+              {syllabi.map((syllabus) => (
+                <li key={syllabus.id} className="flex items-baseline justify-between gap-3 py-2.5">
+                  <Link href={`/courses/${course.id}/material/${syllabus.id}`} className="min-w-0 truncate text-sm font-medium underline-offset-4 hover:underline">
+                    {syllabus.title}
+                  </Link>
+                  {syllabus.postedAt && <span className="shrink-0 text-xs text-muted-foreground">Imported {shortDate(syllabus.postedAt)}</span>}
+                </li>
+              ))}
+            </ul>
+            {latestOutline && latestOutline.objectives.length > 0 && (
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-semibold">Learning objectives, from your syllabus</h3>
+                <ul className="list-disc space-y-1 pl-5 text-sm">
+                  {latestOutline.objectives.slice(0, 6).map((objective) => (
+                    <li key={objective}>{objective}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       <div>
         <h2 className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Materials</h2>

@@ -11,7 +11,7 @@ import { RubricTable } from "@/components/course/rubric-table";
 
 export const metadata: Metadata = { title: "Course material" };
 
-const KIND_LABEL = { PAGE: "Page", ASSIGNMENT: "Assignment", ANNOUNCEMENT: "Announcement", MODULE_ITEM: "Module item" } as const;
+const KIND_LABEL = { PAGE: "Page", ASSIGNMENT: "Assignment", ANNOUNCEMENT: "Announcement", MODULE_ITEM: "Module item", SYLLABUS: "Syllabus" } as const;
 
 export default async function MaterialPage({ params }: { params: Promise<{ id: string; materialId: string }> }) {
   const user = await requireUser();
@@ -21,7 +21,7 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
 
   let postedText: string | null = null;
   if (material.postedAt) {
-    const verb = material.kind === "ASSIGNMENT" ? "Due" : "Posted";
+    const verb = material.kind === "ASSIGNMENT" ? "Due" : material.kind === "SYLLABUS" ? "Imported" : "Posted";
     const date = formatDateInZone(material.postedAt, user.profile?.timezone, { month: "short", day: "numeric", year: "numeric" });
     postedText = ` · ${verb} ${date}`;
   }
@@ -37,7 +37,7 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
           {KIND_LABEL[material.kind]}
           {postedText}
           {material.pointsPossible != null && ` · ${material.pointsPossible} points`}
-          {" · Mirrored from Canvas"}
+          {material.kind === "SYLLABUS" ? " · From your syllabus, imported by you" : " · Mirrored from Canvas"}
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           {material.url && (
@@ -54,10 +54,43 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
           )}
         </div>
       </header>
+      {material.outline && (material.outline.objectives.length > 0 || material.outline.grading.length > 0) && (
+        <div className="grid gap-6 sm:grid-cols-2">
+          {material.outline.objectives.length > 0 && (
+            <section aria-labelledby="objectives-heading" className="space-y-2">
+              <h2 id="objectives-heading" className="text-base font-semibold">
+                Learning objectives
+              </h2>
+              <ul className="list-disc space-y-1 pl-5 text-sm">
+                {material.outline.objectives.map((objective) => (
+                  <li key={objective}>{objective}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {material.outline.grading.length > 0 && (
+            <section aria-labelledby="grading-heading" className="space-y-2">
+              <h2 id="grading-heading" className="text-base font-semibold">
+                Grading breakdown
+              </h2>
+              <ul className="divide-y divide-border text-sm">
+                {material.outline.grading.map((entry) => (
+                  <li key={entry.label} className="flex justify-between gap-3 py-1.5">
+                    <span>{entry.label}</span>
+                    <span className="tabular-nums text-muted-foreground">{entry.weight}%</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
       {material.body ? (
         <div className="whitespace-pre-wrap text-[15px] leading-relaxed">{material.body}</div>
       ) : (
-        <p className="text-sm text-muted-foreground">Canvas didn&apos;t provide any text for this item.</p>
+        <p className="text-sm text-muted-foreground">
+          {material.kind === "SYLLABUS" ? "No text was saved for this syllabus." : "Canvas didn't provide any text for this item."}
+        </p>
       )}
       {material.kind === "ASSIGNMENT" && (
         <section aria-labelledby="rubric-heading" className="space-y-3">

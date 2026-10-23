@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { ASSESSMENT_TYPES } from "@/lib/syllabus/types";
 
 // What both the AI parser and the fallback parser produce. AI output is
 // validated against this before it is shown or saved.
@@ -45,3 +46,48 @@ export const GeneratedQuestionListSchema = z.object({
   questions: z.array(GeneratedQuestionSchema).min(1).max(5),
 });
 export type GeneratedQuestion = z.infer<typeof GeneratedQuestionSchema>;
+
+// Syllabus extraction (src/lib/syllabus). Every item quotes the line it came
+// from; src/lib/syllabus/normalize-ai.ts checks each quote against the real
+// text before anything is shown, and drops course details it can't find.
+const SyllabusQuote = z.string().trim().min(1).max(400);
+const AiCourseField = z.object({ value: z.string().trim().min(1).max(200), source: SyllabusQuote }).nullable();
+export const SyllabusAiSchema = z.object({
+  course: z.object({
+    title: AiCourseField,
+    code: AiCourseField,
+    instructor: AiCourseField,
+    term: AiCourseField,
+    termStart: AiCourseField,
+    termEnd: AiCourseField,
+  }),
+  assessments: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(160),
+        type: z.enum(ASSESSMENT_TYPES),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+        time: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+        dateText: z.string().trim().max(80).nullable(),
+        weight: z.number().min(0).max(100).nullable(),
+        confidence: ConfidenceSchema,
+        note: z.string().trim().max(200).nullable(),
+        source: SyllabusQuote,
+      }),
+    )
+    .max(120),
+  topics: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(120),
+        parentTitle: z.string().trim().max(120).nullable(),
+        week: z.number().int().min(1).max(60).nullable(),
+        confidence: ConfidenceSchema,
+        source: SyllabusQuote,
+      }),
+    )
+    .max(120),
+  objectives: z.array(z.object({ text: z.string().trim().min(1).max(300), source: SyllabusQuote })).max(40),
+  grading: z.array(z.object({ label: z.string().trim().min(1).max(120), weight: z.number().min(0).max(100), source: SyllabusQuote })).max(30),
+});
+export type SyllabusAiResult = z.infer<typeof SyllabusAiSchema>;

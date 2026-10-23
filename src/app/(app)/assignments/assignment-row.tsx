@@ -35,6 +35,8 @@ export interface AssignmentRowData extends AssignmentInput {
   pulse?: number | null;
   estimatedByRushd?: boolean;
   canvasRemoved?: boolean;
+  /** Added by the student from their syllabus import. */
+  fromSyllabus?: boolean;
 }
 
 /** The small badge that says where the assignment came from. */
@@ -116,6 +118,11 @@ export function AssignmentRow({
               {showSourceBadge && (
                 <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
                   {sourceBadgeLabel(data.source, data.canvasRemoved)}
+                </Badge>
+              )}
+              {data.fromSyllabus && (
+                <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
+                  From syllabus
                 </Badge>
               )}
             </div>
