@@ -1,0 +1,38 @@
+PHYS 151: Introductory Mechanics
+Spring 2027 Syllabus
+Instructor: Dr. Priya Raman (raman@example.edu)
+Lectures: Mon/Wed/Fri 10:00–10:50, Hall B
+Classes begin January 11, 2027. Last day of classes: April 30, 2027.
+
+Course Learning Outcomes
+Students who complete this course will be able to:
+1. Describe motion in one and two dimensions using vectors
+2. Apply Newton's laws to systems with friction and tension
+3. Use conservation of energy and momentum to solve problems
+4. Analyze rotational motion and torque
+
+Grading
+Problem sets 25%
+Labs 15%
+Midterm exam 25%
+Final exam 35%
+
+Weekly Schedule (tentative)
+Week 1 (Jan 11–15): Kinematics in one dimension; Read Ch. 1–2
+Week 2 (Jan 18–22): Vectors and motion in two dimensions; Problem Set 1 due Fri
+Week 3: Newton's laws of motion
+  • Free-body diagrams
+  • Friction and tension
+  Problem Set 2 due Friday
+Week 4: Work and kinetic energy; Lab 1: Measuring g — report due Thursday
+Week 5: Conservation of energy; Problem Set 3 due Fri
+Week 6: Momentum and collisions
+Week 7: Review; Midterm exam Wednesday, Feb 24, 7:00 pm
+Week 8: Rotational kinematics; Problem Set 4 due Fri
+Week 9: Torque and rotational dynamics
+Week 10: Spring break — no class
+Week 11: Angular momentum; Lab 2 report due Thursday
+Week 12: Oscillations; Problem Set 5 due Fri
+Week 13: Gravitation
+Week 14: Review
+Final exam: TBA (finals week)
