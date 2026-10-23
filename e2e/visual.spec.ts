@@ -2,9 +2,14 @@ import { test, expect, type Page } from "@playwright/test";
 
 // UI-freeze check, run on demand: VISUAL=1 npx playwright test e2e/visual.spec.ts
 // Public pages are compared pixel for pixel (the browser clock is frozen so
-// the client-side planners give the same output). Signed-in pages render
-// server-side text that changes with the time of day, so for those we compare
-// the structure instead: every element's tag, classes, and labels, in order.
+// the client-side planners give the same output). Signed-in pages are
+// compared by structure: every element's tag, classes, and labels, in order.
+// Their content depends on the time of day (what's left of today's study
+// time, which blocks are already past), so the signed-in run freezes BOTH
+// clocks at the same instant: the browser's (page.clock) and the server's,
+// through the test-only rushd-test-now cookie (src/lib/time/now.ts; honored
+// only by a non-production server started with RUSHD_TEST_CLOCK=1, which
+// playwright.config.ts does).
 
 test.skip(!process.env.VISUAL, "visual checks run only with VISUAL=1");
 
@@ -68,6 +73,9 @@ async function structure(page: Page): Promise<string> {
 test("signed-in pages keep the same structure", async ({ browser }) => {
   test.setTimeout(180_000);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "dark", reducedMotion: "reduce", extraHTTPHeaders: { "x-forwarded-for": "127.0.0.2" } });
+  await context.clock.setFixedTime(FROZEN);
+  const port = Number(process.env.E2E_PORT ?? 3000);
+  await context.addCookies([{ name: "rushd-test-now", value: FROZEN.toISOString(), url: `http://localhost:${port}` }]);
   const page = await context.newPage();
   await page.goto("/signup");
   await expect(await structure(page)).toMatchSnapshot("struct_signup.txt");
@@ -90,6 +98,11 @@ test("signed-in pages keep the same structure", async ({ browser }) => {
   expect(await structure(page)).toMatchSnapshot("struct_onboarding_done.txt");
   await page.getByRole("button", { name: "Go to my plan" }).click();
   await page.waitForURL(/dashboard/);
+  // The server must be on the frozen clock too, or the comparison below means nothing.
+  await expect(
+    page.getByText(FROZEN.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), { exact: true }),
+    "Start the dev server with RUSHD_TEST_CLOCK=1 (playwright.config.ts does this when it starts the server)",
+  ).toBeVisible();
   expect(await structure(page)).toMatchSnapshot("struct_today_empty.txt");
   await page.getByLabel("Your assignments and tests this week, one per line").fill("Biology: lab report in 2 days 2h\nBiology quiz in 4 days");
   await page.getByRole("button", { name: "Add and rank" }).click();

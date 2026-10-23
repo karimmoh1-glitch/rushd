@@ -76,8 +76,11 @@ async function changeContext(
     nextIds.length
       ? db.exam.findMany({ where: { userId, id: { in: nextIds }, createdAt: { gt: since } }, select: { id: true } })
       : Promise.resolve([]),
+    // Active overrides: a skip for today, or a "not this week" still in force.
+    // (An override that was already in place before the previous plan didn't
+    // move anything between the two, so it never gets credit for a change.)
     db.planOverride.findMany({
-      where: { userId, createdAt: { gt: since } },
+      where: { userId, localDate: { gte: today } },
       select: { kind: true, assignmentId: true, examId: true, classId: true, localDate: true },
     }),
     db.studySession.findMany({
@@ -134,10 +137,14 @@ export async function recordPlanSnapshot(userId: string, trigger: PlanTrigger, o
   }
   const changes = diffPlans(previous?.snapshot ?? null, next, ctx);
 
+  // Plans are ordered by generatedAt. Keep that strictly increasing per student,
+  // even when two regenerations land on the same millisecond (or a pinned test clock).
+  const generatedAt =
+    previousRow && previousRow.generatedAt.getTime() >= now.getTime() ? new Date(previousRow.generatedAt.getTime() + 1) : now;
   const created = await db.plan.create({
     data: {
       userId,
-      generatedAt: now,
+      generatedAt,
       horizonDays: DEFAULT_HORIZON_DAYS,
       trigger: effectiveTrigger,
       snapshot: next as unknown as Prisma.InputJsonValue,

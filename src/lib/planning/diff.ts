@@ -189,13 +189,14 @@ export function diffPlans(previous: PlanSnapshot | null, next: PlanSnapshot, ctx
   const keys = [...new Set([...prevByKey.keys(), ...nextByKey.keys()])].sort();
 
   // The work that set things in motion, for ripple sentences.
-  let pushTitle: string | undefined;
-  let freeTitle: string | undefined;
-  for (const key of keys) {
-    const item = nextByKey.get(key) ?? prevByKey.get(key)!;
-    if (!pushTitle && (ctx.added?.has(key) || ctx.skipped?.has(key) || ctx.notThisWeek?.has(key) || missed.has(key))) pushTitle = item.title;
-    if (!freeTitle && (ctx.completed?.has(key) || ctx.skipped?.has(key) || ctx.notThisWeek?.has(key))) freeTitle = item.title;
-  }
+  // The student's own action first (a skip or deferral), then new work, then a missed block.
+  const titleOf = (key: string) => (nextByKey.get(key) ?? prevByKey.get(key))!.title;
+  const firstKey = (test: (key: string) => boolean | undefined) => keys.find((key) => test(key));
+  const pushKey =
+    firstKey((k) => ctx.skipped?.has(k) || ctx.notThisWeek?.has(k)) ?? firstKey((k) => ctx.added?.has(k)) ?? firstKey((k) => missed.has(k));
+  const freeKey = firstKey((k) => ctx.completed?.has(k) || ctx.skipped?.has(k) || ctx.notThisWeek?.has(k));
+  const pushTitle = pushKey ? titleOf(pushKey) : undefined;
+  const freeTitle = freeKey ? titleOf(freeKey) : undefined;
 
   const changes: PlanChange[] = [];
   for (const key of keys) {
@@ -303,6 +304,7 @@ export function describeChange(change: PlanChange, today: string): string {
       const missedDay = change.causeDate ? possessiveDay(change.causeDate, today) : "an earlier";
       if (change.type === "added" || change.fromDate === null) return `Put ${title} back on your plan ${onDay} because you missed ${missedDay} block.`;
       if (change.type === "more_time") return `Gave ${title} ${minutesPhrase(delta)} more this week because you missed ${missedDay} block.`;
+      if (change.type === "removed") return `You missed ${missedDay} block for ${title}, and there's no time left for it before it's due.`;
       return `Moved ${title} to ${on} because you missed ${missedDay} block.`;
     }
     case "completed":
@@ -320,7 +322,7 @@ export function describeChange(change: PlanChange, today: string): string {
       if (change.type === "less_time") return `Trimmed ${title} prep by ${minutesPhrase(delta)}: your latest practice looks solid.`;
       return `Moved ${title} to ${on} after your latest practice.`;
     case "made_room":
-      if (change.type === "removed") return `${title} no longer fits this week; it moved out to make room for ${change.causeTitle}.`;
+      if (change.type === "removed") return `${title} has no time this week now: it went to ${change.causeTitle}.`;
       return `Moved ${title} to ${on} to make room for ${change.causeTitle}.`;
     case "freed_time":
       return `Moved ${title} up to ${on}, into time freed by ${change.causeTitle}.`;

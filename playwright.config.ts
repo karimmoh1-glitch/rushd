@@ -28,5 +28,9 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: true,
     timeout: 60_000,
+    // Lets a test pin the server clock for its own requests with the
+    // rushd-test-now cookie (src/lib/time/now.ts). Ignored by any production
+    // build. If you start the dev server yourself for e2e, set it there too.
+    env: { RUSHD_TEST_CLOCK: "1" },
   },
 });

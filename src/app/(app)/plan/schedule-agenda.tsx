@@ -228,7 +228,7 @@ export function ScheduleAgenda({ days, dayOptions }: { days: AgendaDay[]; dayOpt
           animate={{ opacity: 1, y: 0 }}
           // Days fade in one after another (capped so later days don't wait long).
           transition={{ duration: 0.4, delay: reduceMotion ? 0 : Math.min(index, 6) * 0.04, ease: [0.16, 1, 0.3, 1] }}
-          className="grid gap-3 md:grid-cols-[10rem_1fr] md:gap-6"
+          className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6"
           aria-label={`${day.label}, ${day.dateLabel}`}
         >
           <div className="md:pt-2">

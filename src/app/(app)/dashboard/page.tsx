@@ -538,7 +538,7 @@ export default async function DashboardPage() {
         />
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem] lg:items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem] lg:items-start">
         <div className="space-y-6">
           <Panel
             id="today-heading"

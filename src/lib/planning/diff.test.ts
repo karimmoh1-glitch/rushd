@@ -77,6 +77,18 @@ describe("diffPlans", () => {
     expect(describeChange(change, TODAY)).toBe("Moved Chem lab report to today because you missed Tuesday's block.");
   });
 
+  it("says plainly when a missed block leaves no time, and when a ripple pushes work out of the week", () => {
+    const before = snap("2026-10-21", [item("lab", "Lab report", [["2026-10-21", 60], [TODAY, 60]]), item("dbq", "DBQ outline", [["2026-10-23", 60]])]);
+    const after = snap(TODAY, [item("ps", "Problem set", [["2026-10-23", 60]])]);
+    const lines = summarizeChanges(
+      diffPlans(before, after, { trigger: "block_skipped", today: TODAY, skipped: new Set(["assignment:ps"]) }),
+      TODAY,
+      5,
+    );
+    expect(lines).toContain("You missed yesterday's block for Lab report, and there's no time left for it before it's due.");
+    expect(lines).toContain("DBQ outline has no time this week now: it went to Problem set.");
+  });
+
   it("a block that was studied isn't missed, and neither is finished work", () => {
     const before = snap("2026-10-21", [item("lab", "Chem lab report", [["2026-10-21", 60]]), item("quiz", "Quiz prep", [["2026-10-21", 30]])]);
     const ctx = { trigger: "new_day" as const, today: TODAY, studied: new Set(["assignment:lab@2026-10-21"]), completed: new Set(["assignment:quiz"]) };
