@@ -2,7 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import * as z from "zod";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { requireUserOrThrow } from "@/lib/auth/dal";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
@@ -18,8 +20,6 @@ import {
 } from "@/lib/validation/settings";
 import { presetToWindows } from "@/lib/planning/availability-presets";
 import { regeneratePlanSnapshot } from "@/server/actions/plans";
-import * as z from "zod";
-import { Prisma } from "@/generated/prisma/client";
 import { MAX_INSTRUCTIONS, TutorPreferencesSchema, sanitizeInstructions } from "@/lib/tutor/preferences";
 
 export type ActionResult = { error: string } | { success: true };
@@ -63,16 +63,15 @@ export async function updateAvailability(
 
   const windows = parsed.data.presetIds.flatMap(presetToWindows);
 
-  await db.$transaction([
+  // Replace all of the student's windows in one transaction.
+  const steps: Prisma.PrismaPromise<Prisma.BatchPayload>[] = [
     db.studyAvailability.deleteMany({ where: { userId: user.id } }),
-    ...(windows.length > 0
-      ? [
-          db.studyAvailability.createMany({
-            data: windows.map((w) => ({ userId: user.id, ...w })),
-          }),
-        ]
-      : []),
-  ]);
+  ];
+  if (windows.length > 0) {
+    const rows = windows.map((window) => ({ userId: user.id, ...window }));
+    steps.push(db.studyAvailability.createMany({ data: rows }));
+  }
+  await db.$transaction(steps);
 
   await regeneratePlanSnapshot(user.id);
   revalidatePath("/settings");

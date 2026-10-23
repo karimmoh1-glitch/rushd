@@ -21,28 +21,23 @@ export async function completeOnboarding(
   }
   const data = parsed.data;
 
+  // The same fields whether the profile is new or already exists.
+  const profileFields = {
+    displayName: data.displayName,
+    grade: data.grade,
+    school: data.school || null,
+    timezone: data.timezone,
+    goals: data.goals || null,
+    primaryChallenge: data.primaryChallenge,
+    // Left undefined when not chosen, so Prisma keeps the default/current value.
+    preferredSessionMinutes: data.preferredSessionMinutes || undefined,
+  };
+
   await db.$transaction(async (tx) => {
     await tx.profile.upsert({
       where: { userId: user.id },
-      create: {
-        userId: user.id,
-        displayName: data.displayName,
-        grade: data.grade,
-        school: data.school || null,
-        timezone: data.timezone,
-        goals: data.goals || null,
-        primaryChallenge: data.primaryChallenge,
-        ...(data.preferredSessionMinutes ? { preferredSessionMinutes: data.preferredSessionMinutes } : {}),
-      },
-      update: {
-        displayName: data.displayName,
-        grade: data.grade,
-        school: data.school || null,
-        timezone: data.timezone,
-        goals: data.goals || null,
-        primaryChallenge: data.primaryChallenge,
-        ...(data.preferredSessionMinutes ? { preferredSessionMinutes: data.preferredSessionMinutes } : {}),
-      },
+      create: { userId: user.id, ...profileFields },
+      update: profileFields,
     });
 
     if (data.availability.length > 0) {
