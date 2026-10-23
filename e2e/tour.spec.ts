@@ -17,6 +17,7 @@ async function shoot(page: Page, name: string) {
 test("design tour", async ({ browser }) => {
   test.setTimeout(240_000);
   const context = await browser.newContext({ viewport: { width: 1360, height: 900 }, colorScheme: "dark", extraHTTPHeaders: { "x-forwarded-for": "127.0.0.4" } });
+  if (process.env.TOUR_THEME) await context.addInitScript((theme) => window.localStorage.setItem("theme", theme), process.env.TOUR_THEME);
   const page = await context.newPage();
 
   await page.goto("/");

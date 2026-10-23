@@ -5,6 +5,8 @@ test("main screens have no axe violations in light or dark", async ({ browser })
   test.setTimeout(180_000);
   for (const colorScheme of ["dark", "light"] as const) {
     const context = await browser.newContext({ colorScheme, extraHTTPHeaders: { "x-forwarded-for": "127.0.0.4" } });
+    // The app defaults to dark and keeps the student's choice in localStorage (next-themes).
+    await context.addInitScript((theme) => window.localStorage.setItem("theme", theme), colorScheme);
     const page = await context.newPage();
     await page.goto("/");
     await page.waitForTimeout(1500);
