@@ -40,6 +40,30 @@ itself in the app and falls back gracefully until its keys are set.
   run instead.
 - Cron jobs fire within their scheduled hour, not on the minute (Hobby plan).
 
+## Before the next deploy
+
+The `course-details-slice` branch (commit 6286184) adds migration
+`20261023090000_course_details` (one enum, seven nullable columns on "Class").
+**Apply it to production before deploying that code**; the course pages read
+the new columns. It is additive and keeps all existing data:
+
+```bash
+node --env-file=.env scripts/apply-migrations.mjs          # dry run: lists it
+node --env-file=.env scripts/apply-migrations.mjs --apply  # applies it
+```
+
+## Local database for development and tests
+
+Tests and local development no longer need production's database:
+
+```bash
+scripts/setup-local-db.sh rushd_test      # build a local database
+node scripts/local-db-proxy.mjs           # keep running in another tab
+export DATABASE_URL=postgresql://$(whoami)@localhost:5432/rushd_test LOCAL_DB_PROXY=localhost:5433
+npx vitest run --config vitest.integration.config.mts
+npx playwright test                       # after: set -a; . ./.env; set +a; then the export above
+```
+
 ## Checklist, in order of impact
 
 - [ ] `ANTHROPIC_API_KEY`: turns on the tutor, quizzes, photo checks, draft review, and the invite bonus (section 1)
