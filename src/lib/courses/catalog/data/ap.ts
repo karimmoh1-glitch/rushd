@@ -3,32 +3,33 @@ import { records, type Row } from "./build";
 
 // Advanced Placement: College Board's own course list (all subjects).
 // Prerequisite notes paraphrase College Board's published "recommended
-// prerequisites" and appear only where College Board lists them; anything not
-// noted here is unknown, not "none". Source: SOURCES["college-board-ap"].
+// prerequisites" (checked against apstudents.collegeboard.org course pages
+// on 2026-10-23) and appear only where checked; anything not noted here is
+// unknown, not "none". Source: SOURCES["college-board-ap"].
 
-const UPDATED = "2026-10-22";
+const UPDATED = "2026-10-23";
 
 function ap(subject: Subject, rows: Row[]): CatalogRecord[] {
   return records({ prefix: "ap", subject, levels: ["AP"], kind: "official", source: "college-board-ap", provider: "College Board", updatedAt: UPDATED }, rows);
 }
 
-const FOUR_YEARS_MATH = "College Board recommends four years of college-prep math first: algebra, geometry, trigonometry, analytic geometry, and elementary functions.";
+const CALC_PREP = "College Board recommends completed coursework in algebra, geometry, trigonometry, analytic geometry, and elementary functions.";
 
 export const AP_COURSES: CatalogRecord[] = [
   ...ap("Math", [
-    { title: "AP Calculus AB", aliases: ["Calc AB", "AB Calc", "AP Calc AB"], descriptor: "Limits, derivatives, integrals", prerequisites: { note: FOUR_YEARS_MATH } },
-    { title: "AP Calculus BC", aliases: ["Calc BC", "BC Calc", "AP Calc BC"], descriptor: "AB topics plus series, parametric and polar", prerequisites: { note: FOUR_YEARS_MATH } },
-    { title: "AP Precalculus", aliases: ["AP Precalc", "AP Pre-calc"], prerequisites: { note: "College Board recommends Algebra 1, Geometry, and Algebra 2 (or Integrated Math 1–3) first." } },
-    { title: "AP Statistics", aliases: ["AP Stats", "AP Stat"], prerequisites: { note: "College Board recommends a second-year course in high school algebra first." } },
+    { title: "AP Calculus AB", aliases: ["Calc AB", "AB Calc", "AP Calc AB"], descriptor: "Limits, derivatives, integrals", prerequisites: { note: CALC_PREP } },
+    { title: "AP Calculus BC", aliases: ["Calc BC", "BC Calc", "AP Calc BC"], descriptor: "AB topics plus series, parametric and polar", prerequisites: { note: `${CALC_PREP.slice(0, -1)}, plus familiarity with sequences, series, and polar equations.` } },
+    { title: "AP Precalculus", aliases: ["AP Precalc", "AP Pre-calc"], prerequisites: { note: "College Board recommends completed introductory algebra and geometry." } },
+    { title: "AP Statistics", aliases: ["AP Stats", "AP Stat"], prerequisites: { note: "College Board recommends a first-year algebra course." } },
   ]),
   ...ap("Computer Science", [
-    { title: "AP Computer Science A", aliases: ["AP CSA", "APCSA", "AP Comp Sci A", "AP Java"], descriptor: "Programming in Java", prerequisites: { note: "College Board recommends first-year high school algebra first." } },
+    { title: "AP Computer Science A", aliases: ["AP CSA", "APCSA", "AP Comp Sci A", "AP Java"], descriptor: "Programming in Java", prerequisites: { note: "College Board recommends high school courses in English and algebra." } },
     { title: "AP Computer Science Principles", aliases: ["AP CSP", "APCSP", "AP Comp Sci Principles"], descriptor: "Broad intro to computing" },
   ]),
   ...ap("Science", [
     { title: "AP Biology", aliases: ["AP Bio", "APBio"], prerequisites: { note: "College Board recommends high school biology and chemistry first." } },
     { title: "AP Chemistry", aliases: ["AP Chem", "APChem"], prerequisites: { note: "College Board recommends high school chemistry and Algebra 2 first." } },
-    { title: "AP Environmental Science", aliases: ["APES", "AP Enviro", "AP Env Sci"], prerequisites: { note: "College Board recommends two years of high school lab science (life and physical) and a year of algebra first." } },
+    { title: "AP Environmental Science", aliases: ["APES", "AP Enviro", "AP Env Sci"], prerequisites: { note: "College Board recommends two years of high school lab science (life and physical science) and at least one year of algebra." } },
     { title: "AP Physics 1: Algebra-Based", aliases: ["AP Physics 1", "AP Phys 1"], descriptor: "Algebra-based mechanics", prerequisites: { note: "College Board recommends completing Geometry and taking Algebra 2 at the same time or before." } },
     { title: "AP Physics 2: Algebra-Based", aliases: ["AP Physics 2", "AP Phys 2"], descriptor: "Algebra-based fluids, E&M, optics, modern", prerequisites: { note: "College Board recommends AP Physics 1 or a comparable course, and precalculus completed or in progress.", courseIds: ["ap-physics-1-algebra-based"] } },
     { title: "AP Physics C: Mechanics", aliases: ["AP Physics C Mech", "AP Phys C Mechanics", "Physics C Mechanics"], descriptor: "Calculus-based mechanics", prerequisites: { note: "College Board recommends calculus, completed or taken at the same time." } },
@@ -67,6 +68,9 @@ export const AP_COURSES: CatalogRecord[] = [
     { title: "AP 3-D Art and Design", aliases: ["AP 3D Art", "AP 3D Design"] },
     { title: "AP Drawing", aliases: ["AP Studio Art Drawing"] },
   ]),
+  // AP Career Kickstart
+  ...ap("Business", [{ title: "AP Business with Personal Finance", aliases: ["AP Business", "AP Personal Finance"] }]),
+  ...ap("Technology", [{ title: "AP Cybersecurity", aliases: ["AP Cyber"] }]),
   ...ap("Capstone", [
     { title: "AP Seminar", aliases: ["AP Capstone Seminar"] },
     { title: "AP Research", aliases: ["AP Capstone Research"], prerequisites: { note: "College Board requires AP Seminar first.", courseIds: ["ap-seminar"] } },

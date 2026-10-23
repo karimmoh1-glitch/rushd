@@ -27,8 +27,8 @@ Code: `src/lib/courses/catalog/` (records, levels, sources, search) and `src/com
 
 | Source | What we take from it | Kind |
 | --- | --- | --- |
-| College Board AP course list (`college-board-ap`) | Official AP course names (all 40), and recommended prerequisites, paraphrased, only where College Board lists them | official |
-| IB Diploma Programme subjects (`ib-dp-subjects`) | Subject names by group, at SL, HL, or both as offered; the core (TOK, EE) | official |
+| College Board AP course list (`college-board-ap`) | Official AP course names (all 42 on the AP course index, incl. Career Kickstart), and recommended prerequisites, paraphrased from the course pages (checked 2026-10-23) | official |
+| IB Diploma Programme subjects (`ib-dp-subjects`) | Subject names by group, at SL, HL, or both as offered; the core (TOK, EE). ibo.org blocked automated fetches on 2026-10-23, so this list still needs a manual check against the IB's subject pages | official |
 | Rushd generic templates (`rushd-template`) | Common course names (middle school through graduate and professional) | template |
 
 - **Templates carry nothing institution-specific**: no codes, no prerequisites, no syllabi, no provider. A test (`catalog.test.ts`) fails if one does. "Data Structures" or "Organic Chemistry I" is a name, not a curriculum: the student's school, code, term, and real work make it theirs, and the UI says so ("Generic template").
