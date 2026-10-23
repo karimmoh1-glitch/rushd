@@ -27,42 +27,75 @@ const PRESETS = [
   { id: "weekend-afternoon", label: "Weekend afternoons" },
 ];
 
-function hours(m: number) {
-  const h = Math.round((m / 60) * 10) / 10;
-  return `${h}h`;
+type Session = PlanResult["sessions"][number];
+
+// ---------- Plain helper functions ----------
+
+/** Minutes as hours with one decimal, like "1.5h". */
+function formatHours(minutes: number): string {
+  const hours = Math.round((minutes / 60) * 10) / 10;
+  return `${hours}h`;
 }
+
+/** Runs the real scheduler on the typed list, or returns null if nothing could be read. */
+function makeStudyPlan(text: string, presetIds: string[], sessionMinutes: number): PlanResult | null {
+  const now = new Date();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const items = parseWeek(text, now);
+  if (items.length === 0) return null;
+
+  // Plan from today up to the last due date (at most 60 days).
+  const today = localDateKey(now, timeZone);
+  const lastDueDay = items.map((item) => localDateKey(new Date(item.dueAt), timeZone)).sort().at(-1)!;
+  const horizonDays = Math.min(60, Math.max(1, diffDateKeys(today, lastDueDay) + 1));
+
+  return generatePlan({
+    workItems: toWorkItems(items),
+    availability: presetIds.flatMap(presetToWindows),
+    now,
+    timeZone,
+    horizonDays,
+    preferences: { preferredSessionMinutes: sessionMinutes, maxDailyMinutes: 240, breakMinutes: 10 },
+  });
+}
+
+/** Sessions grouped by day, earliest day first. */
+function groupByDay(sessions: Session[]): [string, Session[]][] {
+  const byDay = new Map<string, Session[]>();
+  for (const session of sessions) {
+    byDay.set(session.scheduledDate, [...(byDay.get(session.scheduledDate) ?? []), session]);
+  }
+  return [...byDay.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+}
+
+/** Items that still have minutes left over, as a readable list. */
+function shortfallText(plan: PlanResult): string {
+  const short = Object.entries(plan.unscheduledMinutesByItem ?? {}).filter(([, minutes]) => minutes > 0);
+  const titleOf = (id: string) => plan.scored.find((s) => s.item.id === id)?.item.title ?? "";
+  return short.map(([id, minutes]) => `${titleOf(id)} (${formatHours(minutes)} short)`).join(", ");
+}
+
+// ---------- Main component ----------
 
 export function ExamPlanner() {
   const [text, setText] = useState(EXAMPLE);
   const [presets, setPresets] = useState<string[]>(["weekday-evening", "weekend-afternoon"]);
-  const [session, setSession] = useState(60);
-  const [plan, setPlan] = useState<{ result: PlanResult; tz: string } | null>(null);
+  const [sessionMinutes, setSessionMinutes] = useState(60);
+  const [plan, setPlan] = useState<PlanResult | null>(null);
 
   function build() {
-    const now = new Date();
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const items = parseWeek(text, now);
-    if (items.length === 0) return;
-    const today = localDateKey(now, tz);
-    const lastKey = items.map((i) => localDateKey(new Date(i.dueAt), tz)).sort().at(-1)!;
-    const horizonDays = Math.min(60, Math.max(1, diffDateKeys(today, lastKey) + 1));
-    const result = generatePlan({
-      workItems: toWorkItems(items),
-      availability: presets.flatMap(presetToWindows),
-      now,
-      timeZone: tz,
-      horizonDays,
-      preferences: { preferredSessionMinutes: session, maxDailyMinutes: 240, breakMinutes: 10 },
-    });
-    setPlan({ result, tz });
+    const result = makeStudyPlan(text, presets, sessionMinutes);
+    if (!result) return;
+    setPlan(result);
     countOnce("#exam-plan");
   }
 
-  const byDay = new Map<string, PlanResult["sessions"]>();
-  for (const s of plan?.result.sessions ?? []) byDay.set(s.scheduledDate, [...(byDay.get(s.scheduledDate) ?? []), s]);
-  const days = [...byDay.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
-  const short = Object.entries(plan?.result.unscheduledMinutesByItem ?? {}).filter(([, m]) => m > 0);
-  const titleOf = (id: string) => plan?.result.scored.find((s) => s.item.id === id)?.item.title ?? "";
+  function togglePreset(id: string) {
+    if (presets.includes(id)) setPresets(presets.filter((x) => x !== id));
+    else setPresets([...presets, id]);
+  }
+
+  const shortfall = plan ? shortfallText(plan) : "";
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
@@ -94,7 +127,7 @@ export function ExamPlanner() {
                   key={p.id}
                   type="button"
                   aria-pressed={on}
-                  onClick={() => setPresets(on ? presets.filter((x) => x !== p.id) : [...presets, p.id])}
+                  onClick={() => togglePreset(p.id)}
                   className={cn(
                     "rounded-full border px-3 py-1.5 text-sm transition-colors",
                     on ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground",
@@ -109,7 +142,7 @@ export function ExamPlanner() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             Sessions of
-            <select value={session} onChange={(e) => setSession(Number(e.target.value))} className="rounded-lg border border-border bg-background px-2 py-1 text-foreground">
+            <select value={sessionMinutes} onChange={(e) => setSessionMinutes(Number(e.target.value))} className="rounded-lg border border-border bg-background px-2 py-1 text-foreground">
               {[30, 45, 60, 90].map((m) => (
                 <option key={m} value={m}>
                   {m} min
@@ -126,34 +159,10 @@ export function ExamPlanner() {
 
       {plan && (
         <div className="mt-6 border-t border-border pt-5" aria-live="polite">
-          {presets.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Pick at least one study time above.</p>
-          ) : days.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing to schedule yet. Prep starts two weeks before each date; add dates that are coming up.</p>
-          ) : (
-            <ol className="space-y-4">
-              {days.map(([day, sessions]) => (
-                <li key={day} className="grid gap-2 sm:grid-cols-[8.5rem_1fr]">
-                  <p className="text-sm font-medium">{formatDateKey(day, { weekday: "short", month: "short", day: "numeric" })}</p>
-                  <ul className="space-y-1.5">
-                    {sessions.map((s, i) => (
-                      <li key={i} className="flex items-center gap-3 text-sm">
-                        <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.item.classColor }} />
-                        <span className="min-w-0 flex-1 truncate">{s.item.title}</span>
-                        <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-                          {s.startMinute !== undefined ? `${formatMinuteOfDay(s.startMinute)} · ` : ""}
-                          {s.scheduledMinutes}m
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ol>
-          )}
-          {short.length > 0 && (
+          <PlanDays plan={plan} hasPresets={presets.length > 0} />
+          {shortfall !== "" && (
             <p className="mt-5 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-sm">
-              Doesn&apos;t fit yet: {short.map(([id, m]) => `${titleOf(id)} (${hours(m)} short)`).join(", ")}. Add study times or start earlier.
+              Doesn&apos;t fit yet: {shortfall}. Add study times or start earlier.
             </p>
           )}
           <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -166,5 +175,39 @@ export function ExamPlanner() {
         </div>
       )}
     </div>
+  );
+}
+
+/** The plan day by day, or a short note when there is nothing to show. */
+function PlanDays({ plan, hasPresets }: { plan: PlanResult; hasPresets: boolean }) {
+  if (!hasPresets) {
+    return <p className="text-sm text-muted-foreground">Pick at least one study time above.</p>;
+  }
+
+  const days = groupByDay(plan.sessions);
+  if (days.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nothing to schedule yet. Prep starts two weeks before each date; add dates that are coming up.</p>;
+  }
+
+  return (
+    <ol className="space-y-4">
+      {days.map(([day, sessions]) => (
+        <li key={day} className="grid gap-2 sm:grid-cols-[8.5rem_1fr]">
+          <p className="text-sm font-medium">{formatDateKey(day, { weekday: "short", month: "short", day: "numeric" })}</p>
+          <ul className="space-y-1.5">
+            {sessions.map((s, i) => (
+              <li key={i} className="flex items-center gap-3 text-sm">
+                <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.item.classColor }} />
+                <span className="min-w-0 flex-1 truncate">{s.item.title}</span>
+                <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                  {s.startMinute !== undefined ? `${formatMinuteOfDay(s.startMinute)} · ` : ""}
+                  {s.scheduledMinutes}m
+                </span>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ol>
   );
 }
