@@ -35,14 +35,15 @@ export async function checkRateLimit(
         "resetAt" = CASE WHEN "RateLimitBucket"."resetAt" <= ${now} THEN EXCLUDED."resetAt" ELSE "RateLimitBucket"."resetAt" END
       RETURNING "count", "resetAt"`;
     const row = rows[0];
+
+    // On about 2% of calls, clean up expired buckets in the background.
     if (Math.random() < 0.02) {
       void db.rateLimitBucket.deleteMany({ where: { resetAt: { lt: now } } }).catch(() => {});
     }
+
     if (!row || row.count <= max) return { allowed: true };
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.max(1, Math.ceil((new Date(row.resetAt).getTime() - now.getTime()) / 1000)),
-    };
+    const msUntilReset = new Date(row.resetAt).getTime() - now.getTime();
+    return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(msUntilReset / 1000)) };
   } catch (error) {
     // Fail open: a limiter outage must not lock every student out. The
     // underlying action still needs the database, so it fails on its own.

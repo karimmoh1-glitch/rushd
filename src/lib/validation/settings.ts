@@ -1,14 +1,6 @@
 import * as z from "zod";
 import { ACADEMIC_CHALLENGES } from "@/lib/validation/onboarding";
-
-function isValidTimeZone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { isValidTimeZone } from "@/lib/validation/time-zone";
 
 export const ProfileSettingsSchema = z.object({
   displayName: z.string().trim().min(1, "Enter a name.").max(60, "Name is too long (max 60 characters)."),

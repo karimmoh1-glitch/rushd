@@ -16,13 +16,11 @@ export const SignupSchema = z.object({
     .toUpperCase()
     .max(40)
     .nullish()
-    .transform((v) => (v ? v : undefined)),
+    // Treat an empty code the same as no code.
+    .transform((code) => code || undefined),
 });
 
 export const LoginSchema = z.object({
   email: z.email({ error: "Enter a valid email address." }).trim().toLowerCase(),
   password: z.string().min(1, { error: "Enter your password." }),
 });
-
-export type SignupInput = z.infer<typeof SignupSchema>;
-export type LoginInput = z.infer<typeof LoginSchema>;
