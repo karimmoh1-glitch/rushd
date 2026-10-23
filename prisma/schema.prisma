@@ -203,6 +203,12 @@ enum AssignmentSource {
   CALENDAR
 }
 
+// How a student-owned row got into Rushd when it came through an import the
+// student reviewed (the row is still MANUAL: no sync ever touches it).
+enum ImportOrigin {
+  SYLLABUS
+}
+
 model Assignment {
   id               String           @id @default(cuid())
   userId           String
@@ -239,6 +245,8 @@ model Assignment {
   // assignment rather than a number the student chose. Editing it flips this
   // off, and a sync never overwrites a student-chosen estimate.
   estimatedByRushd   Boolean          @default(false)
+  // Set when the student confirmed this row from their syllabus import.
+  importOrigin       ImportOrigin?
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   class          Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -257,16 +265,18 @@ model Assignment {
 }
 
 model Exam {
-  id          String   @id @default(cuid())
-  userId      String
-  classId     String
-  title       String
-  examAt      DateTime
-  prepMinutes Int      @default(120)
-  priority    Priority @default(MEDIUM)
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String        @id @default(cuid())
+  userId       String
+  classId      String
+  title        String
+  examAt       DateTime
+  prepMinutes  Int           @default(120)
+  priority     Priority      @default(MEDIUM)
+  notes        String?
+  // Set when the student confirmed this exam from their syllabus import.
+  importOrigin ImportOrigin?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   class          Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -615,6 +625,10 @@ enum CourseMaterialKind {
   PAGE
   ASSIGNMENT
   ANNOUNCEMENT
+  // The student's own syllabus, imported and confirmed by them (not from
+  // Canvas). canvasCourseId is the fixed marker "rushd:syllabus" and canvasId
+  // a hash of the text, so a Canvas content sync never touches these rows.
+  SYLLABUS
 }
 
 model CourseMaterial {
@@ -636,6 +650,7 @@ model CourseMaterial {
   pointsPossible Float?
   rubric         Json? // validated RubricCriterion[] (see src/lib/canvas/content.ts)
   assignmentId   String? // the Rushd Assignment this mirrors, for kind ASSIGNMENT
+  outline        Json? // kind SYLLABUS: the objectives and grading breakdown the student confirmed
   syncedAt       DateTime
   // Full-text index over title + body; a generated column maintained by
   // Postgres (see the migration), never written by the app.

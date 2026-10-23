@@ -533,11 +533,15 @@ function isTopicLike(text: string): boolean {
   return true;
 }
 
-export function parseSyllabus(input: string, options: ParseOptions): SyllabusDraft {
+/** How dates in this text should get their year: the course's term, the
+ * syllabus's own term dates, or a term it names. Also used to check AI output. */
+export function yearContextFor(input: string, options: ParseOptions): { ctx: YearContext; course: DraftCourse } {
   const text = normalizeSyllabusText(input);
   const lines = toLines(text);
-  const notes: string[] = [];
+  return contextFromLines(text, lines, options);
+}
 
+function contextFromLines(text: string, lines: Line[], options: ParseOptions): { ctx: YearContext; course: DraftCourse } {
   const header = lines.slice(0, 15).map((l) => l.text).join("\n");
   const docTerm = findDocTerm(header) ?? findDocTerm(text);
   const baseCtx: YearContext = {
@@ -547,7 +551,6 @@ export function parseSyllabus(input: string, options: ParseOptions): SyllabusDra
     docTerm,
     today: options.today,
   };
-  // Course details first: the syllabus's own term dates then help place everything else.
   const course = readCourse(lines, { ...baseCtx, termStart: options.termStart && options.termEnd ? options.termStart : null, termEnd: options.termStart && options.termEnd ? options.termEnd : null });
   const ctx: YearContext = { ...baseCtx };
   if (!(options.termStart && options.termEnd) && course.termStart && course.termEnd) {
@@ -557,7 +560,16 @@ export function parseSyllabus(input: string, options: ParseOptions): SyllabusDra
   } else if (!ctx.termEnd && ctx.termStart) {
     ctx.termEnd = addDaysToKey(ctx.termStart, 140);
   }
+  return { ctx, course };
+}
+
+export function parseSyllabus(input: string, options: ParseOptions): SyllabusDraft {
+  const text = normalizeSyllabusText(input);
+  const lines = toLines(text);
+  const notes: string[] = [];
+  const { ctx, course } = contextFromLines(text, lines, options);
   const anchor = findAnchor(lines, ctx, course, options);
+
 
   const assessments: (DraftAssessment & { key: string; order: number })[] = [];
   const topics: DraftTopic[] = [];

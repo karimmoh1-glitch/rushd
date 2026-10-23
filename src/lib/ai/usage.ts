@@ -18,6 +18,8 @@ const FEATURE_ESTIMATE_USD: Record<AiFeature, number> = {
   quick_add: 0.005,
   screenshot_import: 0.03,
   practice_questions: 0.08,
+  // Up to ~40k characters in, a long structured draft out (Haiku).
+  syllabus_import: 0.06,
 };
 
 /** A reservation older than this no longer blocks concurrency (its cost still counts). */

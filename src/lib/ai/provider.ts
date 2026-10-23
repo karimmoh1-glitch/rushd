@@ -1,5 +1,5 @@
 import "server-only";
-import type { GeneratedQuestion, QuickAddDraft } from "./schemas";
+import type { GeneratedQuestion, QuickAddDraft, SyllabusAiResult } from "./schemas";
 import type { ClassRef } from "./fallback-parse";
 
 export type Confidence = "high" | "medium" | "low";
@@ -78,6 +78,22 @@ export interface AIProvider {
     input: PracticeGenerationInput,
     onUsage?: (usage: CallUsage) => void,
   ): Promise<GeneratedQuestion[] | null>;
+
+  /** Assessments, schedule, topics and objectives from the student's own
+   * syllabus text, each with the line it came from. Null on any failure;
+   * the rules-based parser is the fallback. */
+  extractSyllabus(input: SyllabusExtractionInput, onUsage?: (usage: CallUsage) => void): Promise<SyllabusAiResult | null>;
+}
+
+export interface SyllabusExtractionInput {
+  /** The syllabus text, already capped in length. */
+  text: string;
+  courseName: string;
+  /** The course's term dates in Rushd (YYYY-MM-DD), if the student set them. */
+  termStart: string | null;
+  termEnd: string | null;
+  /** Today in the student's calendar (YYYY-MM-DD). */
+  today: string;
 }
 
 export interface PracticeGenerationInput {

@@ -2,11 +2,13 @@ import "server-only";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { readStoredRubric, type RubricCriterion } from "@/lib/canvas/content";
+import { SyllabusOutlineSchema, type SyllabusOutline } from "@/lib/syllabus/types";
 
 // Search and read mirrored course content. Every query is scoped to the
 // session's userId, so an id from a model or client is always re-checked for ownership.
 
-export type MaterialKind = "MODULE_ITEM" | "PAGE" | "ASSIGNMENT" | "ANNOUNCEMENT";
+// SYLLABUS rows are the student's own imported syllabus (src/lib/syllabus), not Canvas.
+export type MaterialKind = "MODULE_ITEM" | "PAGE" | "ASSIGNMENT" | "ANNOUNCEMENT" | "SYLLABUS";
 
 export interface MaterialHit {
   id: string;
@@ -28,6 +30,8 @@ export interface MaterialDetail {
   postedAt: Date | null;
   pointsPossible: number | null;
   rubric: RubricCriterion[] | null;
+  /** Imported syllabi: the objectives and grading breakdown the student confirmed. */
+  outline: SyllabusOutline | null;
 }
 
 const MAX_TERMS = 12;
@@ -87,6 +91,7 @@ export async function getMaterial(
       postedAt: true,
       pointsPossible: true,
       rubric: true,
+      outline: true,
       classId: true,
       class: { select: { name: true } },
     },
@@ -103,6 +108,7 @@ export async function getMaterial(
     postedAt: row.postedAt,
     pointsPossible: row.pointsPossible,
     rubric: readStoredRubric(row.rubric),
+    outline: row.kind === "SYLLABUS" ? (SyllabusOutlineSchema.safeParse(row.outline).data ?? null) : null,
   };
 }
 
