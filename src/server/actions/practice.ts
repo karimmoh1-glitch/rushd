@@ -9,7 +9,7 @@ import { requireUserOrThrow } from "@/lib/auth/dal";
 import { logEvent } from "@/lib/analytics/log-event";
 import { anthropic } from "@/lib/ai/client";
 import { failAi, reserveAi, settleAi } from "@/lib/ai/usage";
-import { validateImageFiles } from "@/lib/upload/validate-image";
+import { validateImageFiles, type ValidateImagesResult } from "@/lib/upload/validate-image";
 import { runAssessment } from "@/lib/practice/assessment";
 import { getMastery } from "@/lib/practice/load";
 import { recommendResources } from "@/lib/resources/recommend";
@@ -27,13 +27,51 @@ const Fields = z.object({
   classId: z.string().max(64).optional(),
 });
 
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** The class id, but only if this user owns it; otherwise null. */
+async function ownedClassIdOrNull(userId: string, classId: string | undefined): Promise<string | null> {
+  if (!classId) {
+    return null;
+  }
+  const ownedClass = await db.class.findFirst({ where: { id: classId, userId }, select: { id: true } });
+  if (!ownedClass) {
+    return null;
+  }
+  return ownedClass.id;
+}
+
+/** The topic's own class if the user still has it, else their oldest active class. */
+async function findClassForReview(userId: string, topicClassId: string | null) {
+  if (topicClassId) {
+    const topicClass = await db.class.findFirst({
+      where: { id: topicClassId, userId, archived: false },
+      select: { id: true },
+    });
+    if (topicClass) {
+      return topicClass;
+    }
+  }
+  return db.class.findFirst({
+    where: { userId, archived: false },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+}
+
 /** One practice check. The photo is validated in memory, sent to the model,
  * and discarded; only the structured result and topic evidence are kept. */
 export async function submitPracticeCheck(formData: FormData): Promise<PracticeResult> {
   const user = await requireUserOrThrow();
   if (!aiEnabled) return { status: "error", error: "Practice checks aren't available on this server yet." };
 
-  const files = formData.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
+  // Browsers send an empty file when no photo was picked; skip those.
+  const files: File[] = [];
+  for (const entry of formData.getAll("images")) {
+    if (entry instanceof File && entry.size > 0) {
+      files.push(entry);
+    }
+  }
   const fields = Fields.safeParse({
     text: formData.get("text") || undefined,
     context: formData.get("context") || undefined,
@@ -45,12 +83,17 @@ export async function submitPracticeCheck(formData: FormData): Promise<PracticeR
     return { status: "error", error: "Add a photo of your work, or type at least a question and your answer." };
   }
   if (files.length > MAX_IMAGES) return { status: "error", error: `Up to ${MAX_IMAGES} photos per check.` };
-  const validation = files.length ? await validateImageFiles(files) : { ok: true as const, images: [] };
-  if (!validation.ok) return { status: "error", error: validation.error };
 
-  const classId = rawClassId
-    ? ((await db.class.findFirst({ where: { id: rawClassId, userId: user.id }, select: { id: true } }))?.id ?? null)
-    : null;
+  // Typed-only checks have no photos to validate.
+  let validation: ValidateImagesResult = { ok: true, images: [] };
+  if (files.length > 0) {
+    validation = await validateImageFiles(files);
+  }
+  if (!validation.ok) return { status: "error", error: validation.error };
+  const images = validation.images;
+
+  // A class id the user doesn't own is dropped, not trusted.
+  const classId = await ownedClassIdOrNull(user.id, rawClassId);
 
   const reservation = await reserveAi(user.id, "photo_assessment");
   if (!reservation.ok) return { status: "error", error: reservation.message };
@@ -60,7 +103,7 @@ export async function submitPracticeCheck(formData: FormData): Promise<PracticeR
     const { reconciled, usage } = await runAssessment(
       anthropic(),
       {
-        images: validation.images,
+        images,
         text: text ?? null,
         context: context ?? null,
         preferences: compactPreferences(readPreferences(profile?.tutorPreferences), profile?.tutorInstructions),
@@ -77,12 +120,23 @@ export async function submitPracticeCheck(formData: FormData): Promise<PracticeR
     await settleAi(reservation.usageId, usage.model, usage);
 
     const { result } = reconciled;
-    result.resources = await recommendResources(result.gaps.length ? result.gaps.map((g) => g.concept) : result.searchPhrases);
+
+    // Recommend resources for the gaps found, or for the search phrases if none.
+    let searchTerms = result.searchPhrases;
+    if (result.gaps.length > 0) {
+      searchTerms = result.gaps.map((gap) => gap.concept);
+    }
+    result.resources = await recommendResources(searchTerms);
+
+    let source = "text";
+    if (images.length > 0) {
+      source = "photo";
+    }
     const created = await db.assessment.create({
       data: {
         userId: user.id,
         classId,
-        source: validation.images.length ? "photo" : "text",
+        source,
         subject: result.subject,
         topic: result.topic,
         topicKey: reconciled.topicKey,
@@ -105,7 +159,7 @@ export async function submitPracticeCheck(formData: FormData): Promise<PracticeR
       },
       select: { id: true },
     });
-    await logEvent(user.id, "assessment_completed", { items: result.gradable, confidence: result.confidence, source: validation.images.length ? "photo" : "text" });
+    await logEvent(user.id, "assessment_completed", { items: result.gradable, confidence: result.confidence, source });
     revalidatePath("/practice");
     revalidatePath("/mastery");
     revalidatePath("/dashboard");
@@ -137,11 +191,10 @@ export async function scheduleTopicReview(topicKey: string): Promise<{ success: 
   const user = await requireUserOrThrow();
   const key = z.string().min(1).max(80).safeParse(topicKey);
   if (!key.success) return { error: "Invalid topic." };
-  const topic = (await getMastery(user.id)).find((t) => t.topicKey === key.data);
+  const mastery = await getMastery(user.id);
+  const topic = mastery.find((t) => t.topicKey === key.data);
   if (!topic) return { error: "Topic not found." };
-  const cls =
-    (topic.classId && (await db.class.findFirst({ where: { id: topic.classId, userId: user.id, archived: false }, select: { id: true } }))) ||
-    (await db.class.findFirst({ where: { userId: user.id, archived: false }, orderBy: { createdAt: "asc" }, select: { id: true } }));
+  const cls = await findClassForReview(user.id, topic.classId);
   if (!cls) return { error: "Add a course first so the review has somewhere to live." };
   const title = `Review: ${topic.topicLabel}`.slice(0, 200);
   const existing = await db.assignment.findFirst({ where: { userId: user.id, title, status: { not: "COMPLETED" } }, select: { id: true } });
@@ -151,7 +204,7 @@ export async function scheduleTopicReview(topicKey: string): Promise<{ success: 
       userId: user.id,
       classId: cls.id,
       title,
-      dueAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      dueAt: new Date(Date.now() + THREE_DAYS_MS),
       estimatedMinutes: 30,
       notes: `Added from your mastery results (${topic.estimate}% estimate, ${topic.confidence} confidence).`,
     },

@@ -13,14 +13,8 @@ export interface QuickAddResult {
   usedAI: boolean;
 }
 
-/**
- * Parses free-text quick-add input into a structured draft. Tries AI first
- * if configured; always falls back to the deterministic parser if AI is
- * unavailable, errors, or returns something that fails validation — the
- * caller always gets a usable draft, never an error. The draft is only ever
- * a *preview*: nothing is written to the database here, matching "always
- * show the parsed result before committing it."
- */
+/** Turns quick-add text into a draft for the student to review. Tries AI first,
+ * then falls back to the simple parser, so it always returns a draft. Saves nothing. */
 export async function parseQuickAdd(text: string): Promise<QuickAddResult> {
   const user = await requireUserOrThrow();
   const trimmed = text.trim();
@@ -35,11 +29,19 @@ export async function parseQuickAdd(text: string): Promise<QuickAddResult> {
     // Over quota or AI paused: the deterministic parser still works.
     const reservation = await reserveAi(user.id, "quick_add", now);
     if (reservation.ok) {
+      // The provider reports token usage through this callback, if it answered at all.
       let usage: CallUsage | undefined;
-      const aiDraft = await aiProvider.parseQuickAdd(trimmed, classes, now, (u) => (usage = u));
-      if (usage) await settleAi(reservation.usageId, usage.model, usage);
-      else await failAi(reservation.usageId, "no_response");
-      if (aiDraft) return { draft: aiDraft, usedAI: true };
+      const aiDraft = await aiProvider.parseQuickAdd(trimmed, classes, now, (callUsage) => {
+        usage = callUsage;
+      });
+      if (usage) {
+        await settleAi(reservation.usageId, usage.model, usage);
+      } else {
+        await failAi(reservation.usageId, "no_response");
+      }
+      if (aiDraft) {
+        return { draft: aiDraft, usedAI: true };
+      }
     }
   }
 
