@@ -13,11 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
-  // See login/page.tsx — same relocation from the removed src/proxy.ts.
+  // Signed-in visitors skip the auth pages (see login/page.tsx).
   const user = await getCurrentUser();
   if (user) redirect("/dashboard");
-  const invited = !!(await cookies()).get(REF_COOKIE)?.value;
-  const fromTry = (await searchParams).from === "try";
+
+  const cookieStore = await cookies();
+  const invited = Boolean(cookieStore.get(REF_COOKIE)?.value);
+  const params = await searchParams;
+  const fromTry = params.from === "try";
 
   return (
     <Card>

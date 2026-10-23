@@ -2,12 +2,8 @@
 
 import { useEffect } from "react";
 
-// Last-resort boundary — only fires if the root layout itself throws (rare;
-// (app)/error.tsx and (marketing)/error.tsx-equivalents catch everything
-// else). Must render its own <html>/<body> since it replaces the root
-// layout when active. Kept dependency-free and inline-styled on purpose —
-// if the root layout is broken, nothing that layout provides (fonts, theme,
-// Tailwind) can be trusted to still work.
+// Last-resort boundary for when the root layout itself throws. It replaces that layout,
+// so it renders its own <html>/<body> with inline styles: fonts, theme and Tailwind may be broken.
 export default function GlobalError({
   error,
   reset,

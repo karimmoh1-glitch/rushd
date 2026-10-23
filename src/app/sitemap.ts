@@ -19,5 +19,10 @@ const PAGES: { path: string; priority: number; changeFrequency: "weekly" | "mont
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://therushd.com";
-  return PAGES.map((p) => ({ url: `${base}${p.path}`, lastModified: new Date("2026-10-22"), changeFrequency: p.changeFrequency, priority: p.priority }));
+  return PAGES.map((page) => ({
+    url: `${base}${page.path}`,
+    lastModified: new Date("2026-10-22"),
+    changeFrequency: page.changeFrequency,
+    priority: page.priority,
+  }));
 }

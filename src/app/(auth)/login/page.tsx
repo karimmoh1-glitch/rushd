@@ -9,12 +9,8 @@ export const metadata: Metadata = {
 };
 
 export default async function LoginPage() {
-  // Bounce already-signed-in visitors away from the auth pages. Previously
-  // done in src/proxy.ts; moved here because Next.js 16 always runs proxy.ts
-  // in the Node.js runtime, which Cloudflare's Workers deployment doesn't
-  // support — see docs/ARCHITECTURE.md. The real authorization boundary was
-  // always the DAL (src/lib/auth/dal.ts), never the proxy, so this is a pure
-  // relocation, not a security change.
+  // Signed-in visitors skip the auth pages. This lives here, not in proxy.ts, because the
+  // Workers deployment can't run proxy.ts (see docs/ARCHITECTURE.md). Real auth is in the DAL.
   const user = await getCurrentUser();
   if (user) redirect("/dashboard");
 

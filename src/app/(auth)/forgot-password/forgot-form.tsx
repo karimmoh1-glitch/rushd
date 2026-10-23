@@ -10,7 +10,20 @@ export function ForgotForm() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
-  const [pending, start] = useTransition();
+  const [pending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await requestPasswordReset({ email });
+      if ("error" in result) {
+        setError(result.error);
+      } else {
+        setSent(true);
+      }
+    });
+  }
 
   if (sent) {
     return (
@@ -21,18 +34,7 @@ export function ForgotForm() {
     );
   }
   return (
-    <form
-      className="space-y-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        setError(null);
-        start(async () => {
-          const r = await requestPasswordReset({ email });
-          if ("error" in r) setError(r.error);
-          else setSent(true);
-        });
-      }}
-    >
+    <form className="space-y-3" onSubmit={handleSubmit}>
       <Label htmlFor="forgot-email">Email</Label>
       <Input id="forgot-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
       {error && (
