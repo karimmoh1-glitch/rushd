@@ -84,8 +84,8 @@ export function AssignmentRow({
 
   return (
     <>
-      <Card>
-        <CardContent className="flex items-center gap-3 py-4">
+      <Card className="py-0 transition-shadow duration-200 hover:ring-foreground/15">
+        <CardContent className="flex items-center gap-3 py-3 sm:py-3.5">
           <Checkbox
             checked={completed}
             onCheckedChange={(checked) => toggleComplete(checked === true)}

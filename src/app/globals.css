@@ -211,6 +211,14 @@
   }
   html {
     @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* No double-tap-to-zoom delay on controls. */
+  a,
+  button,
+  [role="button"],
+  label {
+    touch-action: manipulation;
   }
   h1,
   h2,
@@ -747,4 +755,31 @@
 }
 .course-ink {
   color: color-mix(in oklch, var(--course, var(--foreground)) 70%, var(--foreground));
+}
+
+/* --- Session finished: the path draws to its end, then the node lights --- */
+@media (prefers-reduced-motion: no-preference) {
+  .done-line {
+    stroke-dasharray: 1;
+    animation: done-line 420ms var(--ease-out-strong) 80ms both;
+  }
+  .done-node {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: done-node 260ms var(--ease-out-strong) 420ms both;
+  }
+}
+@keyframes done-line {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes done-node {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
 }

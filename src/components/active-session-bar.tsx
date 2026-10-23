@@ -174,31 +174,38 @@ function SessionBar({
   onComplete: () => void;
   onAbandon: () => void;
 }) {
-  const clock = formatClock(secondsSince(session.startedAt));
+  const elapsedSeconds = secondsSince(session.startedAt);
+  const clock = formatClock(elapsedSeconds);
+  // How much of the planned time has passed, drawn as a hairline along the bottom.
+  const progress = Math.min(1, elapsedSeconds / Math.max(60, session.plannedMinutes * 60));
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-accent/60 px-4 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div
+      style={{ ["--course" as string]: session.classColor }}
+      className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-20 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border bg-card/90 px-4 py-2.5 shadow-(--shadow-card) backdrop-blur-md sm:-mx-6 sm:px-6 md:top-0 lg:-mx-8 lg:px-8"
+    >
       <div className="flex min-w-0 items-center gap-3">
-        <span
-          aria-hidden="true"
-          className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary"
-        />
+        <span aria-hidden="true" className="pulse-live h-2 w-2 shrink-0 rounded-full bg-signal" />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{session.title}</p>
           <p className="truncate text-xs text-muted-foreground">
-            {session.className} · Planned {formatDuration(session.plannedMinutes)}
+            <span className="course-ink">{session.className}</span> · Planned {formatDuration(session.plannedMinutes)}
           </p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <span className="font-mono text-sm tabular-nums">{clock}</span>
-        <Button size="sm" onClick={onComplete} disabled={pending}>
+      <div className="flex shrink-0 items-center gap-2">
+        {/* The clock is computed from the current time, so server and browser legitimately differ by a second. */}
+        <span className="mr-1 font-mono text-sm tabular-nums" suppressHydrationWarning>
+          {clock}
+        </span>
+        <Button size="sm" variant="signal" onClick={onComplete} disabled={pending}>
           Complete
         </Button>
         <Button size="sm" variant="ghost" onClick={onAbandon} disabled={pending}>
           Abandon
         </Button>
       </div>
+      <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px origin-left bg-signal/70" style={{ transform: `scaleX(${progress})` }} suppressHydrationWarning />
     </div>
   );
 }
@@ -322,7 +329,9 @@ function SummaryDialog({ summary, onClose }: { summary: CompletedSessionSummary 
     <Dialog open={summary !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
+          <DoneMark />
           <DialogTitle>Done</DialogTitle>
+          {summary && <DialogDescription className="truncate">{summary.title}</DialogDescription>}
         </DialogHeader>
         {summary && <SummaryDetails summary={summary} />}
         <DialogFooter>
@@ -330,6 +339,24 @@ function SummaryDialog({ summary, onClose }: { summary: CompletedSessionSummary 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** The path drawn to its end and the saffron node lit: a finished session. Still under reduced motion. */
+function DoneMark() {
+  return (
+    <svg viewBox="0 0 32 32" className="mb-1 h-10 w-10 overflow-visible text-foreground" aria-hidden="true">
+      <path
+        className="done-line"
+        d="M5 24.5C9.5 21.5 12 18.5 17 16.5S23.5 11 25.5 8.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        pathLength={1}
+      />
+      <circle className="done-node" cx="25.5" cy="8.5" r="3.8" fill="var(--signal)" />
+    </svg>
   );
 }
 

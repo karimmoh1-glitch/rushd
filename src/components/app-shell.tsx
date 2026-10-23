@@ -156,7 +156,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
+      <div className="sticky top-0 z-20 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center justify-between border-b border-border bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
         <Link href="/dashboard" aria-label="Rushd, Today">
           <RushdWordmark />
         </Link>

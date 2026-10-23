@@ -11,7 +11,6 @@ import { Suspense } from "react";
 import { BONUS_MESSAGES } from "@/lib/referral/constants";
 import { GlyphContext, GlyphGap, GlyphNext } from "@/components/marketing/benefit-glyphs";
 import { PageViewBeacon } from "@/components/marketing/page-view-beacon";
-import { PLANS } from "@/lib/billing/plans";
 import type { RankRow } from "@/components/marketing/rank-slider";
 import { SAMPLE_NOW, SAMPLE_TZ, sampleRanking } from "@/components/marketing/sample-week";
 import { explainScore } from "@/lib/planning/explain";
@@ -37,6 +36,14 @@ const BENEFITS = [
   { glyph: GlyphContext, title: "It knows your actual classes", text: "Help comes from your own assignments, notes, and rubrics, not a generic answer from the internet." },
   { glyph: GlyphGap, title: "It finds what you don't understand", text: "It quizzes you and checks photos of your work, then names the exact gap behind the mistakes." },
   { glyph: GlyphNext, title: "It tells you what to do next", text: "The right video, practice, or lesson for that gap, planned around your deadlines." },
+];
+
+// Each line restates a commitment from the privacy policy (/privacy); nothing here goes beyond it.
+const TRUST = [
+  { title: "Read-only connections", text: "Rushd reads Canvas and Teams. It never posts, submits, or messages anyone. Disconnecting deletes the stored token right away." },
+  { title: "No ads, no data sales", text: "No ad trackers or third-party analytics. Student data is never bought or sold." },
+  { title: "Locked down by default", text: "Passwords are hashed, Canvas tokens are encrypted, and every action checks that the data is yours first." },
+  { title: "Yours to delete", text: "Delete any course, assignment, or your whole account from Settings, whenever you want." },
 ];
 
 function shortDue(date: Date): string {
@@ -93,7 +100,7 @@ export default function LandingPage() {
             <div className="intro-line mt-8 flex flex-wrap items-center gap-x-6 gap-y-3" style={{ ["--i" as string]: 3.5 }}>
               <Link
                 href="/signup"
-                className="group inline-flex h-12 items-center gap-2.5 rounded-full bg-primary pl-5 pr-6 text-[15px] font-medium text-primary-foreground transition-[background-color,transform] duration-200 hover:bg-primary/90 active:translate-y-px"
+                className="group inline-flex h-12 items-center gap-2.5 rounded-full bg-primary pl-5 pr-6 text-[15px] font-medium text-primary-foreground transition-[background-color,transform] duration-150 ease-(--ease-out-strong) hover:bg-primary/90 active:scale-[0.97]"
               >
                 <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal transition-transform duration-300 group-hover:scale-125" />
                 Start learning free
@@ -183,44 +190,58 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 4. Conversion */}
-      <section className="border-t border-border bg-secondary/50">
-        <div className="mx-auto grid max-w-6xl items-end gap-12 px-4 py-24 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:px-8">
-          <div>
-            <h2 className="reveal-rise font-display text-4xl font-medium leading-[1.08] tracking-[-0.02em] sm:text-5xl">
-              Start with what&apos;s due this week.
-            </h2>
-            <p className="reveal-rise mt-4 max-w-md text-lg text-muted-foreground">Setup takes about a minute. Connect Canvas now or later.</p>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Free tools, no account:{" "}
-              <Link href="/tools/rank-my-week" className="font-medium text-foreground underline-offset-4 hover:underline">Rank my homework</Link>
-              {" · "}
-              <Link href="/tools/exam-study-planner" className="font-medium text-foreground underline-offset-4 hover:underline">Plan my finals</Link>
-            </p>
-            <Link
-              href="/signup"
-              className="group mt-8 inline-flex h-12 items-center gap-2.5 rounded-full bg-primary pl-5 pr-6 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal transition-transform duration-300 group-hover:scale-125" />
-              Start learning free
-            </Link>
-          </div>
-          <div>
-            <ul className="divide-y divide-border border-y border-border">
-              {[PLANS.FREE, PLANS.PLUS, PLANS.PRO].map((p) => (
-                <li key={p.id} className="flex items-baseline justify-between gap-4 py-3.5">
-                  <span>
-                    <span className="font-medium">{p.name}</span>
-                    <span className="ml-2 text-sm text-muted-foreground">{p.tagline}</span>
-                  </span>
-                  <span className="shrink-0 font-mono text-sm tabular-nums">{p.priceMonthlyUsd ? `$${p.priceMonthlyUsd}/mo` : "Free"}</span>
+      {/* 4. Trust: what Rushd does with a student's work */}
+      <section aria-labelledby="trust-heading" className="border-t border-border">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+            <div>
+              <h2 id="trust-heading" className="reveal-rise font-display text-[2.1rem] font-medium leading-[1.08] tracking-[-0.02em] sm:text-5xl">
+                Your schoolwork stays yours.
+              </h2>
+              <p className="reveal-rise mt-5 max-w-md text-lg text-muted-foreground">
+                Rushd is for students 13 and older, and asks only for what the product needs: no phone number, no address.
+              </p>
+              <Link href="/privacy" className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium underline-offset-4 hover:underline">
+                Read the privacy policy <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+            <ul className="reveal-stagger grid gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border sm:grid-cols-2">
+              {TRUST.map((t, i) => (
+                <li key={t.title} className="bg-background p-6" style={{ ["--i" as string]: i }}>
+                  <span aria-hidden="true" className="block h-1.5 w-1.5 rounded-full bg-signal" />
+                  <h3 className="mt-4 font-semibold tracking-tight">{t.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t.text}</p>
                 </li>
               ))}
             </ul>
-            <Link href="/pricing" className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline">
-              Compare plans <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </Link>
           </div>
+        </div>
+      </section>
+
+      {/* 5. One clear next step */}
+      <section className="relative overflow-hidden border-t border-border bg-secondary/50">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 32 32"
+          className="pointer-events-none absolute -right-16 -top-10 hidden h-[26rem] w-[26rem] text-foreground/[0.06] lg:block"
+        >
+          <path d="M5 24.5C9.5 21.5 12 18.5 17 16.5S23.5 11 25.5 8.5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <circle cx="25.5" cy="8.5" r="1.4" fill="var(--signal)" opacity="0.35" />
+        </svg>
+        <div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8 lg:py-28">
+          <h2 className="reveal-rise max-w-2xl font-display text-4xl font-medium leading-[1.05] tracking-[-0.02em] sm:text-6xl">
+            Start with what&apos;s due this week.
+          </h2>
+          <p className="reveal-rise mt-5 max-w-md text-lg text-muted-foreground">
+            Setup takes about a minute. Free to start; connect Canvas now or later.
+          </p>
+          <Link
+            href="/signup"
+            className="group mt-9 inline-flex h-12 items-center gap-2.5 rounded-full bg-primary pl-5 pr-6 text-[15px] font-medium text-primary-foreground transition-[background-color,transform] duration-150 ease-(--ease-out-strong) hover:bg-primary/90 active:scale-[0.97]"
+          >
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-signal transition-transform duration-300 group-hover:scale-125" />
+            Start learning free
+          </Link>
         </div>
       </section>
     </>

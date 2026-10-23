@@ -55,8 +55,8 @@ export function ExamRow({
 
   return (
     <>
-      <Card>
-        <CardContent className="flex items-center gap-3 py-4">
+      <Card className="py-0 transition-shadow duration-200 hover:ring-foreground/15">
+        <CardContent className="flex items-center gap-3 py-3 sm:py-3.5">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="truncate font-medium">{data.title}</p>
