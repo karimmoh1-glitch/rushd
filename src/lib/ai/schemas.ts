@@ -31,3 +31,17 @@ const ExtractedAssignmentSchema = z.object({
 export const ExtractedAssignmentListSchema = z.object({
   assignments: z.array(ExtractedAssignmentSchema).max(40),
 });
+
+// Generated practice questions (src/lib/learning/practice.ts). Validated before
+// anything is stored; stored items are always labeled AI-generated and unverified.
+export const GeneratedQuestionSchema = z.object({
+  prompt: z.string().trim().min(5).max(1200),
+  answer: z.string().trim().min(1).max(2000),
+  explanation: z.string().trim().max(1500).nullable(),
+  hints: z.array(z.string().trim().min(1).max(300)).max(3),
+  difficulty: z.number().int().min(1).max(3),
+});
+export const GeneratedQuestionListSchema = z.object({
+  questions: z.array(GeneratedQuestionSchema).min(1).max(5),
+});
+export type GeneratedQuestion = z.infer<typeof GeneratedQuestionSchema>;

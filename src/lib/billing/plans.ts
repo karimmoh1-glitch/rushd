@@ -3,7 +3,7 @@
 // terms), so heavy use never costs more than the plan earns.
 
 export type PlanId = "FREE" | "PLUS" | "PRO";
-export type AiFeature = "tutor_message" | "photo_assessment" | "draft_review" | "quick_add" | "screenshot_import";
+export type AiFeature = "tutor_message" | "photo_assessment" | "draft_review" | "quick_add" | "screenshot_import" | "practice_questions";
 
 export interface Plan {
   id: PlanId;
@@ -76,10 +76,12 @@ export const FEATURE_LABEL: Record<AiFeature, string> = {
   draft_review: "Rubric reviews",
   quick_add: "Quick add",
   screenshot_import: "Screenshot import",
+  practice_questions: "Generated practice questions",
 };
 
 /** Features with a per-plan monthly count. The two small extraction
- * features count only toward the daily request and cost limits. */
+ * features and practice-question generation count only toward the daily
+ * request and cost limits. */
 export function monthlyAllowance(plan: Plan, feature: AiFeature): number | null {
   if (feature === "tutor_message" || feature === "photo_assessment" || feature === "draft_review") {
     return plan.monthly[feature];

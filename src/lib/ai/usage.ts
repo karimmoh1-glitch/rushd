@@ -17,6 +17,7 @@ const FEATURE_ESTIMATE_USD: Record<AiFeature, number> = {
   draft_review: 0.2,
   quick_add: 0.005,
   screenshot_import: 0.03,
+  practice_questions: 0.08,
 };
 
 /** A reservation older than this no longer blocks concurrency (its cost still counts). */
