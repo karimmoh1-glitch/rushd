@@ -4,19 +4,41 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
-import { parseWeek } from "@/lib/try/parse-week";
+import { parseWeek, type TryItem } from "@/lib/try/parse-week";
 import { importTriedWeek } from "@/server/actions/try-week";
 
-// A new student's first minute: type the week (classes are created from the
-// "Class:" prefix or guessed from the words), or connect a school system.
+// A new student's first step: type the week, or connect a school system.
 // Uses the same parser and import as "Rank my week" on the homepage.
 
 export function StartWeek({ teams = false }: { teams?: boolean }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  const preview = text.trim() ? parseWeek(text, new Date()) : [];
+  const [pending, startTransition] = useTransition();
+
+  // Classes come from a "Class:" prefix, or are guessed from the words.
+  let preview: TryItem[] = [];
+  if (text.trim()) {
+    preview = parseWeek(text, new Date());
+  }
+  const classNames = [...new Set(preview.map((item) => item.className))];
+  const someDatesGuessed = preview.some((item) => item.assumedDate);
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (preview.length === 0) return;
+    startTransition(async () => {
+      const weekItems = preview.map(({ kind, title, className, dueAt, minutes }) => ({ kind, title, className, dueAt, minutes }));
+      const result = await importTriedWeek(weekItems);
+      if ("error" in result) {
+        setError(result.error);
+      } else {
+        setText("");
+        router.refresh();
+      }
+    });
+  }
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
@@ -26,22 +48,7 @@ export function StartWeek({ teams = false }: { teams?: boolean }) {
       </p>
       <h2 className="mt-2 font-display text-2xl font-medium tracking-tight">What&apos;s due this week?</h2>
       <p className="mt-1 text-sm text-muted-foreground">One thing per line. Rushd makes your classes, ranks it all, and plans your time.</p>
-      <form
-        className="mt-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setError(null);
-          if (preview.length === 0) return;
-          start(async () => {
-            const r = await importTriedWeek(preview.map(({ kind, title, className, dueAt, minutes }) => ({ kind, title, className, dueAt, minutes })));
-            if ("error" in r) setError(r.error);
-            else {
-              setText("");
-              router.refresh();
-            }
-          });
-        }}
-      >
+      <form className="mt-4" onSubmit={handleSubmit}>
         <label htmlFor="start-week-text" className="sr-only">
           Your assignments and tests this week, one per line
         </label>
@@ -58,8 +65,8 @@ export function StartWeek({ teams = false }: { teams?: boolean }) {
         {preview.length > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">
             {preview.length} item{preview.length === 1 ? "" : "s"} in{" "}
-            {[...new Set(preview.map((p) => p.className))].join(", ")}
-            {preview.some((p) => p.assumedDate) ? ". Lines without a day get a week; you can change it after." : "."}
+            {classNames.join(", ")}
+            {someDatesGuessed ? ". Lines without a day get a week; you can change it after." : "."}
           </p>
         )}
         {error && (

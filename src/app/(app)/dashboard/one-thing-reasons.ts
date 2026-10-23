@@ -1,11 +1,6 @@
-// Composes One Thing's "personal coach" reasoning — the strongest
-// explanation surface in the product, so it earns richer bullets than a
-// regular Today list item. Deliberately kept out of src/lib/planning/
-// explain.ts: that module explains the *scorer's* math (why this ranked
-// where it did); estimation adjustments and behavioral patterns are a
-// different kind of signal (what Rushd has learned about the student),
-// composed here rather than blurring explain.ts's single responsibility.
-// Every bullet is real, computed data — nothing here is filler.
+// The "why this first" bullets on the Next up card: the scorer's reasons plus
+// what Rushd has learned about the student (kept out of planning/explain.ts,
+// which only explains the scoring math). Every bullet comes from real data.
 
 import { explainScore } from "@/lib/planning";
 import type { ScoredItem } from "@/lib/planning/types";
@@ -32,10 +27,11 @@ export function buildOneThingReasons(
     );
   }
 
+  // Prefer a pattern about this item's class; otherwise use a general study-habit one.
   const classPattern = patterns.find(
-    (p) => p.key === "hardest-class" && p.statement.startsWith(scored.item.className),
+    (pattern) => pattern.key === "hardest-class" && pattern.statement.startsWith(scored.item.className),
   );
-  const otherPattern = patterns.find((p) => p.key === "time-of-day" || p.key === "session-length");
+  const otherPattern = patterns.find((pattern) => pattern.key === "time-of-day" || pattern.key === "session-length");
   const chosenPattern = classPattern ?? otherPattern;
   if (chosenPattern) reasons.push(chosenPattern.statement);
 

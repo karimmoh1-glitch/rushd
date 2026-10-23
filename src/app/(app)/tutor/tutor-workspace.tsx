@@ -46,59 +46,85 @@ const MODES: { id: Mode; label: string; hint: string }[] = [
 
 const KIND_LABEL: Record<string, string> = { PAGE: "Page", ASSIGNMENT: "Assignment", ANNOUNCEMENT: "Announcement", MODULE_ITEM: "Module item" };
 
-/** Minimal, safe rendering of the tutor's Markdown subset: paragraphs,
- * bullet/numbered lists, **bold**, `code`, and [n] citation references.
- * Never uses innerHTML. */
-function RichText({ text, sources }: { text: string; sources: Source[] }) {
-  const inline = (line: string, key: string) =>
-    line.split(/(\*\*[^*]+\*\*|`[^`]+`|\[\d{1,2}\])/g).map((part, i) => {
-      if (/^\*\*[^*]+\*\*$/.test(part)) return <strong key={`${key}-${i}`}>{part.slice(2, -2)}</strong>;
-      if (/^`[^`]+`$/.test(part)) return <code key={`${key}-${i}`} className="rounded bg-muted px-1 font-mono text-[0.9em]">{part.slice(1, -1)}</code>;
-      const cite = part.match(/^\[(\d{1,2})\]$/);
-      if (cite && sources.some((s) => s.n === Number(cite[1]))) {
-        return (
-          <sup key={`${key}-${i}`}>
-            <a href={`#src-${cite[1]}`} className="px-0.5 text-[0.75em] font-medium text-muted-foreground hover:text-foreground">
-              [{cite[1]}]
-            </a>
-          </sup>
-        );
-      }
-      return <Fragment key={`${key}-${i}`}>{part}</Fragment>;
-    });
+const BULLET = /^\s*[-*]\s+/;
+const NUMBERED = /^\s*\d+[.)]\s+/;
+const HEADING = /^#{1,4}\s+(.*)$/;
 
+/** Turns one line into text, **bold**, `code`, and [n] citation links. */
+function renderInline(line: string, keyPrefix: string, sources: Source[]) {
+  const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`|\[\d{1,2}\])/g);
+  return parts.map((part, index) => {
+    const key = `${keyPrefix}-${index}`;
+    if (/^\*\*[^*]+\*\*$/.test(part)) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+    if (/^`[^`]+`$/.test(part)) {
+      return <code key={key} className="rounded bg-muted px-1 font-mono text-[0.9em]">{part.slice(1, -1)}</code>;
+    }
+    // Only link a citation when that source number really exists.
+    const cite = part.match(/^\[(\d{1,2})\]$/);
+    if (cite && sources.some((source) => source.n === Number(cite[1]))) {
+      return (
+        <sup key={key}>
+          <a href={`#src-${cite[1]}`} className="px-0.5 text-[0.75em] font-medium text-muted-foreground hover:text-foreground">
+            [{cite[1]}]
+          </a>
+        </sup>
+      );
+    }
+    return <Fragment key={key}>{part}</Fragment>;
+  });
+}
+
+/** One paragraph-sized chunk of the answer: a list, a heading, or plain lines. */
+function RichTextBlock({ block, blockIndex, sources }: { block: string; blockIndex: number; sources: Source[] }) {
+  const lines = block.split("\n").filter((line) => line.trim());
+
+  if (lines.length && lines.every((line) => BULLET.test(line))) {
+    return (
+      <ul className="list-disc space-y-1 pl-5">
+        {lines.map((line, lineIndex) => (
+          <li key={lineIndex}>{renderInline(line.replace(BULLET, ""), `${blockIndex}-${lineIndex}`, sources)}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (lines.length && lines.every((line) => NUMBERED.test(line))) {
+    return (
+      <ol className="list-decimal space-y-1 pl-5">
+        {lines.map((line, lineIndex) => (
+          <li key={lineIndex}>{renderInline(line.replace(NUMBERED, ""), `${blockIndex}-${lineIndex}`, sources)}</li>
+        ))}
+      </ol>
+    );
+  }
+
+  const heading = lines.length === 1 ? lines[0].match(HEADING) : null;
+  if (heading) {
+    return <p className="font-semibold">{renderInline(heading[1], `${blockIndex}`, sources)}</p>;
+  }
+
+  return (
+    <p>
+      {lines.map((line, lineIndex) => (
+        <Fragment key={lineIndex}>
+          {lineIndex > 0 && <br />}
+          {renderInline(line, `${blockIndex}-${lineIndex}`, sources)}
+        </Fragment>
+      ))}
+    </p>
+  );
+}
+
+/** Safe rendering of the tutor's small Markdown subset. Never uses innerHTML. */
+function RichText({ text, sources }: { text: string; sources: Source[] }) {
   const blocks = text.split(/\n{2,}/);
   return (
     <div className="space-y-3 text-[15px] leading-relaxed">
-      {blocks.map((block, bi) => {
-        const lines = block.split("\n").filter((l) => l.trim());
-        if (lines.length && lines.every((l) => /^\s*[-*]\s+/.test(l))) {
-          return (
-            <ul key={bi} className="list-disc space-y-1 pl-5">
-              {lines.map((l, li) => <li key={li}>{inline(l.replace(/^\s*[-*]\s+/, ""), `${bi}-${li}`)}</li>)}
-            </ul>
-          );
-        }
-        if (lines.length && lines.every((l) => /^\s*\d+[.)]\s+/.test(l))) {
-          return (
-            <ol key={bi} className="list-decimal space-y-1 pl-5">
-              {lines.map((l, li) => <li key={li}>{inline(l.replace(/^\s*\d+[.)]\s+/, ""), `${bi}-${li}`)}</li>)}
-            </ol>
-          );
-        }
-        const heading = lines.length === 1 && lines[0].match(/^#{1,4}\s+(.*)$/);
-        if (heading) return <p key={bi} className="font-semibold">{inline(heading[1], `${bi}`)}</p>;
-        return (
-          <p key={bi}>
-            {lines.map((l, li) => (
-              <Fragment key={li}>
-                {li > 0 && <br />}
-                {inline(l, `${bi}-${li}`)}
-              </Fragment>
-            ))}
-          </p>
-        );
-      })}
+      {blocks.map((block, blockIndex) => (
+        <RichTextBlock key={blockIndex} block={block} blockIndex={blockIndex} sources={sources} />
+      ))}
     </div>
   );
 }
@@ -107,19 +133,58 @@ function Sources({ sources }: { sources: Source[] }) {
   if (sources.length === 0) return null;
   return (
     <ol className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
-      {sources.map((s) => (
-        <li key={s.n} id={`src-${s.n}`} className="flex flex-wrap items-baseline gap-x-1.5">
-          <span className="font-mono">[{s.n}]</span>
-          <span className="text-foreground">{s.title}</span>
-          <span>· {KIND_LABEL[s.kind] ?? s.kind} · {s.className}</span>
-          {s.url && (
-            <a href={s.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
+      {sources.map((source) => (
+        <li key={source.n} id={`src-${source.n}`} className="flex flex-wrap items-baseline gap-x-1.5">
+          <span className="font-mono">[{source.n}]</span>
+          <span className="text-foreground">{source.title}</span>
+          <span>· {KIND_LABEL[source.kind] ?? source.kind} · {source.className}</span>
+          {source.url && (
+            <a href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
               Canvas <ExternalLink className="h-3 w-3" aria-label="(opens in a new tab)" />
             </a>
           )}
         </li>
       ))}
     </ol>
+  );
+}
+
+function assignmentSuggestions(title: string): string[] {
+  return [
+    `What is “${title}” asking me to do?`,
+    "Break this into steps I can finish tonight.",
+    "Which rubric criteria are worth the most?",
+  ];
+}
+const GENERAL_SUGGESTIONS = [
+  "What topics were covered in the last module?",
+  "Quiz me on this week's material.",
+  "What's due soon, and what should I start first?",
+];
+
+/** A saved conversation keeps its mode; a new one about an assignment starts in "Plan it". */
+function startingMode(
+  active: ConversationSummary | null,
+  prefill: { assignmentId: string | null },
+): Mode {
+  if (active) return active.mode as Mode;
+  if (prefill.assignmentId) return "plan";
+  return "explain";
+}
+
+function MessageBubble({ message }: { message: ChatMessage }) {
+  if (message.role === "user") {
+    return (
+      <div className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-lg bg-muted px-4 py-2.5 text-[15px]">
+        {message.content}
+      </div>
+    );
+  }
+  return (
+    <div className="max-w-prose">
+      <RichText text={message.content} sources={message.sources} />
+      <Sources sources={message.sources} />
+    </div>
   );
 }
 
@@ -147,67 +212,79 @@ export function TutorWorkspace({
   const [conversationId, setConversationId] = useState<string | null>(active?.id ?? null);
   const [classId, setClassId] = useState<string | null>(active?.classId ?? prefill.classId);
   const [assignmentId, setAssignmentId] = useState<string | null>(active?.assignmentId ?? prefill.assignmentId);
-  const [mode, setMode] = useState<Mode>((active?.mode as Mode) ?? (prefill.assignmentId ? "plan" : "explain"));
+  const [mode, setMode] = useState<Mode>(startingMode(active, prefill));
   const [draft, setDraft] = useState(initialDraft);
   const [streaming, setStreaming] = useState<{ text: string; status: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, startDelete] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
-  const locked = conversationId !== null; // context is fixed once a conversation starts
+  // The course and assignment are fixed once a conversation starts.
+  const locked = conversationId !== null;
 
-  const scrollToEnd = () => requestAnimationFrame(() => endRef.current?.scrollIntoView({ block: "end" }));
+  function scrollToEnd() {
+    requestAnimationFrame(() => endRef.current?.scrollIntoView({ block: "end" }));
+  }
 
-  async function send(e?: React.FormEvent) {
-    e?.preventDefault();
+  async function send(event?: React.FormEvent) {
+    event?.preventDefault();
     const text = draft.trim();
     if (!text || streaming) return;
     setError(null);
     setDraft("");
+    // Show the student's message right away; it is removed again if sending fails.
     const optimistic: ChatMessage = { id: `local-${Date.now()}`, role: "user", content: text, sources: [] };
-    setMessages((m) => [...m, optimistic]);
+    setMessages((current) => [...current, optimistic]);
     setStreaming({ text: "", status: "Thinking…" });
     scrollToEnd();
 
     try {
-      const res = await fetch("/api/tutor", {
+      const response = await fetch("/api/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId, message: text, classId, assignmentId, mode }),
       });
-      if (!res.ok || !res.body) {
-        const body = await res.json().catch(() => ({}));
+      if (!response.ok || !response.body) {
+        const body = await response.json().catch(() => ({}));
         throw new Error(body.error ?? "The tutor couldn't answer right now.");
       }
-      const reader = res.body.getReader();
+
+      // The answer streams back as one JSON event per line.
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let acc = "";
+      let answerSoFar = "";
       let finished = false;
       while (!finished) {
         const { value, done } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+        buffer = lines.pop() ?? ""; // keep a half-received line for the next chunk
         for (const line of lines) {
           if (!line.trim()) continue;
-          const event = JSON.parse(line);
-          if (event.type === "start") {
+          const streamEvent = JSON.parse(line);
+          if (streamEvent.type === "start") {
             if (!conversationId) {
-              setConversationId(event.conversationId);
-              window.history.replaceState(null, "", `/tutor?c=${event.conversationId}`);
+              setConversationId(streamEvent.conversationId);
+              window.history.replaceState(null, "", `/tutor?c=${streamEvent.conversationId}`);
             }
-          } else if (event.type === "status") {
-            setStreaming({ text: acc, status: event.text });
-          } else if (event.type === "text") {
-            acc += event.delta;
-            setStreaming({ text: acc, status: null });
+          } else if (streamEvent.type === "status") {
+            setStreaming({ text: answerSoFar, status: streamEvent.text });
+          } else if (streamEvent.type === "text") {
+            answerSoFar += streamEvent.delta;
+            setStreaming({ text: answerSoFar, status: null });
             scrollToEnd();
-          } else if (event.type === "done") {
-            setMessages((m) => [...m, { id: event.message.id, role: "assistant", content: event.message.content, sources: event.message.sources }]);
+          } else if (streamEvent.type === "done") {
+            const reply: ChatMessage = {
+              id: streamEvent.message.id,
+              role: "assistant",
+              content: streamEvent.message.content,
+              sources: streamEvent.message.sources,
+            };
+            setMessages((current) => [...current, reply]);
             finished = true;
-          } else if (event.type === "error") {
-            throw new Error(event.error);
+          } else if (streamEvent.type === "error") {
+            throw new Error(streamEvent.error);
           }
         }
       }
@@ -215,7 +292,7 @@ export function TutorWorkspace({
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-      setMessages((m) => m.filter((msg) => msg.id !== optimistic.id));
+      setMessages((current) => current.filter((message) => message.id !== optimistic.id));
       setDraft(text);
     } finally {
       setStreaming(null);
@@ -226,9 +303,13 @@ export function TutorWorkspace({
   function removeConversation(id: string) {
     startDelete(async () => {
       const result = await deleteTutorConversation(id);
-      if ("error" in result) toast.error(result.error);
-      else if (id === conversationId) router.push("/tutor");
-      else router.refresh();
+      if ("error" in result) {
+        toast.error(result.error);
+      } else if (id === conversationId) {
+        router.push("/tutor");
+      } else {
+        router.refresh();
+      }
     });
   }
 
@@ -236,14 +317,39 @@ export function TutorWorkspace({
     if (!window.confirm("Delete every tutor conversation? This can't be undone.")) return;
     startDelete(async () => {
       const result = await deleteAllTutorConversations();
-      if ("error" in result) toast.error(result.error);
-      else router.push("/tutor");
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        router.push("/tutor");
+      }
     });
   }
 
-  const classAssignments = assignments.filter((a) => !classId || a.classId === classId);
+  function handleClassChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    setClassId(event.target.value || null);
+    setAssignmentId(null);
+  }
+
+  // Picking an assignment also picks its course.
+  function handleAssignmentChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const id = event.target.value || null;
+    setAssignmentId(id);
+    const picked = assignments.find((assignment) => assignment.id === id);
+    if (picked) setClassId(picked.classId);
+  }
+
+  function handleDraftKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Enter sends; Shift+Enter makes a new line. Ignore Enter while an IME is composing.
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      void send();
+    }
+  }
+
+  const classAssignments = assignments.filter((assignment) => !classId || assignment.classId === classId);
   const activeClass = classes.find((c) => c.id === classId);
-  const activeAssignment = assignments.find((a) => a.id === assignmentId);
+  const activeAssignment = assignments.find((assignment) => assignment.id === assignmentId);
+  const suggestions = activeAssignment ? assignmentSuggestions(activeAssignment.title) : GENERAL_SUGGESTIONS;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[15rem_1fr]">
@@ -255,24 +361,24 @@ export function TutorWorkspace({
         {conversations.length > 0 && (
           <>
             <ul className="max-h-[50vh] space-y-0.5 overflow-y-auto">
-              {conversations.map((c) => (
-                <li key={c.id} className="group flex items-center gap-1">
+              {conversations.map((conversation) => (
+                <li key={conversation.id} className="group flex items-center gap-1">
                   <Link
-                    href={`/tutor?c=${c.id}`}
-                    aria-current={c.id === conversationId ? "page" : undefined}
+                    href={`/tutor?c=${conversation.id}`}
+                    aria-current={conversation.id === conversationId ? "page" : undefined}
                     className={cn(
                       "min-w-0 flex-1 rounded-md px-2 py-1.5 text-sm",
-                      c.id === conversationId ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                      conversation.id === conversationId ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                     )}
                   >
-                    <span className="block truncate">{c.title}</span>
-                    {c.className && <span className="block truncate text-xs text-muted-foreground">{c.className}</span>}
+                    <span className="block truncate">{conversation.title}</span>
+                    {conversation.className && <span className="block truncate text-xs text-muted-foreground">{conversation.className}</span>}
                   </Link>
                   <button
                     type="button"
-                    onClick={() => removeConversation(c.id)}
+                    onClick={() => removeConversation(conversation.id)}
                     disabled={deleting}
-                    aria-label={`Delete conversation "${c.title}"`}
+                    aria-label={`Delete conversation "${conversation.title}"`}
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -308,10 +414,7 @@ export function TutorWorkspace({
                 Course
                 <select
                   value={classId ?? ""}
-                  onChange={(e) => {
-                    setClassId(e.target.value || null);
-                    setAssignmentId(null);
-                  }}
+                  onChange={handleClassChange}
                   className="block h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
                 >
                   <option value="">All courses</option>
@@ -324,17 +427,12 @@ export function TutorWorkspace({
                 Assignment
                 <select
                   value={assignmentId ?? ""}
-                  onChange={(e) => {
-                    const id = e.target.value || null;
-                    setAssignmentId(id);
-                    const a = assignments.find((x) => x.id === id);
-                    if (a) setClassId(a.classId);
-                  }}
+                  onChange={handleAssignmentChange}
                   className="block h-9 max-w-64 rounded-md border border-input bg-background px-2 text-sm text-foreground"
                 >
                   <option value="">None</option>
-                  {classAssignments.map((a) => (
-                    <option key={a.id} value={a.id}>{a.title}</option>
+                  {classAssignments.map((assignment) => (
+                    <option key={assignment.id} value={assignment.id}>{assignment.title}</option>
                   ))}
                 </select>
               </label>
@@ -342,19 +440,19 @@ export function TutorWorkspace({
           )}
           <fieldset className="flex flex-wrap gap-1.5">
             <legend className="sr-only">Mode</legend>
-            {MODES.map((m) => (
+            {MODES.map((option) => (
               <button
-                key={m.id}
+                key={option.id}
                 type="button"
-                aria-pressed={mode === m.id}
-                title={m.hint}
-                onClick={() => setMode(m.id)}
+                aria-pressed={mode === option.id}
+                title={option.hint}
+                onClick={() => setMode(option.id)}
                 className={cn(
                   "rounded-md border px-3 py-1.5 text-sm transition-colors",
-                  mode === m.id ? "border-foreground/30 bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground",
+                  mode === option.id ? "border-foreground/30 bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground",
                 )}
               >
-                {m.label}
+                {option.label}
               </button>
             ))}
           </fieldset>
@@ -365,31 +463,19 @@ export function TutorWorkspace({
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Try one of these:</p>
               <ul className="space-y-1">
-                {(activeAssignment
-                  ? [`What is “${activeAssignment.title}” asking me to do?`, "Break this into steps I can finish tonight.", "Which rubric criteria are worth the most?"]
-                  : ["What topics were covered in the last module?", "Quiz me on this week's material.", "What's due soon, and what should I start first?"]
-                ).map((s) => (
-                  <li key={s}>
-                    <button type="button" onClick={() => setDraft(s)} className="text-left text-foreground underline decoration-muted-foreground/40 underline-offset-4 hover:decoration-foreground">
-                      {s}
+                {suggestions.map((suggestion) => (
+                  <li key={suggestion}>
+                    <button type="button" onClick={() => setDraft(suggestion)} className="text-left text-foreground underline decoration-muted-foreground/40 underline-offset-4 hover:decoration-foreground">
+                      {suggestion}
                     </button>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-          {messages.map((m) =>
-            m.role === "user" ? (
-              <div key={m.id} className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-lg bg-muted px-4 py-2.5 text-[15px]">
-                {m.content}
-              </div>
-            ) : (
-              <div key={m.id} className="max-w-prose">
-                <RichText text={m.content} sources={m.sources} />
-                <Sources sources={m.sources} />
-              </div>
-            ),
-          )}
+          {messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))}
           {streaming && (
             <div className="max-w-prose">
               {streaming.text && <RichText text={stripMarkers(streaming.text)} sources={[]} />}
@@ -415,13 +501,8 @@ export function TutorWorkspace({
             <Textarea
               id="tutor-input"
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={handleDraftKeyDown}
               rows={2}
               maxLength={4000}
               placeholder="Ask about your course…"

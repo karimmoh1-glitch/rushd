@@ -23,7 +23,8 @@ export default async function PracticePage() {
     }),
     getUsageSummary(user.id),
   ]);
-  const allowance = usage.features.find((f) => f.feature === "photo_assessment")!;
+  const allowance = usage.features.find((feature) => feature.feature === "photo_assessment")!;
+  const checksLeft = Math.max(0, allowance.limit - allowance.used);
 
   return (
     <div className="max-w-3xl space-y-10">
@@ -40,7 +41,7 @@ export default async function PracticePage() {
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="new-check" className="text-base font-semibold">New check</h2>
             <span className="text-xs text-muted-foreground tabular-nums">
-              {Math.max(0, allowance.limit - allowance.used)} of {allowance.limit} checks left this month
+              {checksLeft} of {allowance.limit} checks left this month
             </span>
           </div>
           <PracticeForm classes={classes} />
@@ -61,17 +62,17 @@ export default async function PracticePage() {
           </PathEmpty>
         ) : (
           <ul className="divide-y divide-border">
-            {recent.map((a) => (
-              <li key={a.id}>
-                <Link href={`/practice/${a.id}`} className="-mx-2 flex items-baseline justify-between gap-3 rounded-md px-2 py-3 hover:bg-muted/60">
+            {recent.map((check) => (
+              <li key={check.id}>
+                <Link href={`/practice/${check.id}`} className="-mx-2 flex items-baseline justify-between gap-3 rounded-md px-2 py-3 hover:bg-muted/60">
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{a.topic}</span>
+                    <span className="block truncate text-sm font-medium">{check.topic}</span>
                     <span className="block text-xs text-muted-foreground">
-                      {a.subject} · {a.source === "photo" ? "Photo" : "Typed"} · {formatDateInZone(a.createdAt, user.profile?.timezone, { month: "short", day: "numeric" })}
+                      {check.subject} · {check.source === "photo" ? "Photo" : "Typed"} · {formatDateInZone(check.createdAt, user.profile?.timezone, { month: "short", day: "numeric" })}
                     </span>
                   </span>
                   <span className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-                    {Math.round(a.estimateLow)}–{Math.round(a.estimateHigh)}% · {a.confidence} confidence
+                    {Math.round(check.estimateLow)}–{Math.round(check.estimateHigh)}% · {check.confidence} confidence
                   </span>
                 </Link>
               </li>

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { generatePlanForUser } from "@/lib/planning/generate-for-user";
 import { explainScore, buildForecast } from "@/lib/planning";
+import type { ScheduledSession, ScoredItem } from "@/lib/planning/types";
 import {
   DEFAULT_BREAK_MINUTES,
   DEFAULT_HORIZON_DAYS,
@@ -24,6 +25,77 @@ export const metadata: Metadata = {
   title: "Schedule",
 };
 
+/** "Today", "Tomorrow", or the weekday name, by how many days from today. */
+function relativeDayName(daysFromToday: number, dateKey: string): string {
+  if (daysFromToday === 0) return "Today";
+  if (daysFromToday === 1) return "Tomorrow";
+  return formatDateKey(dateKey, { weekday: "long" });
+}
+
+function dueLabelFor(dueAt: Date, now: Date, tz: string): string {
+  if (dueAt.getTime() < now.getTime()) {
+    return `overdue since ${formatDateKey(localDateKey(dueAt, tz), { month: "short", day: "numeric" })}`;
+  }
+  return `due ${formatDueDate(dueAt, tz, now)}`;
+}
+
+function sum(numbers: number[]): number {
+  let total = 0;
+  for (const value of numbers) {
+    total += value;
+  }
+  return total;
+}
+
+/** One scheduled session in the shape the agenda shows. */
+function toAgendaBlock(
+  session: ScheduledSession,
+  index: number,
+  scored: ScoredItem | undefined,
+  allScored: ScoredItem[],
+  now: Date,
+  tz: string,
+): AgendaBlock {
+  const startMinute = session.startMinute ?? 0;
+  return {
+    key: session.blockId ?? `${session.item.id}-${session.scheduledDate}-${session.startMinute}-${index}`,
+    kind: session.item.kind,
+    itemId: session.item.id,
+    title: session.item.title,
+    className: session.item.className,
+    classColor: session.item.classColor,
+    date: session.scheduledDate,
+    startMinute,
+    endMinute: session.endMinute ?? startMinute + session.scheduledMinutes,
+    minutes: session.scheduledMinutes,
+    pinned: Boolean(session.pinned),
+    blockId: session.blockId,
+    reasonCode: session.reasonCode,
+    reasons: scored ? explainScore(scored, now, allScored, tz) : [],
+    fromCanvas: session.item.source === "CANVAS",
+    dueLabel: dueLabelFor(session.item.dueAt, now, tz),
+  };
+}
+
+function NothingToPlan() {
+  return (
+    <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+      <p className="font-medium">Nothing to plan yet.</p>
+      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+        Connect Canvas or add an assignment and Rushd will place it in your week.
+      </p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <Link href="/integrations/canvas" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          Connect Canvas
+        </Link>
+        <Link href="/assignments" className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted">
+          Add manually
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default async function PlanPage() {
   const user = await requireUser();
   const now = new Date();
@@ -43,59 +115,43 @@ export default async function PlanPage() {
 
   const tz = plan.timeZone;
   const todayKey = localDateKey(now, tz);
-  const scoredById = new Map(plan.scored.map((s) => [s.item.id, s]));
+  const scoredById = new Map(plan.scored.map((scored) => [scored.item.id, scored]));
 
-  const toBlock = (s: (typeof plan.sessions)[number], i: number): AgendaBlock => {
-    const scored = scoredById.get(s.item.id);
+  // The agenda: each day in the horizon with its scheduled blocks.
+  const planDays = (plan.days ?? []).slice(0, DEFAULT_HORIZON_DAYS);
+  const days: AgendaDay[] = planDays.map((day, dayIndex) => {
+    const sessionsThatDay = plan.sessions.filter((session) => session.scheduledDate === day.date);
     return {
-      key: s.blockId ?? `${s.item.id}-${s.scheduledDate}-${s.startMinute}-${i}`,
-      kind: s.item.kind,
-      itemId: s.item.id,
-      title: s.item.title,
-      className: s.item.className,
-      classColor: s.item.classColor,
-      date: s.scheduledDate,
-      startMinute: s.startMinute ?? 0,
-      endMinute: s.endMinute ?? (s.startMinute ?? 0) + s.scheduledMinutes,
-      minutes: s.scheduledMinutes,
-      pinned: Boolean(s.pinned),
-      blockId: s.blockId,
-      reasonCode: s.reasonCode,
-      reasons: scored ? explainScore(scored, now, plan.scored, tz) : [],
-      fromCanvas: s.item.source === "CANVAS",
-      dueLabel:
-        s.item.dueAt.getTime() < now.getTime()
-          ? `overdue since ${formatDateKey(localDateKey(s.item.dueAt, tz), { month: "short", day: "numeric" })}`
-          : `due ${formatDueDate(s.item.dueAt, tz, now)}`,
-    };
-  };
-
-  const days: AgendaDay[] = (plan.days ?? []).slice(0, DEFAULT_HORIZON_DAYS).map((d, i) => ({
-    date: d.date,
-    label: i === 0 ? "Today" : i === 1 ? "Tomorrow" : formatDateKey(d.date, { weekday: "long" }),
-    dateLabel: formatDateKey(d.date, { month: "short", day: "numeric" }),
-    isToday: d.date === todayKey,
-    availableMinutes: d.availableMinutes,
-    plannedMinutes: d.plannedMinutes,
-    status: d.status,
-    blocks: plan.sessions.filter((s) => s.scheduledDate === d.date).map(toBlock),
-  }));
-
-  const dayOptions: DayOption[] = Array.from({ length: PLANNING_HORIZON_DAYS }, (_, i) => {
-    const key = addDaysToKey(todayKey, i);
-    return {
-      date: key,
-      label: `${i === 0 ? "Today" : i === 1 ? "Tomorrow" : formatDateKey(key, { weekday: "long" })}, ${formatDateKey(key, { month: "short", day: "numeric" })}`,
+      date: day.date,
+      label: relativeDayName(dayIndex, day.date),
+      dateLabel: formatDateKey(day.date, { month: "short", day: "numeric" }),
+      isToday: day.date === todayKey,
+      availableMinutes: day.availableMinutes,
+      plannedMinutes: day.plannedMinutes,
+      status: day.status,
+      blocks: sessionsThatDay.map((session, index) =>
+        toAgendaBlock(session, index, scoredById.get(session.item.id), plan.scored, now, tz),
+      ),
     };
   });
 
-  const weekPlanned = days.reduce((n, d) => n + d.plannedMinutes, 0);
-  const weekAvailable = days.reduce((n, d) => n + d.availableMinutes, 0);
-  const openWork = plan.scored.reduce((n, s) => n + s.item.remainingMinutes, 0);
-  const pinnedCount = plan.sessions.filter((s) => s.pinned).length;
+  // Days a block can be moved to, like "Tomorrow, Oct 23".
+  const dayOptions: DayOption[] = [];
+  for (let i = 0; i < PLANNING_HORIZON_DAYS; i++) {
+    const key = addDaysToKey(todayKey, i);
+    dayOptions.push({
+      date: key,
+      label: `${relativeDayName(i, key)}, ${formatDateKey(key, { month: "short", day: "numeric" })}`,
+    });
+  }
+
+  const weekPlanned = sum(days.map((day) => day.plannedMinutes));
+  const weekAvailable = sum(days.map((day) => day.availableMinutes));
+  const openWork = sum(plan.scored.map((scored) => scored.item.remainingMinutes));
+  const pinnedCount = plan.sessions.filter((session) => session.pinned).length;
   const deferredCount = Object.keys(plan.deferredMinutesByItem ?? {}).length;
 
-  const weeklyAvailable = availability.reduce((sum, w) => sum + Math.max(0, w.endMinute - w.startMinute), 0);
+  const weeklyAvailable = sum(availability.map((window) => Math.max(0, window.endMinute - window.startMinute)));
   const forecastWeeks = buildForecast(plan.scored, weeklyAvailable, now, tz);
   const todayPlannedMinutes = days[0]?.plannedMinutes ?? 0;
 
@@ -146,24 +202,7 @@ export default async function PlanPage() {
         </div>
       </dl>
 
-      {plan.scored.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <p className="font-medium">Nothing to plan yet.</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Connect Canvas or add an assignment and Rushd will place it in your week.
-          </p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <Link href="/integrations/canvas" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-              Connect Canvas
-            </Link>
-            <Link href="/assignments" className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted">
-              Add manually
-            </Link>
-          </div>
-        </div>
-      ) : (
-        <ScheduleAgenda days={days} dayOptions={dayOptions} />
-      )}
+      {plan.scored.length === 0 ? <NothingToPlan /> : <ScheduleAgenda days={days} dayOptions={dayOptions} />}
 
       {deferredCount > 0 && (
         <p className="text-sm text-muted-foreground">

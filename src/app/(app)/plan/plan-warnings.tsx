@@ -7,11 +7,8 @@ import type { PlanWarning, ScoredItem } from "@/lib/planning/types";
 type Shortfall = Extract<PlanWarning, { type: "DEADLINE_SHORTFALL" }>;
 type Overloaded = Extract<PlanWarning, { type: "OVERLOADED_DAY" }>;
 
-/**
- * Honest overload reporting: what doesn't fit before its deadline, by how
- * much, which day the crunch lands on, and what to do first — instead of
- * quietly over-filling days or dropping work.
- */
+/** Says honestly what doesn't fit before its deadline, where the crunch lands,
+ * and what to do first, instead of quietly over-filling days or dropping work. */
 export function PlanWarnings({
   warnings,
   scored,
@@ -23,7 +20,7 @@ export function PlanWarnings({
   timeZone: string;
   maxDailyMinutes: number;
 }) {
-  if (warnings.some((w) => w.type === "NO_AVAILABILITY")) {
+  if (warnings.some((warning) => warning.type === "NO_AVAILABILITY")) {
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-3">
@@ -45,12 +42,19 @@ export function PlanWarnings({
     );
   }
 
-  const shortfalls = warnings.filter((w): w is Shortfall => w.type === "DEADLINE_SHORTFALL");
+  const shortfalls = warnings.filter((warning): warning is Shortfall => warning.type === "DEADLINE_SHORTFALL");
   if (shortfalls.length === 0) return null;
-  const days = warnings.filter((w): w is Overloaded => w.type === "OVERLOADED_DAY");
-  const totalShort = shortfalls.reduce((n, s) => n + s.shortMinutes, 0);
-  const rank = new Map(scored.map((s, i) => [s.item.id, i]));
-  const firstUp = [...shortfalls].sort((a, b) => (rank.get(a.itemId) ?? 0) - (rank.get(b.itemId) ?? 0)).slice(0, 3);
+  const days = warnings.filter((warning): warning is Overloaded => warning.type === "OVERLOADED_DAY");
+
+  let totalShort = 0;
+  for (const shortfall of shortfalls) {
+    totalShort += shortfall.shortMinutes;
+  }
+
+  // Show the three short items the planner ranks highest.
+  const rankById = new Map(scored.map((item, index) => [item.item.id, index]));
+  const sortedShortfalls = [...shortfalls].sort((a, b) => (rankById.get(a.itemId) ?? 0) - (rankById.get(b.itemId) ?? 0));
+  const firstUp = sortedShortfalls.slice(0, 3);
 
   return (
     <section className="rounded-xl border border-warning/40 bg-warning/5 p-4 sm:p-5" aria-labelledby="overload-heading">
@@ -68,13 +72,13 @@ export function PlanWarnings({
             <div>
               <h3 className="text-xs font-medium text-muted-foreground">Do these first</h3>
               <ol className="mt-2 space-y-1.5">
-                {firstUp.map((s) => (
-                  <li key={s.itemId} className="text-sm">
-                    <span className="font-medium">{s.title}</span>
+                {firstUp.map((shortfall) => (
+                  <li key={shortfall.itemId} className="text-sm">
+                    <span className="font-medium">{shortfall.title}</span>
                     <span className="text-muted-foreground">
                       {" "}
-                      · {s.overdue ? "overdue" : `due ${formatDueDate(s.dueAt, timeZone)}`} ·{" "}
-                      {formatDuration(s.shortMinutes)} short
+                      · {shortfall.overdue ? "overdue" : `due ${formatDueDate(shortfall.dueAt, timeZone)}`} ·{" "}
+                      {formatDuration(shortfall.shortMinutes)} short
                     </span>
                   </li>
                 ))}
@@ -84,12 +88,12 @@ export function PlanWarnings({
               <div>
                 <h3 className="text-xs font-medium text-muted-foreground">Where it lands</h3>
                 <ul className="mt-2 space-y-1.5">
-                  {days.slice(0, 4).map((d) => (
-                    <li key={d.date} className="text-sm">
+                  {days.slice(0, 4).map((day) => (
+                    <li key={day.date} className="text-sm">
                       <span className="font-medium">
-                        {formatDateKey(d.date, { weekday: "short", month: "short", day: "numeric" })}
+                        {formatDateKey(day.date, { weekday: "short", month: "short", day: "numeric" })}
                       </span>
-                      <span className="text-muted-foreground"> · {formatDuration(d.shortMinutes)} over</span>
+                      <span className="text-muted-foreground"> · {formatDuration(day.shortMinutes)} over</span>
                     </li>
                   ))}
                 </ul>

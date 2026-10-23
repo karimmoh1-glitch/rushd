@@ -46,6 +46,12 @@ export interface ExamPrefill {
   priority?: ExamInput["priority"];
 }
 
+function submitLabel(pending: boolean, editing: boolean): string {
+  if (pending) return "Saving…";
+  if (editing) return "Save changes";
+  return "Add exam";
+}
+
 export function ExamDialog({
   open,
   onOpenChange,
@@ -91,8 +97,9 @@ function ExamDialogForm({
   );
   const [title, setTitle] = useState(initialData?.title ?? prefill?.title ?? "");
   const [examAt, setExamAt] = useState(() => {
-    const source = initialData?.examAt ?? prefill?.examAt;
-    return source ? toDatetimeLocalValue(new Date(source)) : "";
+    const startingExamAt = initialData?.examAt ?? prefill?.examAt;
+    if (!startingExamAt) return "";
+    return toDatetimeLocalValue(new Date(startingExamAt));
   });
   const [prepMinutes, setPrepMinutes] = useState(
     initialData?.prepMinutes ?? prefill?.prepMinutes ?? 120,
@@ -102,8 +109,8 @@ function ExamDialogForm({
   );
   const [notes, setNotes] = useState(initialData?.notes ?? "");
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     if (!examAt) {
       toast.error("Choose an exam date.");
       return;
@@ -119,9 +126,12 @@ function ExamDialogForm({
     };
 
     startTransition(async () => {
-      const result = initialData
-        ? await updateExam(initialData.id, input)
-        : await createExam(input);
+      let result;
+      if (initialData) {
+        result = await updateExam(initialData.id, input);
+      } else {
+        result = await createExam(input);
+      }
 
       if ("error" in result) {
         toast.error(result.error);
@@ -147,7 +157,7 @@ function ExamDialogForm({
           <Input
             id="exam-title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
             placeholder="e.g. Unit 4 test"
             maxLength={160}
             required
@@ -157,10 +167,10 @@ function ExamDialogForm({
 
         <div className="space-y-2">
           <Label htmlFor="exam-class">Course</Label>
-          <Select value={classId} onValueChange={(v) => v && setClassId(v)}>
+          <Select value={classId} onValueChange={(value) => value && setClassId(value)}>
             <SelectTrigger id="exam-class" className="w-full">
               <SelectValue>
-                {(v: string) => classes.find((c) => c.id === v)?.name ?? "Choose a class"}
+                {(value: string) => classes.find((c) => c.id === value)?.name ?? "Choose a class"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -180,7 +190,7 @@ function ExamDialogForm({
               id="exam-date"
               type="datetime-local"
               value={examAt}
-              onChange={(e) => setExamAt(e.target.value)}
+              onChange={(event) => setExamAt(event.target.value)}
               required
             />
           </div>
@@ -193,7 +203,7 @@ function ExamDialogForm({
               max={3000}
               step={15}
               value={prepMinutes}
-              onChange={(e) => setPrepMinutes(Number(e.target.value))}
+              onChange={(event) => setPrepMinutes(Number(event.target.value))}
               required
             />
           </div>
@@ -203,11 +213,11 @@ function ExamDialogForm({
           <Label htmlFor="exam-priority">Priority</Label>
           <Select
             value={priority}
-            onValueChange={(v) => v && setPriority(v as ExamInput["priority"])}
+            onValueChange={(value) => value && setPriority(value as ExamInput["priority"])}
           >
             <SelectTrigger id="exam-priority" className="w-full">
               <SelectValue>
-                {(v: ExamInput["priority"]) => PRIORITY_LABELS[v]}
+                {(value: ExamInput["priority"]) => PRIORITY_LABELS[value]}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -223,7 +233,7 @@ function ExamDialogForm({
           <Textarea
             id="exam-notes"
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(event) => setNotes(event.target.value)}
             maxLength={2000}
             rows={3}
           />
@@ -232,7 +242,7 @@ function ExamDialogForm({
 
       <DialogFooter>
         <Button type="submit" disabled={pending || classes.length === 0}>
-          {pending ? "Saving…" : initialData ? "Save changes" : "Add exam"}
+          {submitLabel(pending, Boolean(initialData))}
         </Button>
       </DialogFooter>
     </form>

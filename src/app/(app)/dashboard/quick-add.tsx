@@ -39,8 +39,8 @@ export function QuickAdd({ classes }: { classes: ClassOption[] }) {
   const [assignmentPrefill, setAssignmentPrefill] = useState<AssignmentPrefill | null>(null);
   const [examPrefill, setExamPrefill] = useState<ExamPrefill | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     if (!text.trim() || classes.length === 0) return;
 
     startTransition(async () => {
@@ -63,7 +63,7 @@ export function QuickAdd({ classes }: { classes: ClassOption[] }) {
         <div className="flex-1">
           <Input
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(event) => setText(event.target.value)}
             placeholder={
               classes.length === 0
                 ? "Add a course first to use quick add"

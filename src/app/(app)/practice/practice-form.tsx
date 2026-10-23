@@ -36,41 +36,59 @@ export function PracticeForm({ classes }: { classes: { id: string; name: string 
     }
     setStage(STAGES[0]);
     try {
-      const prepared = await Promise.all(Array.from(list).slice(0, room).map((f) => compressImage(f)));
-      setPhotos((p) => [...p, ...prepared.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
-    } catch (e) {
-      setError(e instanceof ImagePrepError ? e.message : "Couldn't use that image.");
+      const chosen = Array.from(list).slice(0, room);
+      const prepared = await Promise.all(chosen.map((file) => compressImage(file)));
+      const newPhotos = prepared.map((file) => ({ file, url: URL.createObjectURL(file) }));
+      setPhotos((current) => [...current, ...newPhotos]);
+    } catch (err) {
+      setError(err instanceof ImagePrepError ? err.message : "Couldn't use that image.");
     } finally {
       setStage(null);
     }
   }
 
+  function handleFileInput(event: React.ChangeEvent<HTMLInputElement>) {
+    void addFiles(event.target.files);
+    event.target.value = ""; // so picking the same file again still fires onChange
+  }
+
   function removePhoto(index: number) {
-    setPhotos((p) => {
-      URL.revokeObjectURL(p[index].url);
-      return p.filter((_, i) => i !== index);
+    setPhotos((current) => {
+      URL.revokeObjectURL(current[index].url);
+      return current.filter((_, i) => i !== index);
     });
   }
 
-  function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
     setUnreadable(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(event.currentTarget);
     const data = new FormData();
-    if (mode === "photo") photos.forEach((p) => data.append("images", p.file));
-    else data.set("text", String(form.get("text") ?? ""));
+    if (mode === "photo") {
+      for (const photo of photos) {
+        data.append("images", photo.file);
+      }
+    } else {
+      data.set("text", String(form.get("text") ?? ""));
+    }
     for (const key of ["context", "classId"]) {
-      const v = form.get(key);
-      if (v) data.set(key, String(v));
+      const value = form.get(key);
+      if (value) data.set(key, String(value));
     }
     if (mode === "photo" && photos.length === 0) {
       setError("Add a photo of your work first.");
       return;
     }
-    let i = 1;
+
+    // Move the progress message along every 6 seconds, stopping at the last one.
+    let stageIndex = 1;
     setStage(STAGES[1]);
-    const timer = setInterval(() => setStage(STAGES[Math.min(STAGES.length - 1, ++i)]), 6000);
+    const timer = setInterval(() => {
+      stageIndex += 1;
+      setStage(STAGES[Math.min(STAGES.length - 1, stageIndex)]);
+    }, 6000);
+
     startTransition(async () => {
       try {
         const result = await submitPracticeCheck(data);
@@ -78,8 +96,11 @@ export function PracticeForm({ classes }: { classes: { id: string; name: string 
           router.push(`/practice/${result.id}`);
           return;
         }
-        if (result.status === "unreadable") setUnreadable(result.message);
-        else setError(result.error);
+        if (result.status === "unreadable") {
+          setUnreadable(result.message);
+        } else {
+          setError(result.error);
+        }
       } catch {
         setError("Upload failed. Check your connection and try again.");
       } finally {
@@ -94,31 +115,31 @@ export function PracticeForm({ classes }: { classes: { id: string; name: string 
   return (
     <form onSubmit={submit} className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
       <div role="tablist" aria-label="How to submit" className="inline-flex rounded-lg border border-border p-0.5 text-sm">
-        {(["photo", "type"] as const).map((m) => (
+        {(["photo", "type"] as const).map((option) => (
           <button
-            key={m}
+            key={option}
             type="button"
             role="tab"
-            aria-selected={mode === m}
-            onClick={() => setMode(m)}
-            className={mode === m ? "rounded-md bg-muted px-3 py-1.5 font-medium" : "rounded-md px-3 py-1.5 text-muted-foreground hover:text-foreground"}
+            aria-selected={mode === option}
+            onClick={() => setMode(option)}
+            className={mode === option ? "rounded-md bg-muted px-3 py-1.5 font-medium" : "rounded-md px-3 py-1.5 text-muted-foreground hover:text-foreground"}
           >
-            {m === "photo" ? "Photo" : "Type it"}
+            {option === "photo" ? "Photo" : "Type it"}
           </button>
         ))}
       </div>
 
       {mode === "photo" ? (
         <div className="space-y-3">
-          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
-          <input ref={libraryRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={handleFileInput} />
+          <input ref={libraryRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple className="sr-only" tabIndex={-1} aria-hidden="true" onChange={handleFileInput} />
           {photos.length > 0 && (
             <ul className="flex flex-wrap gap-3">
-              {photos.map((p, i) => (
-                <li key={p.url} className="relative">
+              {photos.map((photo, index) => (
+                <li key={photo.url} className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
-                  <img src={p.url} alt={`Photo ${i + 1} of your work`} className="h-32 w-24 rounded-md border border-border object-cover" />
-                  <button type="button" onClick={() => removePhoto(i)} aria-label={`Remove photo ${i + 1}`} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-sm">
+                  <img src={photo.url} alt={`Photo ${index + 1} of your work`} className="h-32 w-24 rounded-md border border-border object-cover" />
+                  <button type="button" onClick={() => removePhoto(index)} aria-label={`Remove photo ${index + 1}`} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-sm">
                     <X className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </li>
@@ -159,8 +180,8 @@ export function PracticeForm({ classes }: { classes: { id: string; name: string 
             <Label htmlFor="practice-class">Course (optional)</Label>
             <select id="practice-class" name="classId" defaultValue="" className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm">
               <option value="">None</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              {classes.map((course) => (
+                <option key={course.id} value={course.id}>{course.name}</option>
               ))}
             </select>
           </div>

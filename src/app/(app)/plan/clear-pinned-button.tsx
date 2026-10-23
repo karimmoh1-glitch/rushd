@@ -13,20 +13,21 @@ import {
 } from "@/components/ui/dialog";
 import { clearPinnedBlocks } from "@/server/actions/schedule";
 
-/** Returning the plan to fully automatic is a major change, so it's
- * previewed (how many locked blocks) and confirmed first. */
+/** Going back to a fully automatic plan is a big change, so it asks first. */
 export function ClearPinnedButton({ count }: { count: number }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function confirm() {
     startTransition(async () => {
-      const r = await clearPinnedBlocks();
-      if ("error" in r) toast.error(r.error);
-      else {
-        toast.success(`Unlocked ${r.cleared ?? count} block${(r.cleared ?? count) === 1 ? "" : "s"}. Plan regenerated.`);
-        setOpen(false);
+      const result = await clearPinnedBlocks();
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      const cleared = result.cleared ?? count;
+      toast.success(`Unlocked ${cleared} block${cleared === 1 ? "" : "s"}. Plan regenerated.`);
+      setOpen(false);
     });
   }
 
