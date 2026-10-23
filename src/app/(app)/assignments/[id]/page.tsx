@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink, MessageSquareText } from "lucide-react";
+import { ChevronLeft, ExternalLink, MessageSquareText } from "lucide-react";
 import { db } from "@/lib/db";
 import { aiEnabled } from "@/lib/env";
 import { requireUser } from "@/lib/auth/dal";
 import { getAssignmentMaterial, type MaterialDetail } from "@/lib/course/retrieval";
 import { ReviewResultSchema, type ReviewResult } from "@/lib/review/draft-review";
-import { formatDueDate, formatDuration } from "@/lib/format";
+import { dueStatus, formatDueDate, formatDuration } from "@/lib/format";
+import { StatusChip } from "@/components/status-chip";
 import { formatDateInZone } from "@/lib/time/zone";
 import { buttonVariants } from "@/components/ui/button";
 import { RubricTable } from "@/components/course/rubric-table";
@@ -105,49 +106,57 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
 
   const canvasLink = material?.url ?? assignment.canvasUrl;
 
+  const status = assignment.status === "COMPLETED" ? null : dueStatus(assignment.dueAt, tz);
+
   return (
-    <div className="max-w-3xl space-y-10">
-      <header className="space-y-2">
-        <Link href="/assignments" className="text-sm text-muted-foreground hover:text-foreground">
+    <div className="max-w-3xl space-y-6">
+      <header className="space-y-3" style={{ ["--course" as string]: assignment.class.color }}>
+        <Link href="/assignments" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           Assignments
         </Link>
-        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">{assignment.title}</h1>
-        <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-          <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: assignment.class.color }} />
-          <Link href={`/courses/${assignment.class.id}`} className="hover:text-foreground">{assignment.class.name}</Link>
-          <span>· Due {formatDueDate(assignment.dueAt, tz)}</span>
-          <span>· {formatDuration(assignment.estimatedMinutes)} estimated</span>
-          {assignment.status === "COMPLETED" && <span>· Done</span>}
-          {material?.pointsPossible != null && <span>· {material.pointsPossible} points</span>}
-        </p>
-        <div className="flex flex-wrap gap-2 pt-1">
-          {aiEnabled && (
-            <Link href={`/tutor?assignmentId=${assignment.id}`} className={buttonVariants({ variant: "outline" })}>
-              <MessageSquareText className="h-4 w-4" aria-hidden="true" />
-              Ask the tutor about this
-            </Link>
-          )}
-          {canvasLink && (
-            <a href={canvasLink} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              Open in Canvas
-            </a>
-          )}
+        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight sm:text-[2rem]">{assignment.title}</h1>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+          <Link href={`/courses/${assignment.class.id}`} className="course-ink inline-flex items-center gap-1.5 font-medium hover:underline hover:underline-offset-4">
+            <span aria-hidden="true" className="course-rule h-2 w-2 rounded-full" />
+            {assignment.class.name}
+          </Link>
+          <span className="inline-flex items-center gap-2">
+            {status && <StatusChip status={status} />}
+            {assignment.status === "COMPLETED" && <span className="inline-flex h-5 items-center rounded-full bg-done/12 px-2 text-[11px] font-medium text-done ring-1 ring-done/25 ring-inset">Done</span>}
+            <span className={status === "overdue" ? "text-overdue" : undefined}>Due {formatDueDate(assignment.dueAt, tz)}</span>
+          </span>
+          <span className="tabular-nums">{formatDuration(assignment.estimatedMinutes)} estimated</span>
+          {material?.pointsPossible != null && <span className="tabular-nums">{material.pointsPossible} points</span>}
         </div>
+        {(aiEnabled || canvasLink) && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {aiEnabled && (
+              <Link href={`/tutor?assignmentId=${assignment.id}`} className={buttonVariants({ variant: "outline" })}>
+                <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+                Ask the tutor about this
+              </Link>
+            )}
+            {canvasLink && (
+              <a href={canvasLink} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                Open in Canvas
+              </a>
+            )}
+          </div>
+        )}
       </header>
 
-      <section aria-labelledby="desc-heading" className="space-y-3">
-        <h2 id="desc-heading" className="border-b border-border pb-2 text-base font-semibold">What the teacher asked for</h2>
+      <Section id="desc-heading" title="What the teacher asked for">
         <AssignmentDescription
           material={material}
           source={assignment.source}
           classId={assignment.class.id}
           notes={assignment.notes}
         />
-      </section>
+      </Section>
 
-      <section aria-labelledby="rubric-heading" className="space-y-3">
-        <h2 id="rubric-heading" className="border-b border-border pb-2 text-base font-semibold">Rubric</h2>
+      <Section id="rubric-heading" title="Rubric">
         {material?.rubric ? (
           <RubricTable rubric={material.rubric} />
         ) : (
@@ -155,20 +164,31 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
             {material ? "No rubric was published in Canvas for this assignment." : "No rubric on file."} Rushd won&apos;t make one up.
           </p>
         )}
-      </section>
+      </Section>
 
-      <section aria-labelledby="review-heading" className="space-y-4">
-        <div className="border-b border-border pb-2">
-          <h2 id="review-heading" className="text-base font-semibold">Draft feedback</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Paste a draft to get criterion-by-criterion feedback against the rubric. Scores are an AI estimate shown as
-            ranges; your teacher grades. Your draft is sent to Anthropic to generate the feedback and saved here so you can
-            compare revisions; delete it anytime.
-          </p>
+      <Section
+        id="review-heading"
+        title="Draft feedback"
+        description="Paste a draft to get criterion-by-criterion feedback against the rubric. Scores are an AI estimate shown as ranges; your teacher grades. Your draft is sent to Anthropic to generate the feedback and saved here so you can compare revisions; delete it anytime."
+      >
+        <div className="space-y-4">
+          <DraftFeedbackForm hasRubric={Boolean(material?.rubric)} assignmentId={assignment.id} />
+          <ReviewList reviews={reviews} />
         </div>
-        <DraftFeedbackForm hasRubric={Boolean(material?.rubric)} assignmentId={assignment.id} />
-        <ReviewList reviews={reviews} />
-      </section>
+      </Section>
     </div>
+  );
+}
+
+/** One titled block of the page, on a card. */
+function Section({ id, title, description, children }: { id: string; title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby={id} className="rounded-xl bg-card px-4 py-4 shadow-(--shadow-card) ring-1 ring-foreground/[0.07] sm:px-5 sm:py-5">
+      <div className="mb-3">
+        <h2 id={id} className="text-[15px] font-semibold tracking-tight">{title}</h2>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      {children}
+    </section>
   );
 }
