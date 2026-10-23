@@ -9,6 +9,10 @@ import { requireUser } from "@/lib/auth/dal";
 import { resolveTimeZone } from "@/lib/time/zone";
 import { ExamRow, type ExamRowData } from "./exam-row";
 import { AddExamButton } from "./add-exam-button";
+import { WorkGroupHeading, WorkHeader } from "../assignments/work-header";
+import { PathEmpty } from "@/components/brand/path-empty";
+import { buttonVariants } from "@/components/ui/button";
+import { formatDaysUntil, formatDuration } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Exams",
@@ -45,18 +49,29 @@ function toRowData(exam: ExamRecord, pulse: number | null): ExamRowData {
   };
 }
 
+function EmptyCard({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-xl border border-dashed border-border-strong px-5 sm:px-8">{children}</div>;
+}
+
 function NoClassesYet() {
   return (
-    <div className="rounded-lg border border-dashed border-border py-16 text-center">
-      <p className="text-muted-foreground">Add a class first.</p>
-      <Link
-        href="/courses"
-        className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4"
-      >
-        Go to Classes
-      </Link>
-    </div>
+    <EmptyCard>
+      <PathEmpty title="Add a course first.">
+        Exams belong to a course, so Rushd knows what to help you prepare for.
+        <div className="mt-4">
+          <Link href="/courses" className={buttonVariants()}>
+            Go to Courses
+          </Link>
+        </div>
+      </PathEmpty>
+    </EmptyCard>
   );
+}
+
+/** "2 upcoming · next in 4 days · 4h of prep". */
+function upcomingSummary(upcoming: ExamRecord[], timeZone: string): string {
+  const prep = upcoming.reduce((total, exam) => total + exam.prepMinutes, 0);
+  return [`${upcoming.length} upcoming`, `next ${formatDaysUntil(upcoming[0].examAt, timeZone).toLowerCase()}`, `${formatDuration(prep)} of prep`].join(" · ");
 }
 
 export default async function ExamsPage() {
@@ -101,13 +116,18 @@ export default async function ExamsPage() {
     mainContent = <NoClassesYet />;
   } else if (exams.length === 0) {
     mainContent = (
-      <div className="rounded-lg border border-dashed border-border py-16 text-center">
-        <p className="text-muted-foreground">No exams yet.</p>
-      </div>
+      <EmptyCard>
+        <PathEmpty title="No exams yet.">
+          Add a test, quiz, or final and Rushd plans your prep time before it, more of it as the date gets closer.
+          <div className="mt-4">
+            <AddExamButton classes={classes} variant="outline" label="Add your first exam" />
+          </div>
+        </PathEmpty>
+      </EmptyCard>
     );
   } else {
     mainContent = (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {upcoming.map((exam) => (
           <ExamRow key={exam.id} classes={classes} data={toRow(exam)} timeZone={timeZone} />
         ))}
@@ -117,27 +137,21 @@ export default async function ExamsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Exams</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Prioritized more heavily as the date gets closer.
-          </p>
-          <nav aria-label="Work" className="mt-3 flex gap-4 text-sm">
-            <Link href="/assignments" className="text-muted-foreground hover:text-foreground">Assignments</Link>
-            <span aria-current="page" className="font-medium">Exams</span>
-            {aiEnabled && <Link href="/import" className="text-muted-foreground hover:text-foreground">Import from a screenshot</Link>}
-          </nav>
-        </div>
-        <AddExamButton classes={classes} />
-      </div>
+      <WorkHeader
+        current="exams"
+        title="Exams"
+        description="Prioritized more heavily as the date gets closer."
+        action={<AddExamButton classes={classes} />}
+        summary={upcoming.length > 0 ? upcomingSummary(upcoming, timeZone) : undefined}
+        showImport={aiEnabled}
+      />
 
       {mainContent}
 
       {past.length > 0 && (
         <div>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">Past</h2>
-          <div className="space-y-3">
+          <WorkGroupHeading>Past</WorkGroupHeading>
+          <div className="space-y-2">
             {past.map((exam) => (
               <ExamRow key={exam.id} classes={classes} data={toRow(exam)} timeZone={timeZone} />
             ))}

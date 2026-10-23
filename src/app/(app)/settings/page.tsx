@@ -20,6 +20,9 @@ import { readPreferences } from "@/lib/tutor/preferences";
 import { formatDateInZone } from "@/lib/time/zone";
 import { buttonVariants } from "@/components/ui/button";
 import { signOutEverywhere } from "@/server/actions/settings";
+import { PageHeader, Panel } from "@/components/page-section";
+import { cn } from "@/lib/utils";
+import { Download } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -58,15 +61,11 @@ function IntegrationRow({
   connected: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
-      <div>
-        <p className="font-medium">{title}</p>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
+    <SettingRow title={title} description={description}>
       <Link href={href} className={buttonVariants({ variant: "outline" })}>
         {connected ? "Manage" : "Connect"}
       </Link>
-    </div>
+    </SettingRow>
   );
 }
 
@@ -128,154 +127,199 @@ export default async function SettingsPage() {
     };
   }
 
+  const sections = [
+    { id: "plan", label: "Plan and usage" },
+    ...(aiEnabled ? [{ id: "invite", label: "Invite friends" }] : []),
+    { id: "tutor", label: "How Rushd teaches" },
+    { id: "profile", label: "Profile" },
+    { id: "availability", label: "Availability" },
+    { id: "planning", label: "Planning" },
+    { id: "integrations", label: "Integrations" },
+    { id: "account", label: "Account" },
+    { id: "your-data", label: "Your data" },
+    { id: "danger", label: "Delete account" },
+  ];
+
   return (
-    <div className="max-w-2xl space-y-10">
-      <div>
-        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Settings</h1>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Settings" description="Your plan, how Rushd teaches and plans for you, your connections, and your account." />
 
-      <section id="plan" className="scroll-mt-24 space-y-4">
-        <h2 className="text-base font-semibold">Plan and usage</h2>
-        <PlanUsage
-          usage={usage}
-          billing={billingMode()}
-          subscription={subscriptionSummary}
-        />
-      </section>
+      <div className="grid gap-6 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
+        <nav aria-label="Settings sections" className="min-w-0 lg:sticky lg:top-6 lg:self-start">
+          <ul className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-col lg:gap-0.5 lg:overflow-visible lg:pb-0">
+            {sections.map((section) => (
+              <li key={section.id} className="shrink-0">
+                <a
+                  href={`#${section.id}`}
+                  className={cn(
+                    "block whitespace-nowrap rounded-full px-3 py-1.5 text-sm text-muted-foreground ring-1 ring-border transition-colors hover:bg-muted hover:text-foreground lg:rounded-md lg:px-2.5 lg:ring-0",
+                    section.id === "danger" && "text-destructive hover:text-destructive",
+                  )}
+                >
+                  {section.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-      {aiEnabled && (
-        <section id="invite" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
-          <h2 className="text-base font-semibold">Invite friends</h2>
-          <InviteCard
-            url={`${appUrl}/r/${invites.code}`}
-            joined={invites.joined}
-            qualified={invites.qualified}
-            bonus={invites.bonus}
-            perFriend={BONUS_MESSAGES}
-            maxFriends={MAX_FRIENDS}
-          />
-        </section>
-      )}
+        <div className="min-w-0 max-w-2xl space-y-5">
+          <Panel id="plan" title="Plan and usage">
+            <PlanUsage
+              usage={usage}
+              billing={billingMode()}
+              subscription={subscriptionSummary}
+            />
+          </Panel>
 
-      <section id="tutor" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
-        <div>
-          <h2 className="text-base font-semibold">How Rushd teaches you</h2>
-          <p className="text-sm text-muted-foreground">Tell the tutor how you learn best. You can change or reset this anytime.</p>
-        </div>
-        <TutorPreferencesForm initial={readPreferences(profile?.tutorPreferences)} instructions={profile?.tutorInstructions ?? ""} />
-      </section>
+          {aiEnabled && (
+            <Panel id="invite" title="Invite friends">
+              <InviteCard
+                url={`${appUrl}/r/${invites.code}`}
+                joined={invites.joined}
+                qualified={invites.qualified}
+                bonus={invites.bonus}
+                perFriend={BONUS_MESSAGES}
+                maxFriends={MAX_FRIENDS}
+              />
+            </Panel>
+          )}
 
-      <section className="space-y-4 border-t border-border pt-8">
-        <h2 className="text-base font-semibold">Profile</h2>
-        <ProfileForm
-          initial={{
-            displayName: profile?.displayName ?? "",
-            grade: profile?.grade ?? null,
-            school: profile?.school ?? "",
-            timezone: profile?.timezone ?? "America/New_York",
-            goals: profile?.goals ?? "",
-            primaryChallenge: profile?.primaryChallenge ?? null,
-          }}
-        />
-      </section>
+          <Panel id="tutor" title="How Rushd teaches you" description="Tell the tutor how you learn best. You can change or reset this anytime.">
+            <TutorPreferencesForm initial={readPreferences(profile?.tutorPreferences)} instructions={profile?.tutorInstructions ?? ""} />
+          </Panel>
 
-      <section id="availability" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
-        <div>
-          <h2 className="text-base font-semibold">Study availability</h2>
-          <p className="text-sm text-muted-foreground">
-            Used to build your plan. Changes take effect immediately.
-          </p>
-        </div>
-        <AvailabilityForm current={availability} />
-      </section>
+          <Panel id="profile" title="Profile">
+            <ProfileForm
+              initial={{
+                displayName: profile?.displayName ?? "",
+                grade: profile?.grade ?? null,
+                school: profile?.school ?? "",
+                timezone: profile?.timezone ?? "America/New_York",
+                goals: profile?.goals ?? "",
+                primaryChallenge: profile?.primaryChallenge ?? null,
+              }}
+            />
+          </Panel>
 
-      <section id="planning" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
-        <div>
-          <h2 className="text-base font-semibold">Planning</h2>
-          <p className="text-sm text-muted-foreground">
-            How Rushd shapes your study blocks. These are yours to set; Rushd never assumes more capacity than this.
-          </p>
-        </div>
-        <PlanningForm
-          initial={{
-            preferredSessionMinutes: profile?.preferredSessionMinutes ?? 60,
-            maxDailyMinutes: profile?.maxDailyMinutes ?? 240,
-          }}
-        />
-      </section>
+          <Panel id="availability" title="Study availability" description="Used to build your plan. Changes take effect immediately.">
+            <AvailabilityForm current={availability} />
+          </Panel>
 
-      <section id="integrations" className="scroll-mt-24 space-y-3 border-t border-border pt-8">
-        <h2 className="text-base font-semibold">Integrations</h2>
-        <IntegrationRow
-          title="Canvas LMS"
-          description={describeCanvas(canvas)}
-          href="/integrations/canvas"
-          connected={Boolean(canvas)}
-        />
-        <IntegrationRow
-          title="Microsoft Teams"
-          description={describeTeams(teams)}
-          href="/integrations/teams"
-          connected={Boolean(teams)}
-        />
-        <IntegrationRow
-          title="Canvas calendar feed"
-          description={describeFeed(feed)}
-          href="/integrations/canvas-calendar"
-          connected={Boolean(feed)}
-        />
-      </section>
+          <Panel
+            id="planning"
+            title="Planning"
+            description="How Rushd shapes your study blocks. These are yours to set; Rushd never assumes more capacity than this."
+          >
+            <PlanningForm
+              initial={{
+                preferredSessionMinutes: profile?.preferredSessionMinutes ?? 60,
+                maxDailyMinutes: profile?.maxDailyMinutes ?? 240,
+              }}
+            />
+          </Panel>
 
-      <section className="space-y-4 border-t border-border pt-8">
-        <h2 className="text-base font-semibold">Account</h2>
-        <p className="text-sm text-muted-foreground">Signed in as {user.email}</p>
-        <div id="emails" className="scroll-mt-24">
-          <EmailToggle on={profile?.emailReminders ?? false} available={emailConfigured()} />
-        </div>
-        <PasswordForm />
-        <form action={signOutEverywhere} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
-          <div>
-            <p className="text-sm font-medium">Sign out everywhere</p>
-            <p className="text-sm text-muted-foreground">Ends every session on every device, including this one.</p>
-          </div>
-          <button type="submit" className={buttonVariants({ variant: "outline" })}>
-            Sign out everywhere
-          </button>
-        </form>
-      </section>
+          <Panel id="integrations" title="Integrations">
+            <div className="divide-y divide-border">
+              <IntegrationRow
+                title="Canvas LMS"
+                description={describeCanvas(canvas)}
+                href="/integrations/canvas"
+                connected={Boolean(canvas)}
+              />
+              <IntegrationRow
+                title="Microsoft Teams"
+                description={describeTeams(teams)}
+                href="/integrations/teams"
+                connected={Boolean(teams)}
+              />
+              <IntegrationRow
+                title="Canvas calendar feed"
+                description={describeFeed(feed)}
+                href="/integrations/canvas-calendar"
+                connected={Boolean(feed)}
+              />
+            </div>
+          </Panel>
 
-      <section id="your-data" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
-        <h2 className="text-base font-semibold">Privacy</h2>
-        <p className="text-sm text-muted-foreground">
-          Rushd stores your email, academic data (classes, assignments, exams,
-          study availability), and basic usage events so planning works and we
-          can tell whether Rushd helps. We don&apos;t sell your data. It is
-          processed only by the services that run Rushd, listed in the{" "}
-          <Link href="/privacy" className="underline underline-offset-4">
-            Privacy Policy
-          </Link>
-          .
-        </p>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
-          <div>
-            <p className="text-sm font-medium">Download my data</p>
+          <Panel id="account" title="Account" description={`Signed in as ${user.email}`}>
+            <div className="divide-y divide-border">
+              <div id="emails" className="scroll-mt-24 pb-4">
+                <EmailToggle on={profile?.emailReminders ?? false} available={emailConfigured()} />
+              </div>
+              <div className="py-4">
+                <h3 className="mb-3 text-sm font-medium">Change password</h3>
+                <PasswordForm />
+              </div>
+              <form action={signOutEverywhere} className="pt-4">
+                <SettingRow title="Sign out everywhere" description="Ends every session on every device, including this one." className="py-0">
+                  <button type="submit" className={buttonVariants({ variant: "outline" })}>
+                    Sign out everywhere
+                  </button>
+                </SettingRow>
+              </form>
+            </div>
+          </Panel>
+
+          <Panel id="your-data" title="Privacy and your data">
             <p className="text-sm text-muted-foreground">
-              Everything you&apos;ve added, as one JSON file. Never your password or tokens.
+              Rushd stores your email, academic data (classes, assignments, exams,
+              study availability), and basic usage events so planning works and we
+              can tell whether Rushd helps. We don&apos;t sell your data. It is
+              processed only by the services that run Rushd, listed in the{" "}
+              <Link href="/privacy" className="underline underline-offset-4">
+                Privacy Policy
+              </Link>
+              .
             </p>
-          </div>
-          {/* A plain link: the browser downloads the file the server streams. */}
-          <a href="/api/account/export" download className={buttonVariants({ variant: "outline" })}>
-            Download my data
-          </a>
-        </div>
-      </section>
+            <SettingRow
+              title="Download my data"
+              description="Everything you've added, as one JSON file. Never your password or tokens."
+              className="mt-3 border-t border-border pt-4 pb-0"
+            >
+              {/* A plain link: the browser downloads the file the server streams. */}
+              <a href="/api/account/export" download className={buttonVariants({ variant: "outline" })}>
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download my data
+              </a>
+            </SettingRow>
+          </Panel>
 
-      <section className="space-y-4 border-t border-destructive/30 pt-8">
-        <h2 className="text-base font-semibold text-destructive">
-          Danger zone
-        </h2>
-        <DeleteAccount />
-      </section>
+          <div className="pt-6">
+            <Panel
+              id="danger"
+              tone="danger"
+              title="Danger zone"
+              description="Deleting your account removes everything in it. Download your data first if you want a copy."
+            >
+              <DeleteAccount />
+            </Panel>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A setting with its explanation on the left and its control on the right. */
+function SettingRow({
+  title,
+  description,
+  className,
+  children,
+}: {
+  title: string;
+  description: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between", className)}>
+      <div className="min-w-0">
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }

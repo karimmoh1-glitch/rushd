@@ -18,7 +18,7 @@ export default function HowItWorksPage() {
   return (
     <>
       <header className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 lg:px-8">
-        <h1 className="max-w-2xl text-4xl tracking-tight sm:text-5xl">How Rushd works</h1>
+        <h1 className="max-w-2xl text-4xl leading-[1.05] tracking-[-0.025em] sm:text-6xl">How Rushd works</h1>
         <p className="mt-4 max-w-xl text-lg text-muted-foreground">
           The details behind the loop: what each part does, what it won&apos;t do, and how your data is handled.
         </p>

@@ -33,7 +33,7 @@ export default function FounderPage() {
           </span>
         )}
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight">{founder.name}</h1>
+          <h1 className="text-4xl leading-[1.05] tracking-[-0.025em] sm:text-5xl">{founder.name}</h1>
           <p className="mt-1 text-lg text-muted-foreground">{founder.role}</p>
         </div>
       </header>
@@ -95,8 +95,8 @@ export default function FounderPage() {
           <h2 id="contact" className="text-xl font-semibold tracking-tight">Get in touch</h2>
           <ul className="mt-3 space-y-2">
             <li><span className="font-medium">Students:</span> try Rushd and send feedback from the app; it goes straight to Karim.</li>
-            <li><span className="font-medium">Educators and schools:</span> interested in a pilot? <Link href="/schools" className="text-primary underline-offset-4 hover:underline">Tell us about your school</Link>.</li>
-            <li><span className="font-medium">Everyone else:</span> <Link href="/contact" className="text-primary underline-offset-4 hover:underline">contact Rushd</Link>.</li>
+            <li><span className="font-medium">Educators and schools:</span> interested in a pilot? <Link href="/schools" className="font-medium text-foreground underline underline-offset-4">Tell us about your school</Link>.</li>
+            <li><span className="font-medium">Everyone else:</span> <Link href="/contact" className="font-medium text-foreground underline underline-offset-4">contact Rushd</Link>.</li>
           </ul>
           {founder.links.length > 0 && (
             <p className="mt-4 flex flex-wrap gap-4 text-sm">

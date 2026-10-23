@@ -27,7 +27,7 @@ export default function SchoolsPage() {
     <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
       <PageViewBeacon path="/schools" />
       <div className="max-w-2xl">
-        <h1 className="text-4xl font-semibold tracking-tight">Rushd for schools</h1>
+        <h1 className="text-4xl leading-[1.05] tracking-[-0.025em] sm:text-6xl">Rushd for schools</h1>
         <p className="mt-4 text-lg text-muted-foreground">
           Rushd is built for individual students today. We&apos;re looking for a small number of teachers and schools to pilot it
           with real classes and tell us what would make it useful in their setting.

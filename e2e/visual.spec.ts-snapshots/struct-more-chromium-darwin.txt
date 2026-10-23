@@ -3,40 +3,118 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
     div .page-enter 
       div .space-y-6 
         h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-        ul .divide-y divide-border rounded-xl border border-border bg-card 
-          li . 
-            a .flex items-center gap-3 px-4 py-3.5 hover:bg-muted/60 href=/courses
-              svg .lucide lucide-book-open h-5 w-5 text-muted-foreground 
-                path . 
-                path . 
-              span . 
-                span .block text-sm font-medium 
-                span .block text-xs text-muted-foreground 
-          li . 
-            a .flex items-center gap-3 px-4 py-3.5 hover:bg-muted/60 href=/assignments
-              svg .lucide lucide-list-checks h-5 w-5 text-muted-foreground 
-                path . 
-                path . 
-                path . 
-                path . 
-                path . 
-              span . 
-                span .block text-sm font-medium 
-                span .block text-xs text-muted-foreground 
-          li . 
-            a .flex items-center gap-3 px-4 py-3.5 hover:bg-muted/60 href=/exams
-              svg .lucide lucide-graduation-cap h-5 w-5 text-muted-foreground 
-                path . 
-                path . 
-                path . 
-              span . 
-                span .block text-sm font-medium 
-                span .block text-xs text-muted-foreground 
-          li . 
-            a .flex items-center gap-3 px-4 py-3.5 hover:bg-muted/60 href=/settings
-              svg .lucide lucide-settings h-5 w-5 text-muted-foreground 
-                path . 
-                circle . 
-              span . 
-                span .block text-sm font-medium 
-                span .block text-xs text-muted-foreground 
+        section .space-y-2 
+          h2 .px-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground 
+          ul .divide-y divide-border overflow-hidden rounded-xl bg-card shadow-(--shadow-card) ring-1 ring-foreground/[0.07] 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/courses
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-book-open h-4 w-4 text-muted-foreground 
+                    path . 
+                    path . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/assignments
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-list-checks h-4 w-4 text-muted-foreground 
+                    path . 
+                    path . 
+                    path . 
+                    path . 
+                    path . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/exams
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-graduation-cap h-4 w-4 text-muted-foreground 
+                    path . 
+                    path . 
+                    path . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 
+        section .space-y-2 
+          h2 .px-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground 
+          ul .divide-y divide-border overflow-hidden rounded-xl bg-card shadow-(--shadow-card) ring-1 ring-foreground/[0.07] 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/mastery
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-target h-4 w-4 text-muted-foreground 
+                    circle . 
+                    circle . 
+                    circle . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/mastery/habits
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-chart-line h-4 w-4 text-muted-foreground 
+                    path . 
+                    path . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/profile
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-user-round h-4 w-4 text-muted-foreground 
+                    circle . 
+                    path . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 
+        section .space-y-2 
+          h2 .px-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground 
+          ul .divide-y divide-border overflow-hidden rounded-xl bg-card shadow-(--shadow-card) ring-1 ring-foreground/[0.07] 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/settings
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-settings h-4 w-4 text-muted-foreground 
+                    path . 
+                    circle . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/settings#integrations
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-plug h-4 w-4 text-muted-foreground 
+                    path . 
+                    path . 
+                    path . 
+                    path . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 
+            li . 
+              a .flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60 href=/how-rushd-thinks
+                span .flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 
+                  svg .lucide lucide-compass h-4 w-4 text-muted-foreground 
+                    circle . 
+                    path . 
+                span .min-w-0 flex-1 
+                  span .block text-sm font-medium 
+                  span .block truncate text-xs text-muted-foreground 
+                svg .lucide lucide-chevron-right h-4 w-4 shrink-0 text-muted-foreground/70 
+                  path . 

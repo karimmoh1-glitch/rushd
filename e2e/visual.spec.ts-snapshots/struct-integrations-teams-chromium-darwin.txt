@@ -1,15 +1,33 @@
 main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0 
   div .mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 
     div .page-enter 
-      div .max-w-2xl space-y-8 
-        header . 
-          a .text-sm text-muted-foreground hover:text-foreground href=/settings#integrations
-          h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-          p .mt-1 text-sm text-muted-foreground 
-        section .space-y-4 
-          ul .space-y-1.5 text-sm text-muted-foreground 
-            li . 
-            li . 
-            li . 
-            li . 
-          p .rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground 
+      div .space-y-8 
+        header .space-y-2 
+          a .inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground href=/settings#integrations
+            svg .lucide lucide-chevron-left h-4 w-4 
+              path . 
+          div .flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between 
+            div .min-w-0 
+              h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
+              p .mt-1 max-w-2xl text-sm text-muted-foreground 
+        div .grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] 
+          ul .space-y-3 text-[15px] leading-relaxed 
+            li .flex gap-3 
+              svg .lucide lucide-check mt-1 h-4 w-4 shrink-0 text-muted-foreground 
+                path . 
+              span . 
+            li .flex gap-3 
+              svg .lucide lucide-check mt-1 h-4 w-4 shrink-0 text-muted-foreground 
+                path . 
+              span . 
+            li .flex gap-3 
+              svg .lucide lucide-check mt-1 h-4 w-4 shrink-0 text-muted-foreground 
+                path . 
+              span . 
+            li .flex gap-3 
+              svg .lucide lucide-check mt-1 h-4 w-4 shrink-0 text-muted-foreground 
+                path . 
+              span . 
+          div .rounded-xl bg-card p-5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07] 
+            p .text-sm text-muted-foreground 
+              a .text-foreground underline underline-offset-4 href=/integrations/canvas

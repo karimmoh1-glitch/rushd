@@ -2,38 +2,49 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
   div .mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 
     div .page-enter 
       div .space-y-8 
-        div .flex items-center justify-between 
-          div . 
-            h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
-            p .mt-1 text-sm text-muted-foreground 
-            nav .mt-3 flex gap-4 text-sm aria-label=Work
-              span .font-medium aria-current=page
-              a .text-muted-foreground hover:text-foreground href=/exams
-          button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
-            svg .lucide lucide-plus h-4 w-4 
-              path . 
-              path . 
-        div .space-y-3 
-          div .group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card text-sm text-card-foreground ring-1 ring-foreground/[0.07] shadow-(--shadow-card) [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl py-0 transition-shadow duration-200 hover:ring-foreground/15 
-            div .px-(--card-spacing) flex items-center gap-3 py-3 sm:py-3.5 
-              span .peer relative flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input transition-colors outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary role=checkbox aria-label=Mark completed aria-checked=false
-              input . type=checkbox
-              div .min-w-0 flex-1 
-                div .flex items-center gap-2 
-                  a .truncate font-medium underline-offset-4 hover:underline href=/assignments/:id
-                p .flex items-center gap-1.5 truncate text-sm text-muted-foreground 
-                  span .h-2 w-2 shrink-0 rounded-full 
-                  span .truncate 
-                    span .tabular-nums 
-              span .inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 
-                span .h-2 w-2 shrink-0 rounded-full bg-foreground 
-                span .font-mono text-xs tabular-nums 
-                  span .sr-only 
-              button .group/button inline-flex shrink-0 items-center justify-center rounded-full border bg-clip-padding font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 type=button
-                svg .lucide lucide-play h-4 w-4 
+        header .space-y-5 
+          div .flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between 
+            div .min-w-0 
+              h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
+              p .mt-1 max-w-xl text-sm text-muted-foreground 
+            div .shrink-0 
+              button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.25)] hover:bg-primary/85 h-9 gap-1.5 px-3.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5 sm:h-8 sm:px-3 type=button
+                svg .lucide lucide-plus h-4 w-4 
                   path . 
-              button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-9 sm:size-8 aria-label=Options for Lab report type=button
-                svg .lucide lucide-ellipsis-vertical h-4 w-4 
-                  circle . 
-                  circle . 
-                  circle . 
+                  path . 
+          div .flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border 
+            nav .-mb-px flex gap-5 text-sm aria-label=Work
+              span .border-b-2 border-signal pb-2.5 font-medium aria-current=page
+              a .border-b-2 border-transparent pb-2.5 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground href=/exams
+            p .pb-2.5 text-xs tabular-nums text-muted-foreground 
+        div .space-y-2 
+          article .relative overflow-hidden rounded-xl bg-card shadow-(--shadow-card) ring-1 ring-foreground/[0.07] transition-shadow duration-200 hover:ring-foreground/15 
+            span .course-rule absolute inset-y-0 left-0 w-1 
+            div .grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 py-3 pl-4 pr-2 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:py-3.5 sm:pl-5 
+              span .peer relative flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input transition-colors outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary col-start-1 row-start-1 self-start mt-0.5 sm:mt-0 sm:self-center role=checkbox aria-label=Mark completed aria-checked=false
+              input . type=checkbox
+              div .col-start-2 row-start-1 min-w-0 
+                div .flex flex-wrap items-center gap-x-2 gap-y-1 
+                  a .line-clamp-2 min-w-0 font-medium underline-offset-4 hover:underline sm:line-clamp-1 href=/assignments/:id
+                p .mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground 
+                  span .course-ink truncate font-medium 
+                  span . 
+                  span .shrink-0 tabular-nums 
+              div .col-span-2 col-start-2 row-start-2 mt-2 flex items-center gap-3 sm:col-span-1 sm:col-start-3 sm:row-start-1 sm:mt-0 sm:gap-4 
+                div .order-2 ml-auto sm:order-1 sm:ml-0 
+                  span .inline-flex items-center gap-1.5 whitespace-nowrap 
+                    span .h-2 w-2 shrink-0 rounded-full bg-foreground 
+                    span .font-mono text-xs tabular-nums 
+                      span .sr-only 
+                div .order-1 flex items-center gap-2 whitespace-nowrap sm:order-2 sm:w-40 sm:flex-col sm:items-end sm:gap-1 
+                  span .inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[11px] font-medium leading-none ring-1 ring-inset bg-soon/12 text-soon ring-soon/25 
+                  span .text-xs tabular-nums text-muted-foreground 
+              div .col-start-3 row-start-1 flex items-center gap-1 self-start sm:col-start-4 sm:self-center 
+                button .group/button inline-flex shrink-0 items-center justify-center rounded-full border bg-clip-padding font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 gap-1 px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 type=button
+                  svg .lucide lucide-play h-4 w-4 
+                    path . 
+                button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-(--dur-press) ease-(--ease-out-strong) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 size-9 sm:size-8 aria-label=Options for Lab report type=button
+                  svg .lucide lucide-ellipsis-vertical h-4 w-4 
+                    circle . 
+                    circle . 
+                    circle . 

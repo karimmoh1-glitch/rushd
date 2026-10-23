@@ -36,13 +36,13 @@ export function ForgotForm() {
   return (
     <form className="space-y-3" onSubmit={handleSubmit}>
       <Label htmlFor="forgot-email">Email</Label>
-      <Input id="forgot-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Input id="forgot-email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} className="h-11 sm:h-10" required value={email} onChange={(e) => setEmail(e.target.value)} />
       {error && (
         <p role="alert" className="text-destructive">
           {error}
         </p>
       )}
-      <Button type="submit" className="w-full" disabled={pending || !email.trim()}>
+      <Button type="submit" size="lg" className="h-11 w-full sm:h-10" disabled={pending || !email.trim()}>
         {pending ? "Sending…" : "Email me a reset link"}
       </Button>
     </form>

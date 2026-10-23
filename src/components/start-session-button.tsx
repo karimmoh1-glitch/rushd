@@ -50,6 +50,8 @@ export function StartSessionButton({
       onClick={handleStart}
       disabled={pending || blocked}
       title={blocked ? "Finish or abandon your current session first" : undefined}
+      // Let the pointer reach a blocked button so its title explains why.
+      className={blocked ? "disabled:pointer-events-auto disabled:cursor-not-allowed" : undefined}
     >
       <Play className="h-4 w-4" />
       {pending ? "Starting…" : label}

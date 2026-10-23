@@ -6,6 +6,15 @@ import { teamsAvailable } from "@/lib/teams/service";
 import { formatDateInZone } from "@/lib/time/zone";
 import { buttonVariants } from "@/components/ui/button";
 import { TeamsControls } from "./teams-controls";
+import { Check } from "lucide-react";
+import { PageHeader } from "@/components/page-section";
+
+const ABOUT = [
+  "Works with school or work Microsoft accounts that use Teams assignments.",
+  "You sign in with Microsoft; Rushd never sees your password.",
+  "Rushd reads your classes, assignments, due dates, points, and whether you've turned work in. Not grades or files.",
+  "Some schools require an administrator to approve Rushd first.",
+];
 
 export const metadata: Metadata = { title: "Microsoft Teams" };
 export const maxDuration = 60;
@@ -43,38 +52,45 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   }
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <header>
-        <Link href="/settings#integrations" className="text-sm text-muted-foreground hover:text-foreground">Settings</Link>
-        <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Microsoft Teams</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Bring in assignments and due dates from Teams for Education. Rushd only reads: it never submits work, posts, or
-          changes anything in Teams.
-        </p>
-      </header>
+    <div className="space-y-8">
+      <PageHeader
+        back={{ href: "/settings#integrations", label: "Settings" }}
+        title="Microsoft Teams"
+        description={
+          <>
+            Bring in assignments and due dates from Teams for Education. Rushd only reads: it never submits work, posts, or
+            changes anything in Teams.
+          </>
+        }
+      />
 
-      {errorMessage && <p role="alert" className="rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm">{errorMessage}</p>}
-      {params.connected && <p role="status" className="rounded-lg border border-border bg-card px-4 py-3 text-sm">Connected. Choose the classes to sync below.</p>}
+      {errorMessage && <p role="alert" className="max-w-2xl rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm">{errorMessage}</p>}
+      {params.connected && <p role="status" className="max-w-2xl rounded-lg border border-border bg-card px-4 py-3 text-sm">Connected. Choose the classes to sync below.</p>}
 
       {!connection ? (
-        <section className="space-y-4">
-          <ul className="space-y-1.5 text-sm text-muted-foreground">
-            <li>Works with school or work Microsoft accounts that use Teams assignments.</li>
-            <li>You sign in with Microsoft; Rushd never sees your password.</li>
-            <li>Rushd reads your classes, assignments, due dates, points, and whether you&apos;ve turned work in. Not grades or files.</li>
-            <li>Some schools require an administrator to approve Rushd first.</li>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+          <ul className="space-y-3 text-[15px] leading-relaxed">
+            {ABOUT.map((line) => (
+              <li key={line} className="flex gap-3">
+                <Check className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span>{line}</span>
+              </li>
+            ))}
           </ul>
-          {available ? (
-            <a href="/api/integrations/teams/start" className={buttonVariants()}>Connect Microsoft Teams</a>
-          ) : (
-            <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-              Teams connections aren&apos;t set up on this server yet. Add work by hand or connect Canvas in the meantime.
-            </p>
-          )}
-        </section>
+          <div className="rounded-xl bg-card p-5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07]">
+            {available ? (
+              <a href="/api/integrations/teams/start" className={buttonVariants({ className: "w-full" })}>Connect Microsoft Teams</a>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Teams connections aren&apos;t set up on this server yet. Add work by hand or{" "}
+                <Link href="/integrations/canvas" className="text-foreground underline underline-offset-4">connect Canvas</Link> in the meantime.
+              </p>
+            )}
+          </div>
+        </div>
       ) : (
-        <>
-          <section className="space-y-1 text-sm">
+        <div className="max-w-2xl space-y-6">
+          <section className="space-y-1 rounded-xl bg-card p-5 text-sm shadow-(--shadow-card) ring-1 ring-foreground/[0.07]">
             <p>
               Connected{connection.accountName ? ` as ${connection.accountName}` : ""}.{" "}
               {lastSyncedText}
@@ -87,7 +103,7 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
             {connection.lastSyncError && <p className="text-muted-foreground">Last sync problem: {connection.lastSyncError}</p>}
           </section>
           <TeamsControls classes={connection.classes} />
-        </>
+        </div>
       )}
     </div>
   );

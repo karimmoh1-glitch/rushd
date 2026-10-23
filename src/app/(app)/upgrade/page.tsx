@@ -5,6 +5,8 @@ import { PLANS } from "@/lib/billing/plans";
 import { billingConfigured, billingMode } from "@/lib/billing/stripe";
 import { getPlanId } from "@/lib/ai/usage";
 import { CheckoutButton } from "./checkout-button";
+import { Check } from "lucide-react";
+import { PageHeader } from "@/components/page-section";
 
 export const metadata: Metadata = { title: "Upgrade" };
 
@@ -13,7 +15,14 @@ type PlanId = keyof typeof PLANS;
 function UpgradeContent({ plan, currentPlanId }: { plan: (typeof PLANS)[PlanId]; currentPlanId: PlanId }) {
   if (!billingConfigured()) {
     return (
-      <p className="text-sm text-muted-foreground">Paid plans aren&apos;t open yet. You&apos;re on the Free plan, which keeps working as usual.</p>
+      <div className="rounded-xl bg-card p-5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07]">
+        <p className="text-sm">Paid plans aren&apos;t open yet. You&apos;re on the Free plan, which keeps working as usual.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          See what each plan will include on{" "}
+          <Link href="/pricing" className="text-foreground underline underline-offset-4">Pricing</Link>, and what you&apos;ve used this
+          month in <Link href="/settings#plan" className="text-foreground underline underline-offset-4">Settings</Link>.
+        </p>
+      </div>
     );
   }
 
@@ -27,9 +36,16 @@ function UpgradeContent({ plan, currentPlanId }: { plan: (typeof PLANS)[PlanId];
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-5">
-        <p className="text-3xl font-semibold tracking-tight">${plan.priceMonthlyUsd}<span className="text-sm font-normal text-muted-foreground"> / month</span></p>
-        <ul className="mt-3 space-y-1 text-sm">{plan.highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>
+      <div className="rounded-xl bg-card p-5 shadow-(--shadow-card) ring-1 ring-foreground/[0.07]">
+        <p className="font-display text-4xl font-medium tracking-tight tabular-nums">${plan.priceMonthlyUsd}<span className="font-sans text-sm font-normal text-muted-foreground"> / month</span></p>
+        <ul className="mt-4 space-y-2 text-sm">
+          {plan.highlights.map((highlight) => (
+            <li key={highlight} className="flex gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              {highlight}
+            </li>
+          ))}
+        </ul>
       </div>
       <p className="text-sm text-muted-foreground">
         You&apos;ll finish payment on Stripe. Renews monthly; cancel anytime in Settings. If you&apos;re under 18, ask a parent
@@ -48,7 +64,7 @@ export default async function UpgradePage({ searchParams }: { searchParams: Prom
   const currentPlanId = await getPlanId(user.id);
   return (
     <div className="max-w-lg space-y-6">
-      <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Upgrade to {plan.name}</h1>
+      <PageHeader back={{ href: "/settings#plan", label: "Settings" }} title={`Upgrade to ${plan.name}`} />
       <UpgradeContent plan={plan} currentPlanId={currentPlanId} />
     </div>
   );

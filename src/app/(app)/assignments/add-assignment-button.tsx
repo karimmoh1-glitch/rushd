@@ -8,16 +8,18 @@ import { AssignmentDialog, type ClassOption } from "./assignment-dialog";
 export function AddAssignmentButton({
   classes,
   variant = "default",
+  label = "Add assignment",
 }: {
   classes: ClassOption[];
   variant?: "default" | "outline";
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button variant={variant} onClick={() => setOpen(true)} disabled={classes.length === 0}>
         <Plus className="h-4 w-4" />
-        Add assignment
+        {label}
       </Button>
       <AssignmentDialog open={open} onOpenChange={setOpen} classes={classes} />
     </>

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { InviteCodeForm } from "./invite-code-form";
 import { ResetLinkForm } from "./reset-link-form";
 import { lastCronRuns } from "@/lib/jobs/cron-log";
+import { PageHeader } from "@/components/page-section";
 
 const MIN_SESSIONS_PER_STUDENT = 3;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -447,9 +448,9 @@ function RecentSignupsSection({ signups }: { signups: SignupRow[] }) {
         {signups.map((user) => (
           <div
             key={user.id}
-            className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+            className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
           >
-            <span className="truncate">{user.email}</span>
+            <span className="min-w-0 truncate">{user.email}</span>
             <div className="flex shrink-0 items-center gap-2">
               {!user.onboardingCompletedAt && (
                 <Badge variant="outline">Not onboarded</Badge>
@@ -595,9 +596,9 @@ function StudentAccuracyList({ students }: { students: StudentAccuracy[] }) {
         {students.map((student) => (
           <div
             key={student.email}
-            className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+            className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
           >
-            <span className="truncate">
+            <span className="min-w-0 truncate">
               {student.email} <span className="text-xs text-muted-foreground">({student.sessionCount})</span>
             </span>
             <span
@@ -628,7 +629,7 @@ function PredictionAccuracySection({
         Pooled across every student — same estimate-accuracy math as their Insights page, run
         platform-wide. Answers which classes are underestimated, in aggregate.
       </p>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <ClassAccuracyList rows={classRows} />
         <StudentAccuracyList students={students} />
       </div>
@@ -772,12 +773,13 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-[1.75rem] font-medium leading-tight tracking-tight">Admin</h1>
-      <p className="flex gap-4 text-sm">
-        <a href="/admin/ai" className="underline underline-offset-4">AI usage and cost</a>
-        <a href="/admin/growth" className="underline underline-offset-4">Growth and school inquiries</a>
-      </p>
+    <div className="min-w-0 space-y-8">
+      <PageHeader title="Admin" description="Aggregate product signals from real accounts. Nothing here is shown to students.">
+        <p className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-sm">
+          <a href="/admin/ai" className="underline underline-offset-4">AI usage and cost</a>
+          <a href="/admin/growth" className="underline underline-offset-4">Growth and school inquiries</a>
+        </p>
+      </PageHeader>
 
       <ScheduledJobsSection daily={crons.daily} evening={crons.evening} />
 
@@ -794,7 +796,7 @@ export default async function AdminPage() {
         sessionUserCount={firstSessionUsers.length}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <ReturningStudentsSection
           returningCount={returning.returningCount}
           activeCount={returning.activeCount}
@@ -808,7 +810,7 @@ export default async function AdminPage() {
 
       <InviteCodesSection inviteCodes={inviteCodes} />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <RecentSignupsSection signups={recentSignups} />
         <EventCountsSection eventCounts={eventCounts} />
       </div>

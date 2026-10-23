@@ -3,6 +3,9 @@ main .pb-[calc(5rem+env(safe-area-inset-bottom))] md:ml-56 md:pb-0
     div .page-enter 
       div .space-y-10 
         header .max-w-2xl 
+          a .mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground href=/settings#integrations
+            svg .lucide lucide-chevron-left h-4 w-4 
+              path . 
           h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
           p .mt-2 text-base text-muted-foreground 
         div .grid gap-8 lg:grid-cols-[1fr_1.1fr] 

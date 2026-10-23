@@ -88,7 +88,7 @@ export function ReviewList({ reviews }: { reviews: ReviewView[] }) {
         // Only the newest review is compared with the one before it.
         const compareWith = index === 0 ? previous : undefined;
         return (
-          <details key={review.id} open={index === 0} className="rounded-lg border border-border">
+          <details key={review.id} open={index === 0} className="rounded-lg border border-border bg-background/40">
             <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-2 px-4 py-3">
               <span className="font-medium">{review.label}</span>
               <span className="text-sm text-muted-foreground">
