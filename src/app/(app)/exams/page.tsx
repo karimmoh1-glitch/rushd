@@ -6,12 +6,53 @@ import { pulseOf } from "@/lib/planning/pulse";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/dal";
 import { resolveTimeZone } from "@/lib/time/zone";
-import { ExamRow } from "./exam-row";
+import { ExamRow, type ExamRowData } from "./exam-row";
 import { AddExamButton } from "./add-exam-button";
 
 export const metadata: Metadata = {
   title: "Exams",
 };
+
+interface ExamRecord {
+  id: string;
+  classId: string;
+  title: string;
+  examAt: Date;
+  prepMinutes: number;
+  priority: ExamRowData["priority"];
+  notes: string | null;
+  class: { name: string; color: string };
+}
+
+/** The plain, serializable shape the client-side row needs. */
+function toRowData(exam: ExamRecord, pulse: number | null): ExamRowData {
+  return {
+    id: exam.id,
+    classId: exam.classId,
+    title: exam.title,
+    examAt: exam.examAt.toISOString(),
+    pulse,
+    prepMinutes: exam.prepMinutes,
+    priority: exam.priority,
+    notes: exam.notes ?? undefined,
+    className: exam.class.name,
+    classColor: exam.class.color,
+  };
+}
+
+function NoClassesYet() {
+  return (
+    <div className="rounded-lg border border-dashed border-border py-16 text-center">
+      <p className="text-muted-foreground">Add a class first.</p>
+      <Link
+        href="/courses"
+        className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4"
+      >
+        Go to Classes
+      </Link>
+    </div>
+  );
+}
 
 export default async function ExamsPage() {
   const user = await requireUser();
@@ -39,27 +80,34 @@ export default async function ExamsPage() {
     }),
     generatePlanForUser(user.id),
   ]);
-  const pulseById = new Map(plan.scored.map((s) => [s.item.id, pulseOf(s.score)]));
+  const pulseById = new Map(plan.scored.map((scored) => [scored.item.id, pulseOf(scored.score)]));
+  function toRow(exam: ExamRecord): ExamRowData {
+    return toRowData(exam, pulseById.get(exam.id) ?? null);
+  }
 
-  // Server Component rendered fresh per request — reading the current time
-  // here is correct, not a client re-render purity violation.
-  // eslint-disable-next-line react-hooks/purity
-  const now = Date.now();
-  const upcoming = exams.filter((e) => e.examAt.getTime() >= now);
-  const past = exams.filter((e) => e.examAt.getTime() < now);
+  // This page renders fresh on every request, so reading the clock here is fine.
+  const now = new Date();
+  const upcoming = exams.filter((exam) => exam.examAt.getTime() >= now.getTime());
+  const past = exams.filter((exam) => exam.examAt.getTime() < now.getTime());
 
-  const toRowData = (e: (typeof exams)[number]) => ({
-    id: e.id,
-    classId: e.classId,
-    title: e.title,
-    examAt: e.examAt.toISOString(),
-    pulse: pulseById.get(e.id) ?? null,
-    prepMinutes: e.prepMinutes,
-    priority: e.priority,
-    notes: e.notes ?? undefined,
-    className: e.class.name,
-    classColor: e.class.color,
-  });
+  let mainContent: React.ReactNode;
+  if (classes.length === 0) {
+    mainContent = <NoClassesYet />;
+  } else if (exams.length === 0) {
+    mainContent = (
+      <div className="rounded-lg border border-dashed border-border py-16 text-center">
+        <p className="text-muted-foreground">No exams yet.</p>
+      </div>
+    );
+  } else {
+    mainContent = (
+      <div className="space-y-3">
+        {upcoming.map((exam) => (
+          <ExamRow key={exam.id} classes={classes} data={toRow(exam)} timeZone={timeZone} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -78,34 +126,14 @@ export default async function ExamsPage() {
         <AddExamButton classes={classes} />
       </div>
 
-      {classes.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-muted-foreground">Add a class first.</p>
-          <Link
-            href="/courses"
-            className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4"
-          >
-            Go to Classes
-          </Link>
-        </div>
-      ) : exams.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="text-muted-foreground">No exams yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {upcoming.map((e) => (
-            <ExamRow key={e.id} classes={classes} data={toRowData(e)} timeZone={timeZone} />
-          ))}
-        </div>
-      )}
+      {mainContent}
 
       {past.length > 0 && (
         <div>
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">Past</h2>
           <div className="space-y-3">
-            {past.map((e) => (
-              <ExamRow key={e.id} classes={classes} data={toRowData(e)} timeZone={timeZone} />
+            {past.map((exam) => (
+              <ExamRow key={exam.id} classes={classes} data={toRow(exam)} timeZone={timeZone} />
             ))}
           </div>
         </div>

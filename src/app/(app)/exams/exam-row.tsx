@@ -40,13 +40,16 @@ export function ExamRow({
 
   const examDate = new Date(data.examAt);
   const days = daysUntil(examDate, timeZone);
-  const soon = days >= 0 && days <= 3;
+  const soon = days >= 0 && days <= 3; // within the next three days
 
   function handleDelete() {
     startTransition(async () => {
       const result = await deleteExam(data.id);
-      if ("error" in result) toast.error(result.error);
-      else toast.success("Exam deleted.");
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Exam deleted.");
+      }
     });
   }
 
