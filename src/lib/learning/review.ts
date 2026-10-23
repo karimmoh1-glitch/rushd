@@ -68,5 +68,14 @@ export function reviewQueue(candidates: ReviewCandidate[], now: Date, options: R
   }
   items.sort((a, b) => b.urgency - a.urgency || a.rank - b.rank || a.score - b.score || a.title.localeCompare(b.title));
   const limited = options.limit ? items.slice(0, options.limit) : items;
-  return limited.map(({ urgency: _u, rank: _r, score: _s, ...item }) => item);
+  return limited.map((item) => ({
+    topicId: item.topicId,
+    classId: item.classId,
+    title: item.title,
+    dueAt: item.dueAt,
+    overdueDays: item.overdueDays,
+    status: item.status,
+    reason: item.reason,
+    minutes: item.minutes,
+  }));
 }

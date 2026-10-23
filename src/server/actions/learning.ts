@@ -29,7 +29,8 @@ function refreshCourse(classId: string) {
 function done<T extends object>(result: ({ ok: true } & T) | { ok: false; error: string }, classId?: string): Result<Omit<T, "ok">> {
   if (!result.ok) return { error: result.error };
   if (classId) refreshCourse(classId);
-  const { ok: _ok, ...rest } = result;
+  const rest: Record<string, unknown> = { ...result };
+  delete rest.ok;
   return { success: true, ...(rest as Omit<T, "ok">) };
 }
 
