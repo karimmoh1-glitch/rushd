@@ -8,10 +8,9 @@ import type { RubricCriterion } from "@/lib/canvas/content";
 import { getMastery } from "@/lib/practice/load";
 import { AssessmentResultSchema } from "@/lib/practice/assessment";
 
-// The tutor's tools. Each executor receives a TutorScope built on the server
-// from the session and the conversation row; the model only supplies search
-// text and ids, and every id is re-checked against scope.userId (and the
-// conversation's class) before anything is read. All tools are read-only.
+// The tutor's read-only tools. TutorScope comes from the server session, never
+// the model: every id the model sends is re-checked against scope.userId (and
+// the conversation's class) before anything is read.
 
 export interface TutorScope {
   userId: string;
@@ -112,146 +111,224 @@ const Inputs = {
   list_upcoming_work: z.object({ days: z.number().int().min(1).max(28) }),
   get_learning_profile: z.object({}),
 };
-export type TutorToolName = keyof typeof Inputs;
 
 export interface ToolOutcome {
   content: string;
   isError?: boolean;
 }
 
+const DATE_FORMAT: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" };
+
 /** Wraps Canvas text so the model treats it as material to reason about,
  * never as instructions to follow. */
 function untrusted(label: string, text: string): string {
-  return `<course_material ${label}>\n${text.replace(/<\/?course_material[^>]*>/gi, "")}\n</course_material>`;
+  // Strip any tags in the text that could fake the end of the block.
+  const safeText = text.replace(/<\/?course_material[^>]*>/gi, "");
+  return `<course_material ${label}>\n${safeText}\n</course_material>`;
 }
 
 function formatRubric(rubric: RubricCriterion[] | null): string {
   if (!rubric) return "Rubric: none published in Canvas for this assignment. Do not invent criteria.";
-  return [
-    "Rubric (from Canvas):",
-    ...rubric.map(
-      (c) =>
-        `- [${c.id}] ${c.description} (${c.points} pts)${c.longDescription ? `: ${c.longDescription}` : ""}\n` +
-        c.ratings.map((r) => `    · ${r.description} (${r.points} pts)${r.longDescription ? `: ${r.longDescription}` : ""}`).join("\n"),
-    ),
-  ].join("\n");
+  const lines = ["Rubric (from Canvas):"];
+  for (const criterion of rubric) {
+    let header = `- [${criterion.id}] ${criterion.description} (${criterion.points} pts)`;
+    if (criterion.longDescription) header += `: ${criterion.longDescription}`;
+
+    const ratingLines: string[] = [];
+    for (const rating of criterion.ratings) {
+      let line = `    · ${rating.description} (${rating.points} pts)`;
+      if (rating.longDescription) line += `: ${rating.longDescription}`;
+      ratingLines.push(line);
+    }
+    lines.push(`${header}\n${ratingLines.join("\n")}`);
+  }
+  return lines.join("\n");
 }
 
+/** Remembers a material the tutor read, so its citation can become a link. */
+function remember(registry: SourceRegistry, material: RetrievedSource) {
+  registry.add({ id: material.id, title: material.title, kind: material.kind, className: material.className, url: material.url });
+}
+
+function invalidInput(error: z.ZodError): ToolOutcome {
+  return { content: `INVALID_INPUT: ${error.issues[0]?.message ?? "bad input"}`, isError: true };
+}
+
+async function searchCourseMaterials(query: string, scope: TutorScope, registry: SourceRegistry): Promise<ToolOutcome> {
+  const hits = await searchMaterials(scope.userId, { query, classId: scope.classId, limit: 6 });
+  if (hits.length === 0) {
+    return { content: "No synced course material matched. The course may not be synced yet, or the topic isn't covered in Canvas." };
+  }
+  const blocks: string[] = [];
+  for (const hit of hits) {
+    remember(registry, hit);
+    const label = `source_id="${hit.id}" kind="${hit.kind}" class="${hit.className}"`;
+    blocks.push(untrusted(label, `Title: ${hit.title}\nExcerpt: ${hit.excerpt || "(no text)"}`));
+  }
+  return { content: blocks.join("\n") };
+}
+
+async function readCourseMaterial(sourceId: string, scope: TutorScope, registry: SourceRegistry): Promise<ToolOutcome> {
+  const material = await getMaterial(scope.userId, sourceId, { classId: scope.classId });
+  if (!material) return { content: "No material with that id is available in this conversation.", isError: true };
+  remember(registry, material);
+
+  let body = material.body;
+  if (body.length > 12_000) body = `${body.slice(0, 12_000)}…`;
+  let rubricPart = "";
+  if (material.kind === "ASSIGNMENT") rubricPart = `\n\n${formatRubric(material.rubric)}`;
+
+  const label = `source_id="${material.id}" kind="${material.kind}" class="${material.className}"`;
+  return { content: untrusted(label, `Title: ${material.title}\n\n${body || "(no text)"}${rubricPart}`) };
+}
+
+async function getAssignment(assignmentId: string | null, scope: TutorScope, registry: SourceRegistry): Promise<ToolOutcome> {
+  const id = assignmentId ?? scope.assignmentId;
+  if (!id) return { content: "This conversation isn't about a specific assignment. Ask the student which one, or use list_upcoming_work." };
+
+  const classFilter = scope.classId ? { classId: scope.classId } : {};
+  const assignment = await db.assignment.findFirst({
+    where: { id, userId: scope.userId, ...classFilter },
+    select: {
+      id: true,
+      title: true,
+      dueAt: true,
+      status: true,
+      estimatedMinutes: true,
+      pointsPossible: true,
+      source: true,
+      notes: true,
+      class: { select: { name: true } },
+    },
+  });
+  if (!assignment) return { content: "No assignment with that id is available in this conversation.", isError: true };
+
+  const canvas = await getAssignmentMaterial(scope.userId, assignment.id);
+  if (canvas) remember(registry, canvas);
+
+  const facts = [
+    `Assignment: ${assignment.title} (${assignment.class.name})`,
+    `Due: ${formatDateInZone(assignment.dueAt, scope.timeZone, DATE_FORMAT)}`,
+    `Status: ${assignment.status}`,
+    `Estimated work: ${assignment.estimatedMinutes} minutes`,
+  ];
+  if (assignment.pointsPossible != null) facts.push(`Points possible: ${assignment.pointsPossible}`);
+  if (assignment.notes) facts.push(`Student's own notes: ${assignment.notes}`);
+
+  let detail: string;
+  if (canvas) {
+    detail = untrusted(
+      `source_id="${canvas.id}" kind="ASSIGNMENT"`,
+      `Teacher's description:\n${canvas.body || "(empty)"}\n\n${formatRubric(canvas.rubric)}`,
+    );
+  } else if (assignment.source === "CANVAS") {
+    detail = "The Canvas description and rubric haven't been synced for this course yet.";
+  } else {
+    detail = "Added by hand in Rushd; there is no teacher description or rubric on file.";
+  }
+  return { content: `${facts.join("\n")}\n\n${detail}` };
+}
+
+async function getLearningProfile(scope: TutorScope): Promise<ToolOutcome> {
+  const classFilter = scope.classId ? { classId: scope.classId } : {};
+  const [topics, recent] = await Promise.all([
+    getMastery(scope.userId, scope.now),
+    db.assessment.findMany({
+      where: { userId: scope.userId, ...classFilter },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      select: { topic: true, createdAt: true, result: true },
+    }),
+  ]);
+  if (topics.length === 0) {
+    return { content: "No practice checks yet, so there's no mastery evidence. Don't guess at their level; ask a diagnostic question instead." };
+  }
+
+  const topicLines: string[] = [];
+  for (const t of topics.slice(0, 12)) {
+    const checks = t.evidenceCount === 1 ? "check" : "checks";
+    topicLines.push(`- ${t.topicLabel}: ~${t.estimate}% (range ${t.low}-${t.high}, ${t.confidence} confidence, ${t.evidenceCount} ${checks})`);
+  }
+
+  const gapLines: string[] = [];
+  for (const assessment of recent) {
+    const parsed = AssessmentResultSchema.safeParse(assessment.result);
+    if (!parsed.success) continue;
+    for (const gap of parsed.data.gaps) {
+      gapLines.push(`- ${assessment.topic}: ${gap.concept} (likely prerequisite: ${gap.prerequisite}). Evidence: ${gap.evidence}`);
+    }
+  }
+
+  let content = `Topic estimates (from short checks; treat as rough):\n${topicLines.join("\n")}`;
+  if (gapLines.length > 0) content += `\n\nGaps from recent checks:\n${gapLines.join("\n")}`;
+  return { content };
+}
+
+async function listUpcomingWork(days: number, scope: TutorScope): Promise<ToolOutcome> {
+  const until = new Date(scope.now.getTime() + days * 24 * 60 * 60 * 1000);
+  const classFilter = scope.classId ? { classId: scope.classId } : {};
+  const [assignments, exams] = await Promise.all([
+    db.assignment.findMany({
+      where: { userId: scope.userId, status: { not: "COMPLETED" }, dueAt: { lte: until }, class: { archived: false }, ...classFilter },
+      orderBy: { dueAt: "asc" },
+      take: 25,
+      select: { id: true, title: true, dueAt: true, estimatedMinutes: true, class: { select: { name: true } } },
+    }),
+    db.exam.findMany({
+      where: { userId: scope.userId, examAt: { gte: scope.now, lte: until }, class: { archived: false }, ...classFilter },
+      orderBy: { examAt: "asc" },
+      take: 10,
+      select: { title: true, examAt: true, class: { select: { name: true } } },
+    }),
+  ]);
+
+  const lines: string[] = [];
+  for (const a of assignments) {
+    const overdue = a.dueAt < scope.now ? " (OVERDUE)" : "";
+    const due = formatDateInZone(a.dueAt, scope.timeZone, DATE_FORMAT);
+    lines.push(`- [assignment_id=${a.id}] ${a.title} (${a.class.name}), due ${due}${overdue}, ~${a.estimatedMinutes} min`);
+  }
+  for (const e of exams) {
+    lines.push(`- Exam: ${e.title} (${e.class.name}), ${formatDateInZone(e.examAt, scope.timeZone, DATE_FORMAT)}`);
+  }
+  if (lines.length === 0) return { content: `Nothing open in the next ${days} days.` };
+  return { content: lines.join("\n") };
+}
+
+/** Validates the model's input for a tool, then runs it. */
 export async function runTutorTool(
   name: string,
   rawInput: unknown,
   scope: TutorScope,
   registry: SourceRegistry,
 ): Promise<ToolOutcome> {
-  if (!(name in Inputs)) return { content: `Unknown tool: ${name}`, isError: true };
-  const parsed = Inputs[name as TutorToolName].safeParse(rawInput);
-  if (!parsed.success) return { content: `INVALID_INPUT: ${parsed.error.issues[0]?.message ?? "bad input"}`, isError: true };
-
-  switch (name as TutorToolName) {
+  switch (name) {
     case "search_course_materials": {
-      const { query } = parsed.data as z.infer<(typeof Inputs)["search_course_materials"]>;
-      const hits = await searchMaterials(scope.userId, { query, classId: scope.classId, limit: 6 });
-      if (hits.length === 0) {
-        return { content: "No synced course material matched. The course may not be synced yet, or the topic isn't covered in Canvas." };
-      }
-      for (const h of hits) registry.add({ id: h.id, title: h.title, kind: h.kind, className: h.className, url: h.url });
-      return {
-        content: hits
-          .map((h) => untrusted(`source_id="${h.id}" kind="${h.kind}" class="${h.className}"`, `Title: ${h.title}\nExcerpt: ${h.excerpt || "(no text)"}`))
-          .join("\n"),
-      };
+      const parsed = Inputs.search_course_materials.safeParse(rawInput);
+      if (!parsed.success) return invalidInput(parsed.error);
+      return searchCourseMaterials(parsed.data.query, scope, registry);
     }
     case "read_course_material": {
-      const { source_id } = parsed.data as z.infer<(typeof Inputs)["read_course_material"]>;
-      const m = await getMaterial(scope.userId, source_id, { classId: scope.classId });
-      if (!m) return { content: "No material with that id is available in this conversation.", isError: true };
-      registry.add({ id: m.id, title: m.title, kind: m.kind, className: m.className, url: m.url });
-      const body = m.body.length > 12_000 ? `${m.body.slice(0, 12_000)}…` : m.body;
-      const extra = m.kind === "ASSIGNMENT" ? `\n\n${formatRubric(m.rubric)}` : "";
-      return { content: untrusted(`source_id="${m.id}" kind="${m.kind}" class="${m.className}"`, `Title: ${m.title}\n\n${body || "(no text)"}${extra}`) };
+      const parsed = Inputs.read_course_material.safeParse(rawInput);
+      if (!parsed.success) return invalidInput(parsed.error);
+      return readCourseMaterial(parsed.data.source_id, scope, registry);
     }
     case "get_assignment": {
-      const { assignment_id } = parsed.data as z.infer<(typeof Inputs)["get_assignment"]>;
-      const id = assignment_id ?? scope.assignmentId;
-      if (!id) return { content: "This conversation isn't about a specific assignment. Ask the student which one, or use list_upcoming_work." };
-      const a = await db.assignment.findFirst({
-        where: { id, userId: scope.userId, ...(scope.classId ? { classId: scope.classId } : {}) },
-        select: {
-          id: true,
-          title: true,
-          dueAt: true,
-          status: true,
-          estimatedMinutes: true,
-          pointsPossible: true,
-          source: true,
-          notes: true,
-          class: { select: { name: true } },
-        },
-      });
-      if (!a) return { content: "No assignment with that id is available in this conversation.", isError: true };
-      const canvas = await getAssignmentMaterial(scope.userId, a.id);
-      if (canvas) registry.add({ id: canvas.id, title: canvas.title, kind: canvas.kind, className: canvas.className, url: canvas.url });
-      const facts = [
-        `Assignment: ${a.title} (${a.class.name})`,
-        `Due: ${formatDateInZone(a.dueAt, scope.timeZone, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`,
-        `Status: ${a.status}`,
-        `Estimated work: ${a.estimatedMinutes} minutes`,
-        a.pointsPossible != null ? `Points possible: ${a.pointsPossible}` : null,
-        a.notes ? `Student's own notes: ${a.notes}` : null,
-      ].filter(Boolean);
-      const detail = canvas
-        ? untrusted(`source_id="${canvas.id}" kind="ASSIGNMENT"`, `Teacher's description:\n${canvas.body || "(empty)"}\n\n${formatRubric(canvas.rubric)}`)
-        : a.source === "CANVAS"
-          ? "The Canvas description and rubric haven't been synced for this course yet."
-          : "Added by hand in Rushd; there is no teacher description or rubric on file.";
-      return { content: `${facts.join("\n")}\n\n${detail}` };
+      const parsed = Inputs.get_assignment.safeParse(rawInput);
+      if (!parsed.success) return invalidInput(parsed.error);
+      return getAssignment(parsed.data.assignment_id, scope, registry);
     }
     case "get_learning_profile": {
-      const [topics, recent] = await Promise.all([
-        getMastery(scope.userId, scope.now),
-        db.assessment.findMany({
-          where: { userId: scope.userId, ...(scope.classId ? { classId: scope.classId } : {}) },
-          orderBy: { createdAt: "desc" },
-          take: 3,
-          select: { topic: true, createdAt: true, result: true },
-        }),
-      ]);
-      if (topics.length === 0) return { content: "No practice checks yet, so there's no mastery evidence. Don't guess at their level; ask a diagnostic question instead." };
-      const topicLines = topics
-        .slice(0, 12)
-        .map((t) => `- ${t.topicLabel}: ~${t.estimate}% (range ${t.low}-${t.high}, ${t.confidence} confidence, ${t.evidenceCount} check${t.evidenceCount === 1 ? "" : "s"})`);
-      const gapLines = recent.flatMap((a) => {
-        const parsed = AssessmentResultSchema.safeParse(a.result);
-        return parsed.success ? parsed.data.gaps.map((g) => `- ${a.topic}: ${g.concept} (likely prerequisite: ${g.prerequisite}). Evidence: ${g.evidence}`) : [];
-      });
-      return {
-        content: `Topic estimates (from short checks; treat as rough):\n${topicLines.join("\n")}${gapLines.length ? `\n\nGaps from recent checks:\n${gapLines.join("\n")}` : ""}`,
-      };
+      const parsed = Inputs.get_learning_profile.safeParse(rawInput);
+      if (!parsed.success) return invalidInput(parsed.error);
+      return getLearningProfile(scope);
     }
     case "list_upcoming_work": {
-      const { days } = parsed.data as z.infer<(typeof Inputs)["list_upcoming_work"]>;
-      const until = new Date(scope.now.getTime() + days * 24 * 60 * 60 * 1000);
-      const classFilter = scope.classId ? { classId: scope.classId } : {};
-      const [assignments, exams] = await Promise.all([
-        db.assignment.findMany({
-          where: { userId: scope.userId, status: { not: "COMPLETED" }, dueAt: { lte: until }, class: { archived: false }, ...classFilter },
-          orderBy: { dueAt: "asc" },
-          take: 25,
-          select: { id: true, title: true, dueAt: true, estimatedMinutes: true, class: { select: { name: true } } },
-        }),
-        db.exam.findMany({
-          where: { userId: scope.userId, examAt: { gte: scope.now, lte: until }, class: { archived: false }, ...classFilter },
-          orderBy: { examAt: "asc" },
-          take: 10,
-          select: { title: true, examAt: true, class: { select: { name: true } } },
-        }),
-      ]);
-      const fmt = (d: Date) => formatDateInZone(d, scope.timeZone, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-      const lines = [
-        ...assignments.map((a) => `- [assignment_id=${a.id}] ${a.title} (${a.class.name}), due ${fmt(a.dueAt)}${a.dueAt < scope.now ? " (OVERDUE)" : ""}, ~${a.estimatedMinutes} min`),
-        ...exams.map((e) => `- Exam: ${e.title} (${e.class.name}), ${fmt(e.examAt)}`),
-      ];
-      return { content: lines.length ? lines.join("\n") : `Nothing open in the next ${days} days.` };
+      const parsed = Inputs.list_upcoming_work.safeParse(rawInput);
+      if (!parsed.success) return invalidInput(parsed.error);
+      return listUpcomingWork(parsed.data.days, scope);
     }
+    default:
+      return { content: `Unknown tool: ${name}`, isError: true };
   }
 }
