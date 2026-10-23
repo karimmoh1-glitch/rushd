@@ -1,0 +1,42 @@
+body .min-h-full flex flex-col 
+  div . 
+  div .flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 
+    a .mb-10 aria-label=Rushd home href=/
+      span .inline-flex items-center gap-2 scale-110 
+        svg .overflow-visible h-7 w-7 
+          path .mark-line 
+          circle .mark-dot 
+          circle .mark-dot 
+          circle .mark-dot 
+          circle .mark-node 
+        span .font-display text-[1.4rem] font-medium leading-none tracking-[-0.01em] 
+        span .mx-0.5 h-5 w-px bg-border 
+        span .font-arabic text-[1.35rem] font-bold leading-none aria-label=Rushd in Arabic
+    div .w-full max-w-sm 
+      div .group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl 
+        div .group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-(--card-spacing) has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-(--card-spacing) 
+          div .group-data-[size=sm]/card:text-sm font-display text-[1.75rem] font-medium tracking-tight 
+          div .text-sm text-muted-foreground 
+        div .px-(--card-spacing) 
+          form .space-y-4 
+            input . type=hidden name=$ACTION_REF_#
+            input . type=hidden name=$ACTION_#:#
+            input . type=hidden name=$ACTION_#:#
+            input . type=hidden name=$ACTION_KEY
+            div .space-y-2 
+              label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              input .h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 type=email name=email
+            div .space-y-2 
+              label .flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 
+              input .h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 type=password name=password
+              p .text-sm text-muted-foreground 
+            button .text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground type=button
+            label .flex items-start gap-2 text-sm 
+              input .mt-0.5 h-4 w-4 accent-[var(--primary)] type=checkbox name=ageConfirmed
+              span .text-muted-foreground 
+                a .text-foreground underline underline-offset-4 href=/terms
+                a .text-foreground underline underline-offset-4 href=/privacy
+            button .group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 w-full type=submit
+            p .text-center text-sm text-muted-foreground 
+              a .font-medium text-foreground underline underline-offset-4 href=/login
+  section . aria-label=Notifications alt+T

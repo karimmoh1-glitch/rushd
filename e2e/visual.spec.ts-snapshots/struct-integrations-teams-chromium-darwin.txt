@@ -1,0 +1,14 @@
+main .pb-20 md:ml-56 md:pb-0 
+  div .mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 
+    div .max-w-2xl space-y-8 
+      header . 
+        a .text-sm text-muted-foreground hover:text-foreground href=/settings#integrations
+        h1 .text-[1.75rem] font-medium leading-tight tracking-tight 
+        p .mt-1 text-sm text-muted-foreground 
+      section .space-y-4 
+        ul .space-y-1.5 text-sm text-muted-foreground 
+          li . 
+          li . 
+          li . 
+          li . 
+        p .rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground 
