@@ -212,7 +212,7 @@ export function SyllabusImport({
         </p>
       </div>
 
-      <ul className="grid max-w-2xl gap-2 text-sm sm:grid-cols-3">
+      <ul className="grid max-w-3xl gap-2 text-sm sm:grid-cols-3">
         <li className="flex items-start gap-2">
           <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           Assignments and exams, with their dates

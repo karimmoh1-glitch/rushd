@@ -6,7 +6,7 @@ const LABEL: Record<Confidence, string> = { high: "High", medium: "Medium", low:
 const STYLE: Record<Confidence, string> = {
   high: "bg-done/12 text-done ring-done/25",
   medium: "bg-muted text-muted-foreground ring-border",
-  low: "bg-soon/12 text-soon ring-soon/30",
+  low: "bg-soon/15 text-foreground ring-soon/45",
 };
 
 /** How sure Rushd is about one extracted item. The words carry the meaning; color only reinforces it. */

@@ -30,8 +30,10 @@ export function findDuplicate(item: { title: string; date: string | null }, exis
   return null;
 }
 
-/** Starts included only when Rushd is sure and it isn't already in the student's work. */
-export function includedByDefault(item: DraftAssessment, duplicate: boolean): boolean {
+/** Starts included only when Rushd is sure, it isn't already in the student's work, and
+ * (when `today` is given) its date hasn't passed — mid-term imports shouldn't fill the plan with old work. */
+export function includedByDefault(item: DraftAssessment, duplicate: boolean, today?: string): boolean {
+  if (today && item.date && item.date < today) return false;
   return !duplicate && !isUncertain(item);
 }
 

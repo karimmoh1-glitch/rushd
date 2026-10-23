@@ -61,6 +61,8 @@ export interface SyllabusPreview {
   existingTopics: string[];
   /** The week-1 start the student typed, when this preview used one. */
   termStartOverride: string | null;
+  /** Today in the student's calendar (YYYY-MM-DD). */
+  today: string;
 }
 
 export type PreviewResult = { ok: true; preview: SyllabusPreview } | { ok: false; error: string };
@@ -185,6 +187,7 @@ export async function previewSyllabus(userId: string, input: PreviewInput, deps:
       duplicates,
       existingTopics,
       termStartOverride: override,
+      today: options.today,
     },
   };
 }

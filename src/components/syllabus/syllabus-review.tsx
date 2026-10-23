@@ -98,17 +98,17 @@ function SectionHeading({ id, title, count, children }: { id: string; title: str
   );
 }
 
-function AssessmentItem({ row, onChange }: { row: AssessmentRow; onChange: (patch: Partial<AssessmentRow>) => void }) {
+function AssessmentItem({ row, today, onChange }: { row: AssessmentRow; today: string; onChange: (patch: Partial<AssessmentRow>) => void }) {
   const id = useId();
   const uncertain = isUncertain(row.original) && !row.fixed;
   const noDate = !row.date;
+  const past = Boolean(row.date) && row.date < today;
   return (
     <li>
       <fieldset
         className={cn(
           "rounded-xl px-3 py-3 ring-1 transition-[opacity,background-color] duration-(--dur-ui) sm:px-4",
-          uncertain ? "bg-soon/[0.07] ring-soon/35" : "bg-card ring-foreground/[0.07]",
-          !row.include && "[&_.row-body]:opacity-80",
+          uncertain ? "bg-card ring-soon/55 shadow-[inset_3px_0_0_0_var(--status-soon)]" : "bg-card ring-foreground/[0.07]",
         )}
       >
         <legend className="sr-only">{row.original.title}</legend>
@@ -180,6 +180,7 @@ function AssessmentItem({ row, onChange }: { row: AssessmentRow; onChange: (patc
               </p>
             )}
             {!row.include && uncertain && !row.duplicate && <p className="text-xs text-muted-foreground">{noDate ? "Add a date to include it." : "Left out until you fix the date or include it."}</p>}
+            {!row.include && !uncertain && !row.duplicate && past && <p className="text-xs text-muted-foreground">This date has passed, so it&apos;s left out. Tick it to add it anyway.</p>}
             <SourceToggle source={row.original.source} id={id} />
           </div>
         </div>
@@ -206,7 +207,7 @@ function TopicItem({ row, onChange }: { row: TopicRowState; onChange: (patch: Pa
   const uncertain = isUncertain(t);
   return (
     <li className={cn(t.parentTitle && "pl-6 sm:pl-8")}>
-      <fieldset className={cn("flex items-start gap-3 rounded-xl px-3 py-2.5 ring-1 sm:px-4", uncertain ? "bg-soon/[0.07] ring-soon/35" : "bg-card ring-foreground/[0.07]")}>
+      <fieldset className={cn("flex items-start gap-3 rounded-xl px-3 py-2.5 ring-1 sm:px-4", uncertain ? "bg-card ring-soon/55 shadow-[inset_3px_0_0_0_var(--status-soon)]" : "bg-card ring-foreground/[0.07]")}>
         <legend className="sr-only">{t.title}</legend>
         <Checkbox
           checked={row.include}
@@ -311,7 +312,7 @@ export function SyllabusReview({
     sortRows(
       draft.assessments.map((a) => ({
         id: a.id,
-        include: includedByDefault(a, Boolean(preview.duplicates[a.id])),
+        include: includedByDefault(a, Boolean(preview.duplicates[a.id]), preview.today),
         title: a.title,
         type: a.type,
         date: a.date ?? "",
@@ -500,7 +501,7 @@ export function SyllabusReview({
         ) : (
           <ul className="space-y-2.5">
             {assessments.map((row) => (
-              <AssessmentItem key={row.id} row={row} onChange={(patch) => updateAssessment(row.id, patch)} />
+              <AssessmentItem key={row.id} row={row} today={preview.today} onChange={(patch) => updateAssessment(row.id, patch)} />
             ))}
           </ul>
         )}
@@ -617,7 +618,7 @@ export function SyllabusReview({
         )}
       </section>
 
-      <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-border bg-background/90 px-4 py-3 backdrop-blur-md md:bottom-0 sm:mx-0 sm:rounded-xl sm:border sm:px-4">
+      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-border bg-background/90 px-4 py-3 backdrop-blur-md md:bottom-0 sm:mx-0 sm:rounded-xl sm:border sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm" aria-live="polite">
             Adding {counts.assessments} assessment{counts.assessments === 1 ? "" : "s"}, {counts.topics} topic{counts.topics === 1 ? "" : "s"}
