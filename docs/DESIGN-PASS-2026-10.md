@@ -79,3 +79,39 @@ Everything sits behind `prefers-reduced-motion: no-preference`.
   they need a dedicated disabled style.
 - Phone screenshots come from a 390px browser, not a device. Rushd is still
   a responsive website; there is no native iOS app (see `docs/IOS.md`).
+
+# Page polish (October 23, 2026)
+
+Branch `page-polish`, built on `platform`. Brings the pages outside Today,
+Courses and the course page up to the same system. No schema changes, no new
+dependencies, no new animation.
+
+## What changed
+
+| Area | Change |
+| --- | --- |
+| Assignments, Exams | Course-color rule and course name on each row, StatusChip with the due date in its own column, Pulse, Start. A shared header with underline tabs and a one-line summary of what's open. On phones the status line moves under the title instead of cutting off the date. Empty states use PathEmpty with real next actions. |
+| Assignment detail | Back link, course link in its color, StatusChip with the due date, sections on cards. The rubric is a list on phones so the Points column is never cut off. |
+| Practice, Progress | Shared panels and stat tiles (src/components/page-section.tsx). Verdict chips carry words plus status colors. Without AI, Practice points to course practice, which works without it. |
+| Settings | A section index (sticky list on wide screens, chips on phones); every section on a panel; one row pattern for integrations, sign-out-everywhere and Download my data; the danger zone on its own destructive-toned panel. Existing anchors kept. |
+| More, Profile, integrations, Upgrade, Admin | More is grouped and reaches Mastery, Progress, Academic profile, Integrations and How Rushd plans. Profile fixes "Your's". Canvas, calendar feed and Teams go back to Settings the same way and share one layout. Admin no longer widens the page at 390px. |
+| Auth | Brand column on wide screens (رُشد, what the name means, the three things the landing says Rushd does); 44px fields on phones; show/hide password that keeps ids, names and autocomplete. |
+| Public pages | One title style (the landing's display style) on every page; Contact lists the real ways to reach Rushd. |
+| Course tiles | Every active tile has a term line (or an Add term dates shortcut) and a Next due box, so tiles in a row line up. |
+| Signal buttons | A real disabled style (muted surface and text) instead of half-transparent saffron; a blocked Start keeps pointer events so its title explains why. |
+
+## Checks added
+
+- `e2e/layout-390.spec.ts`: no page this pass touched is wider than a 390px
+  screen, with seeded real-looking data (long titles and emails, a rubric).
+- `e2e/a11y-screens.spec.ts` now covers every page above, light and dark.
+- `e2e/pages-tour.spec.ts`: on-demand screenshots of these pages
+  (`TOUR=1 TOUR_OUT=dir [TOUR_THEME=light]`).
+
+## Still open (outside this branch's scope)
+
+- Today (`/dashboard`) is wider than the screen at 390px when the Today panel
+  has a scheduled block with a long title (up to ~280px of sideways scroll in our check; likely a grid column without `min-w-0`, so `truncate` never kicks in). Today's files belong
+  to another workstream, so it isn't fixed here.
+- `struct-plan` in the visual check depends on the current date and fails on
+  days other than the one it was recorded on.
