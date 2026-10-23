@@ -33,12 +33,30 @@ implemented, for engineering decisions, not the student-facing copy.
 - No other third party receives student data. No analytics SaaS, no email
   marketing platform, nothing.
 
+## Export ("Download my data")
+
+Settings → Privacy → Download my data streams a JSON file of every row the
+student owns (`/api/account/export`, built from `USER_DATA` in
+`src/lib/data-rights/user-data.ts`). It leaves out the password hash, the
+session version, encrypted Canvas/Teams tokens and the calendar feed link,
+reset-token hashes, and other students' ids (for invites). Rate limited to
+5 per hour. A new table with a `userId` must be added to `USER_DATA` (a
+test fails until it is).
+
 ## Retention and deletion
 
-Account deletion (`src/server/actions/settings.ts` → `deleteAccount`) is
-immediate and cascades through every table via `onDelete: Cascade` in
-`prisma/schema.prisma` — no soft-delete, no grace period, no residual row
-anywhere tied to that user id. This is deliberate: "delete your account"
+Account deletion (`src/server/actions/settings.ts` → `deleteAccount` →
+`src/lib/data-rights/delete-account.ts`) is immediate: it deletes the
+student's Stripe customer (which cancels any subscription), then the user,
+and cascades through every table via `onDelete: Cascade` in
+`prisma/schema.prisma`; `AiRejection` rows are deleted explicitly. AI cost
+rows (`AiUsage`) are kept for spend accounting with `userId` set to null
+(no content, no link to the person). No soft-delete, no grace period;
+`data-rights.integration.test.ts` checks that no row in any table still
+references a deleted user. Stripe keeps its own invoice records under its
+retention rules. Neon's point-in-time history keeps deleted rows until the
+history window passes (6 hours to 30 days depending on plan; see
+`docs/OPERATIONS.md`). This is deliberate: "delete your account"
 should mean it, and a grace period adds complexity for a threat model
 (accidental deletion) better solved by a clear confirmation step, which
 the UI already requires (type "DELETE" to confirm).
