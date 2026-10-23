@@ -5,6 +5,7 @@ import Link from "next/link";
 import { login, type AuthFormState } from "@/server/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 export function LoginForm() {
@@ -22,6 +23,9 @@ export function LoginForm() {
           name="email"
           type="email"
           autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          className="h-11 sm:h-10"
           required
           aria-invalid={state?.errors?.email ? true : undefined}
         />
@@ -37,10 +41,10 @@ export function LoginForm() {
             Forgot password?
           </Link>
         </div>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
+          className="h-11 sm:h-10"
           autoComplete="current-password"
           required
           aria-invalid={state?.errors?.password ? true : undefined}
@@ -56,7 +60,7 @@ export function LoginForm() {
         </p>
       )}
 
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="h-11 w-full sm:h-10" disabled={pending}>
         {pending ? "Logging in…" : "Log in"}
       </Button>
 

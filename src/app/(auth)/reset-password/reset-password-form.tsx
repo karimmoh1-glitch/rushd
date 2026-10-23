@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { resetPassword } from "@/server/actions/password-reset";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 // The token lives in the URL fragment so it never reaches a server log.
@@ -65,19 +65,19 @@ export function ResetPasswordForm() {
       )}
       <div className="space-y-2">
         <Label htmlFor="password">New password</Label>
-        <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={8} />
+        <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={8} className="h-11 sm:h-10" />
         <p className="text-xs text-muted-foreground">At least 8 characters, with a letter and a number.</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirm">Confirm new password</Label>
-        <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={8} />
+        <PasswordInput id="confirm" name="confirm" autoComplete="new-password" required minLength={8} className="h-11 sm:h-10" />
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
-      <Button type="submit" className="w-full" disabled={pending || !token}>
+      <Button type="submit" size="lg" className="h-11 w-full sm:h-10" disabled={pending || !token}>
         {pending ? "Saving…" : "Set new password"}
       </Button>
     </form>
