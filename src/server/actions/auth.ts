@@ -18,6 +18,9 @@ export type AuthFormState =
     }
   | undefined;
 
+/** Attempts on one account from all addresses together: 30 per 15 minutes. */
+const LOGIN_ACCOUNT_LIMIT = { max: 30, windowMs: 15 * 60 * 1000 };
+
 // A throwaway hash, made once, for logins to accounts that don't exist.
 let dummyHashPromise: Promise<string> | undefined;
 function dummyHash() {
@@ -130,8 +133,14 @@ export async function login(
 
   const { email, password } = parsed.data;
 
-  const rate = await checkRateLimit(`login:${await getClientIp()}:${email}`);
-  if (!rate.allowed) {
+  // Per address+account (normal typos), and per account from anywhere, so a
+  // botnet spread over many addresses still gets few guesses at one password.
+  // Applies to emails without an account too, so it reveals nothing.
+  const [rate, accountRate] = await Promise.all([
+    checkRateLimit(`login:${await getClientIp()}:${email}`),
+    checkRateLimit(`login-account:${email}`, LOGIN_ACCOUNT_LIMIT),
+  ]);
+  if (!rate.allowed || !accountRate.allowed) {
     return { message: "Too many attempts. Try again in a few minutes." };
   }
 

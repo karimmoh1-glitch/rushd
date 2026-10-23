@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth/dal";
 import Link from "next/link";
 import { getAdminAiUsage } from "@/lib/ai/admin-usage";
 import { FEATURE_LABEL, PLANS, type AiFeature } from "@/lib/billing/plans";
@@ -26,6 +27,9 @@ function describeRejections(rejections: { reason: string; count: number }[]): st
 }
 
 export default async function AdminAiPage() {
+  // Checked here, not only in the layout: a client-side navigation between
+  // admin pages renders the page segment without re-running the layout.
+  await requireAdmin();
   const data = await getAdminAiUsage();
   const budgetMicros = data.settings.monthlyBudgetUsd * 1_000_000;
   // With no budget set, treat spend as fully used so the warning shows.

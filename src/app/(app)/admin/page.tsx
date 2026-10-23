@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import {
   buildInsights,
@@ -638,6 +639,9 @@ function PredictionAccuracySection({
 // ---------- Page ----------
 
 export default async function AdminPage() {
+  // Checked here, not only in the layout: a client-side navigation between
+  // admin pages renders the page segment without re-running the layout.
+  await requireAdmin();
   const crons = await lastCronRuns();
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * ONE_DAY_MS);

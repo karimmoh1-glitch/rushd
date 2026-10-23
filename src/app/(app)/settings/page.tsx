@@ -244,7 +244,7 @@ export default async function SettingsPage() {
         </form>
       </section>
 
-      <section className="space-y-2 border-t border-border pt-8">
+      <section id="your-data" className="scroll-mt-24 space-y-4 border-t border-border pt-8">
         <h2 className="text-base font-semibold">Privacy</h2>
         <p className="text-sm text-muted-foreground">
           Rushd stores your email, academic data (classes, assignments, exams,
@@ -256,6 +256,18 @@ export default async function SettingsPage() {
           </Link>
           .
         </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
+          <div>
+            <p className="text-sm font-medium">Download my data</p>
+            <p className="text-sm text-muted-foreground">
+              Everything you&apos;ve added to Rushd, as one JSON file. Your password and saved connection tokens are never included.
+            </p>
+          </div>
+          {/* A plain link: the browser downloads the file the server streams. */}
+          <a href="/api/account/export" download className={buttonVariants({ variant: "outline" })}>
+            Download my data
+          </a>
+        </div>
       </section>
 
       <section className="space-y-4 border-t border-destructive/30 pt-8">
