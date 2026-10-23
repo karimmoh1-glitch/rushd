@@ -37,13 +37,28 @@ them. All constants live in `src/lib/planning/constants.ts`.
 | **Exam proximity** | `(7 - daysUntil) * 8`, only for exams with `0 <= daysUntil <= 7` | Exams get materially more weight than assignments as they approach — a deliberate product requirement ("exams should receive stronger prioritization as they approach"). |
 | **Effort tiebreak** | `clamp(20 - remainingMinutes/10, 0, 20) * 0.3` | A small nudge toward shorter tasks when everything else is close. Weighted at 0.3 so it can only break near-ties, never override urgency/importance/overdue. |
 
-`score = urgency + importance + overdue + examProximity + effortTiebreak * 0.3`
+| **Assessment weight** | grade weight known: `min(24, weightPercent × 0.6)`; unknown (`null`) on an exam: `10`; not modeled (`undefined`): `0` | Importance when the student knows it. Never guessed. |
+| **Mastery gap** | exams within 14 days of a course with topics: `weakShare × 20`, halved past 7 days. `weakShare = (needsReview + ½·developing + ½·unknown) / topics` | What practice shows pulls an approaching exam up. |
+| **Review urgency** | review blocks only: `30 + min(20, 10 × overdue/interval) + 10 if a topic needs review + 10 if the course has an exam within 7 days` (30–70) | Reviews sit between work due in two days (~85) and work due next week (~40). Review blocks get no deadline urgency or overdue bonus. |
+
+`score = urgency + importance + overdue + examProximity + effortTiebreak * 0.3 + assessmentWeight + masteryGap + reviewUrgency`
+
+The three new components are opt-in by input: a caller that doesn't set
+`weightPercent`, `mastery` or `kind: "review"` (the public demo tools) gets
+exactly the old score. `e2e/visual.spec.ts` pixel tests of those tools are
+the regression check.
 
 ### Reason codes
 
 Each scored item gets one `reasonCode` — the single most salient factor,
-chosen in this priority order: `OVERDUE` > `EXAM_PROXIMITY` > `DUE_SOON`
-(urgency ≥ 60) > `HIGH_PRIORITY` (importance ≥ 30) > `STANDARD`. This is what
+chosen in this priority order: `OVERDUE` > `REVIEW_DUE` (review blocks) >
+`EXAM_PROXIMITY` > `DUE_SOON` (urgency ≥ 60) > `HIGH_PRIORITY` (importance ≥
+30) > `HIGH_WEIGHT` (a known weight of 20%+) > `STANDARD`. `explainScore()`
+turns the same numbers into sentences: "Exam in 5 days and 2 of 4 topics need
+review.", "Prep is 2h 30m, up from 2h, because 2 of 4 topics need review.",
+"Review due: Stoichiometry, last recalled 9 days ago.", "Worth 20% of your
+Chemistry grade.", "Your Chemistry work has taken about 40% longer than
+planned (5 sessions), so it gets 1h 24m instead of 1h." This is what
 the UI shows as "why this is prioritized" (`REASON_LABELS` in
 `constants.ts`) — a real, deterministic reason, not an AI-generated one. The
 optional AI layer (`docs/ARCHITECTURE.md` → AI integrations) may later
@@ -120,6 +135,89 @@ planning horizon, not already past, and not overlapping another pinned
 block. A block may be placed outside the student's availability; that's
 their explicit choice.
 
+## Mastery inputs (learning-core)
+
+`generatePlanForUser()` loads the student's topic maps and estimates with
+learning-core's `getLearningOverview()` and passes them through pure helpers
+in `src/lib/planning/mastery-inputs.ts`:
+
+- **Review blocks.** `reviewQueue()` (due topics only) is grouped into one
+  `kind: "review"` work item per active course: at most 4 topics, length the
+  sum of learning-core's suggestion (20 min needs-review, 10 otherwise) kept
+  to 15–45 min, "due" at the end of a 3-day window. Reviews are *soft*: never
+  packed by the catch-up pass, and when they don't fit they wait
+  (`deferredMinutesByItem`) instead of raising a deadline warning.
+- **Exam prep.** An exam's minutes are scaled by
+  `1 + (0.5·needsReview + 0.25·developing + 0.25·unknown − 0.25·secure) / topics`,
+  bounded to 0.75–1.5 and rounded to 5 minutes. Courses without topics keep
+  the student's number. `item.prep` records the base so it can be explained.
+- **Course difficulty** is only what's real: the student's class priority and
+  the observed pace from `StudySession` (actual vs planned, the estimation
+  profile; `item.estimateNote` explains it). No inferred "hard course" score.
+
+## Term dates, overrides, plan history
+
+- **Term dates.** No block for a course before `termStart` or after
+  `termEnd`. Work entirely outside the term gets an `OUTSIDE_TERM` warning
+  instead of a shortfall. Today asks "Archive this course?" once a term has
+  ended (`coursesToSuggestArchiving`); archiving is only ever the student's
+  click and keeps all history; "Not now" sets
+  `Class.archiveSuggestionDismissedAt`.
+- **Overrides** (`PlanOverride`, `src/server/actions/plan-overrides.ts`):
+  *skip for today* (`SKIP_DAY`, also drops that day's pinned block), *not
+  this week* (`NOT_THIS_WEEK`, no work before next Monday), *change estimate*
+  (the student's own number; ends `estimatedByRushd`), plus pin/move/resize
+  (`ScheduleBlock`). The scheduler gets them as `exclusions`. A shortfall
+  caused by an override carries `override` on the warning, and the action
+  returns a "Heads up" sentence. A pinned block that ends after the deadline
+  gets one too. Every action is scoped by `userId`.
+- **Plan history and "What changed".** Every regeneration (a mutation, with a
+  trigger such as `block_skipped`, `assignment_added`, `practice_completed`,
+  or the first page view on a new day: `new_day` / `missed_session`) stores a
+  compact snapshot of the shown week on `Plan.snapshot` (review blocks
+  included; `PlanItem` rows are still written for analytics) and the
+  structured diff against the previous snapshot on `Plan.changes`.
+  `diffPlans()` (pure, `diff.ts`) attributes each change to the most specific
+  cause it can prove: skipped, not this week, a missed block (a planned block
+  on a past day without a finished study session), finished work, new work,
+  a changed estimate, new practice evidence, or a ripple ("to make room
+  for …", "into time freed by …"). Today and /plan show up to three sentences
+  until dismissed or 72 hours pass.
+- **Next up** skips anything the student put off today or this week.
+
+## Outcome answers on Today (`outcomes.ts`)
+
+- **Readiness for the next exam** — a labeled estimate, never a grade
+  prediction: no topics → "Can't tell yet"; under half the topics practiced,
+  or under two judged topics → "Not enough evidence"; a third or more needing
+  review, a prep shortfall, or needs-review topics two days out → "At risk";
+  60%+ secure and nothing needing review → "Looks on track"; else "Getting
+  there". Confidence is the weakest among practiced topics (never "high"
+  while some topics are unpracticed), and it lists what would raise it.
+- **Biggest gap** — among topics with evidence: weakness (needs review 3,
+  developing under 70% 2, developing 1) plus how soon it matters (an exam in
+  its course within 7/14/30 days: 3/2/1, due for review: +1); ties go to the
+  lower estimate. Shown with learning-core's prerequisite hint and Practice.
+- **Work remaining this week** — open work due in 7 days vs planned vs
+  available, plus review minutes and the shortfall.
+
+## Events
+
+Ids and counts only: `plan_regenerated` (reason, changes, sessionCount),
+`recommended_task_completed` (itemId, itemKind, surface), `block_skipped`
+(kind, itemId), `override_applied` (type, kind, itemId),
+`plan_change_shown` (planId, changes, reason; once per plan).
+
+## Clock and tests
+
+Pages and planner actions read the time through `currentTime()`
+(`src/lib/time/now.ts`). A test may pin the server clock for its own
+requests with the `rushd-test-now` cookie, honored only when `NODE_ENV` is
+not `production` and `RUSHD_TEST_CLOCK=1` (Playwright sets it for the dev
+server it starts). `e2e/planner.spec.ts` uses it to move two days forward so
+reviews come due; `e2e/visual.spec.ts` pins browser and server to the same
+instant so the signed-in structure check doesn't depend on the time of day.
+
 ## Edge cases and how they degrade
 
 | Situation | Behavior |
@@ -176,7 +274,7 @@ feature is being designed wrong, not that the engine needs replacing.
 |---|---|---|
 | **Personalized time estimates** | `build-work-items.ts` — `remainingMinutes` is computed from `Assignment.estimatedMinutes`/`Exam.prepMinutes` today; a personalized estimate (e.g., "this student's actual pace for this class") would just be a different value plugged into the same field. | `score.ts`/`schedule.ts` never care *where* `remainingMinutes` came from — only that it's a number. This is the single highest-leverage seam in the whole engine. |
 | **Assignment decomposition** (subtasks) | `build-work-items.ts` again — instead of one `WorkItem` per `Assignment`, emit one `WorkItem` per subtask, each inheriting the parent's `classId`/`priority`/`dueAt` but its own smaller `remainingMinutes` and its own `id`. | The engine already treats assignments and exams as an undifferentiated `WorkItem[]`; it has no idea "assignment" is even a meaningful grouping above the item level. Fan-out happens before the engine sees the data. |
-| **Knowledge gaps / concept mastery** | A new named component in `ScoreBreakdown` (e.g. `conceptGapBonus`), computed in `build-work-items.ts` from a mastery lookup, added into the `score` sum in `score.ts` the same way `examProximity` and `effortTiebreak` were added. | `ScoreBreakdown` was designed as an open, named-component sum specifically so a new factor is additive — see `docs/PLANNING_ENGINE.md` history: `examProximity` and `effortTiebreak` were both added this way, after the original three-component design. |
+| **Knowledge gaps / concept mastery** (shipped: `masteryGap`, review blocks, prep scaling) | A new named component in `ScoreBreakdown` (e.g. `conceptGapBonus`), computed in `build-work-items.ts` from a mastery lookup, added into the `score` sum in `score.ts` the same way `examProximity` and `effortTiebreak` were added. | `ScoreBreakdown` was designed as an open, named-component sum specifically so a new factor is additive — see `docs/PLANNING_ENGINE.md` history: `examProximity` and `effortTiebreak` were both added this way, after the original three-component design. |
 | **Exam preparation depth** (concept-targeted study, not just proximity) | Same seam as knowledge gaps — once `conceptGapBonus` exists, exam prep becomes "weight concept gaps higher when an exam is close," not a separate mechanism. | No new seam required beyond the one above. |
 | **Student preferences** (e.g. "mornings only," "no back-to-back sessions in the same class") | `buildDailyCapacity()` and the inner scheduling loop in `generatePlan()` — preferences shape *when* capacity is offered and *which* day a chunk lands on, not the score. | Scoring and scheduling are already decoupled (`scoreAndRank()` doesn't know about days; `generatePlan()` doesn't know about score components) — preferences are purely a scheduling-side concern. |
 | **Workload forecasting** | Already shipped (`forecast.ts`) as a separate pure function consuming `ScoredItem[]` — no changes to `score.ts`/`schedule.ts` were needed to add it. | This is the proof of the pattern: analysis features are read-only consumers of the engine's output, not modifications to the engine. |

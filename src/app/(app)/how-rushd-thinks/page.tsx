@@ -31,6 +31,18 @@ const SCORING_FACTORS = [
     body: `Exams within ${SCORING_WEIGHTS.examProximityWindowDays} days get an escalating boost as the date gets closer — up to ${SCORING_WEIGHTS.examProximityPerDay * SCORING_WEIGHTS.examProximityWindowDays} points the day before.`,
   },
   {
+    label: "Share of your grade",
+    body: `When you set how much an assignment or exam counts, it adds ${SCORING_WEIGHTS.weightPointsPerPercent} points per percent, up to ${SCORING_WEIGHTS.weightCap}. An exam whose weight you haven't set gets ${SCORING_WEIGHTS.examDefaultWeight} points, since exams usually count for more than one homework. Rushd never guesses a weight.`,
+  },
+  {
+    label: "What your practice shows",
+    body: `For an exam in the next ${SCORING_WEIGHTS.masteryGapWindowDays} days, the share of that course's topics that need review, are still developing, or haven't been practiced adds up to ${SCORING_WEIGHTS.masteryGapMax} points (half that until the last week). The same picture scales prep time: up to 1.5 times your number when topics are weak, down to three quarters when they look secure.`,
+  },
+  {
+    label: "Spaced review",
+    body: `Topics that are due for review become a short review block per course (15 to 45 minutes). Reviews score between ${SCORING_WEIGHTS.reviewBase} and ${SCORING_WEIGHTS.reviewBase + SCORING_WEIGHTS.reviewOverdueMax + SCORING_WEIGHTS.reviewNeedsReviewBonus + SCORING_WEIGHTS.reviewExamBonus} points, more when long overdue, slipping, or when the course has an exam this week, so they fit around deadlines instead of pushing them out.`,
+  },
+  {
     label: "Effort tiebreaker",
     body: "When two things are otherwise close, Rushd gives a small nudge toward the shorter one — never enough to override urgency or priority, just a tiebreaker.",
   },
